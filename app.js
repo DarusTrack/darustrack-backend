@@ -5,6 +5,11 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
+
+// const swaggerUi = require('swagger-ui-express');
+// const apiDocumentation = require('./apidocs.json');
+// app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(apiDocumentation));
+
 var indexRouter = require('./routes/index');
 var authRouter = require('./routes/auth');
 var usersRouter = require('./routes/users');
@@ -22,6 +27,7 @@ var app = express();
 
 app.use(logger('dev'));
 app.use(express.json());
+
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));

@@ -2,14 +2,16 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { User } = require('../models');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const v = new Validator();
+const roleValidation = require("../middleware/roleValidation");
+const accessValidation = require('../middleware/accessValidation');
 
 // Get semua pengguna
-router.get('/', async (req, res) => {
+router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const { role } = req.query;
 
-    // Buat objek filter berdasarkan parameter yang diberikan
+    // Objek filter berdasarkan parameter yang diberikan
     let whereClause = {};
     if (role) whereClause.role = role;
 
@@ -22,14 +24,14 @@ router.get('/', async (req, res) => {
 });
 
 // Get pengguna berdasarkan ID
-router.get('/:id', async (req, res) => {
+router.get('/:id',  accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
     const user = await User.findByPk(id);
     return res.json(user || {});
 });
 
-// Tambah pengguna baru
-router.post('/', async (req, res) => {
+// Tambah pengguna baru (Register)
+router.post('/',  accessValidation, roleValidation(["admin"]), async (req, res) => {
     const schema = {
         name: 'string',
         email: 'email',
@@ -43,15 +45,20 @@ router.post('/', async (req, res) => {
         return res.status(400).json(validate);
     }
 
-    // Hash password sebelum menyimpan ke database
-    req.body.password = await bcrypt.hash(req.body.password, 10);
+    // Cek apakah email sudah terdaftar
+    const existingUser = await User.findOne({ where: { email: req.body.email } });
+    if (existingUser) {
+        return res.status(400).json({ message: 'Email already registered' });
+    }
 
+    // Simpan user tanpa melakukan hashing manual
     const user = await User.create(req.body);
-    res.json(user);
+
+    res.json({ message: 'User registered successfully', user });
 });
 
 // Update pengguna
-router.put('/:id', async (req, res) => {
+router.put('/:id',  accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
     
     let user = await User.findByPk(id);
@@ -82,7 +89,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Hapus pengguna
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',  accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
     const user = await User.findByPk(id);
 
