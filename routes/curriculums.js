@@ -2,20 +2,22 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { Curriculum } = require('../models');
+const accessValidation = require('../middleware/accessValidation');
+const roleValidation = require('../middleware/roleValidation');
 const v = new Validator();
 
-router.get('/', async (req, res) => {
+router.get('/',  accessValidation, async (req, res) => {
     const curriculums = await Curriculum.findAll();
     return res.json(curriculums);
 });
 
-router.get('/:id', async (req,res) => {
+router.get('/:id', accessValidation, async (req,res) => {
     const id = req.params.id;
     const curriculums = await Curriculum.findByPk(id);
     return res.json(curriculums || {});
 });
 
-router.post('/', async (req, res) => {
+router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const schema = {
         name: 'string',
         description: 'string',
@@ -34,7 +36,7 @@ router.post('/', async (req, res) => {
     res.json(curriculums);
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
     
     let curriculums = await Curriculum.findByPk(id);
@@ -56,21 +58,6 @@ router.put('/:id', async (req, res) => {
 
     await curriculums.update(req.body);
     res.json(curriculums);
-});
-
-router.delete('/:id', async (req,res) => {
-    const id = req.params.id;
-    const curriculums = await Curriculum.findByPk(id);
-
-    if(!curriculums) {
-        return res.json({message: 'Curriculum not found'});
-    }
-
-    await curriculums.destroy();
-
-    res.json({
-        message: 'Curriculum is deleted'
-    });
 });
 
 module.exports = router;

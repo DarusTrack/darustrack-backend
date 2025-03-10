@@ -2,16 +2,18 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { SchoolCalendar } = require('../models');
+const accessValidation = require('../middleware/accessValidation');
+const roleValidation = require('../middleware/roleValidation');
 const v = new Validator();
 
 // Get semua jadwal akademik
-router.get('/', async (req, res) => {
+router.get('/', accessValidation, async (req, res) => {
     const schedules = await SchoolCalendar.findAll();
     return res.json(schedules);
 });
 
 // Get jadwal akademik berdasarkan ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', accessValidation, async (req, res) => {
     const id = req.params.id;
     const schedule = await SchoolCalendar.findByPk(id);
 
@@ -23,7 +25,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Tambah jadwal akademik baru
-router.post('/', async (req, res) => {
+router.post('/',  accessValidation, roleValidation(["admin"]), async (req, res) => {
     const schema = {
         event_name: 'string',
         event_start: { type: 'date', convert: true },
@@ -51,7 +53,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update jadwal akademik
-router.put('/:id', async (req, res) => {
+router.put('/:id',  accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
 
     let schedule = await SchoolCalendar.findByPk(id);
@@ -86,7 +88,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Hapus jadwal akademik
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',  accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
     const schedule = await SchoolCalendar.findByPk(id);
 

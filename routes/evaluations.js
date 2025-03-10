@@ -3,9 +3,11 @@ var router = express.Router();
 const Validator = require('fastest-validator');
 const { Evaluation, Student, User } = require('../models');
 const v = new Validator();
+const roleValidation = require("../middleware/roleValidation");
+const accessValidation = require('../middleware/accessValidation');
 
 // Get semua evaluasi
-router.get('/', async (req, res) => {
+router.get('/', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     const { student_id, teacher_id } = req.query;
 
     // Buat objek filter berdasarkan parameter yang diberikan
@@ -28,7 +30,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get evaluasi berdasarkan ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', accessValidation, roleValidation(["wali_kelas", "orang_tua"]), async (req, res) => {
     const id = req.params.id;
     const evaluation = await Evaluation.findByPk(id, {
         include: [
@@ -45,7 +47,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Tambah evaluasi baru
-router.post('/', async (req, res) => {
+router.post('/', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     const schema = {
         student_id: 'number',
         teacher_id: 'number',
@@ -64,7 +66,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update evaluasi
-router.put('/:id', async (req, res) => {
+router.put('/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     const id = req.params.id;
 
     let evaluation = await Evaluation.findByPk(id);
@@ -90,7 +92,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Hapus evaluasi
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     const id = req.params.id;
     const evaluation = await Evaluation.findByPk(id);
 

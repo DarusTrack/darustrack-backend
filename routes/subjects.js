@@ -3,9 +3,11 @@ var router = express.Router();
 const Validator = require('fastest-validator');
 const { Subject, Curriculum } = require('../models');
 const v = new Validator();
+const roleValidation = require("../middleware/roleValidation");
+const accessValidation = require('../middleware/accessValidation');
 
 // Get semua mata pelajaran
-router.get('/', async (req, res) => {
+router.get('/', accessValidation, async (req, res) => {
     const subjects = await Subject.findAll({
         include: [
             { model: Curriculum, as: 'curriculum', attributes: ['id', 'name'] }
@@ -15,7 +17,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get mata pelajaran berdasarkan ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', accessValidation, async (req, res) => {
     const id = req.params.id;
     const subject = await Subject.findByPk(id, {
         include: [
@@ -31,7 +33,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Tambah mata pelajaran baru
-router.post('/', async (req, res) => {
+router.post('/',  accessValidation, roleValidation(["admin"]), async (req, res) => {
     const schema = {
         name: 'string',
         description: 'string|optional',
@@ -49,7 +51,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update mata pelajaran
-router.put('/:id', async (req, res) => {
+router.put('/:id',  accessValidation, roleValidation(["admin"]),async (req, res) => {
     const id = req.params.id;
 
     let subject = await Subject.findByPk(id);
@@ -74,7 +76,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Hapus mata pelajaran
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',  accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
     const subject = await Subject.findByPk(id);
 

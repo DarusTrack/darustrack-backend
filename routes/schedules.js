@@ -3,10 +3,12 @@ var router = express.Router();
 const Validator = require('fastest-validator');
 const { Schedule, Class, Subject } = require('../models');
 const { Op } = require('sequelize');
+const accessValidation = require('../middleware/accessValidation');
+const roleValidation = require('../middleware/roleValidation');
 const v = new Validator();
 
 // Get semua jadwal pelajaran (dengan filter opsional)
-router.get('/', async (req, res) => {
+router.get('/',  accessValidation, roleValidation(["admin", "wali_kelas", "orang_tua"]), async (req, res) => {
     const { class_id, subject_id, day } = req.query;
 
     // Buat objek filter berdasarkan parameter yang diberikan
@@ -31,7 +33,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get jadwal pelajaran berdasarkan ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', accessValidation, roleValidation(["admin", "wali_kelas", "orang_tua"]), async (req, res) => {
     const id = req.params.id;
     const schedule = await Schedule.findByPk(id, {
         include: [
@@ -78,7 +80,7 @@ async function isScheduleConflict(class_id, day, start_time, end_time, excludeId
 }
 
 // Tambah jadwal pelajaran baru
-router.post('/', async (req, res) => {
+router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const schema = {
         class_id: 'number',
         subject_id: 'number',
@@ -107,7 +109,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update jadwal pelajaran
-router.put('/:id', async (req, res) => {
+router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
     let schedule = await Schedule.findByPk(id);
 
@@ -143,7 +145,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Hapus jadwal pelajaran
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
     const schedule = await Schedule.findByPk(id);
 

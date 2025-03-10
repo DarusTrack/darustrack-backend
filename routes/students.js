@@ -3,9 +3,11 @@ var router = express.Router();
 const Validator = require('fastest-validator');
 const { Student, Class, User } = require('../models');
 const v = new Validator();
+const roleValidation = require("../middleware/roleValidation");
+const accessValidation = require('../middleware/accessValidation');
 
 // Get semua siswa
-router.get('/', async (req, res) => {
+router.get('/',  accessValidation, roleValidation(["admin", "wali_kelas"]), async (req, res) => {
     const students = await Student.findAll({ 
         include: [
             { model: Class, as: 'class' },
@@ -16,7 +18,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get siswa berdasarkan ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', accessValidation, async (req, res) => {
     const id = req.params.id;
     const student = await Student.findByPk(id, { 
         include: [
@@ -33,7 +35,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Tambah siswa baru
-router.post('/', async (req, res) => {
+router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const schema = {
         name: 'string',
         birth_date: {type: 'date', convert: true},
@@ -52,7 +54,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update siswa
-router.put('/:id', async (req, res) => {
+router.put('/:id', accessValidation, roleValidation(["admin", "wali_kelas"]), async (req, res) => {
     const id = req.params.id;
     
     let student = await Student.findByPk(id);
@@ -78,7 +80,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Hapus siswa
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
     const student = await Student.findByPk(id);
 

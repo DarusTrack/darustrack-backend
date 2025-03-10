@@ -10,16 +10,13 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             allowNull: false
         },
-        teacher_id: {
-            type: DataTypes.INTEGER,
+        title: {
+            type: DataTypes.STRING,
             allowNull: false
         },
-        title: {
-            type: DataTypes.ENUM( 'Mengenai Perilaku Siswa', 'Hasil Evaluasi Belajar Siswa'),
-            allowNull: false,
-        },
-        comment: {
-            type: DataTypes.TEXT
+        description: {
+            type: DataTypes.TEXT,
+            allowNull: true
         },
         createdAt: {
             type: DataTypes.DATE,
@@ -35,7 +32,6 @@ module.exports = (sequelize, DataTypes) => {
 
     Evaluation.associate = (models) => {
         Evaluation.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
-        Evaluation.belongsTo(models.User, { foreignKey: 'teacher_id', as: 'teacher' });
     };
 
     return Evaluation;
