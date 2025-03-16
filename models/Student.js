@@ -2,11 +2,15 @@ module.exports = (sequelize, DataTypes) => {
     const Student = sequelize.define('Student', {
         id: {
             type: DataTypes.INTEGER,
+            // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true,
-            allowNull: false
+            autoIncrement: true
         },
         name: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        nisn: {
             type: DataTypes.STRING,
             allowNull: false
         },
@@ -18,16 +22,8 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             allowNull: false
         },
-        guardian_id: {
+        parent_id: {
             type: DataTypes.INTEGER,
-            allowNull: false
-        },
-        createdAt: {
-            type: DataTypes.DATE,
-            allowNull: false
-        },
-        updatedAt: {
-            type: DataTypes.DATE,
             allowNull: false
         }
     }, {
@@ -36,10 +32,8 @@ module.exports = (sequelize, DataTypes) => {
 
     Student.associate = (models) => {
         Student.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
-        Student.belongsTo(models.User, { foreignKey: 'guardian_id', as: 'guardian' });
-
-        // 🔥 Tambahkan relasi ke Evaluation
-        Student.hasMany(models.Evaluation, { foreignKey: 'student_id', as: 'evaluations' });
+        Student.belongsTo(models.User, { foreignKey: 'parent_id', as: 'parent' });
+        Student.hasMany(models.Attendance, { as: "attendances", foreignKey: "student_id" });
     };
 
     return Student;

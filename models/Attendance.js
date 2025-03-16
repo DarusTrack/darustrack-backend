@@ -2,9 +2,9 @@ module.exports = (sequelize, DataTypes) => {
     const Attendance = sequelize.define('Attendance', {
         id: {
             type: DataTypes.INTEGER,
+            // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true,
-            allowNull: false
+            autoIncrement: true
         },
         student_id: {
             type: DataTypes.INTEGER,
@@ -15,15 +15,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         status: {
-            type: DataTypes.ENUM('hadir', 'izin', 'sakit', 'alfa'),
-            allowNull: false
-        },
-        createdAt: {
-            type: DataTypes.DATE,
-            allowNull: false
-        },
-        updatedAt: {
-            type: DataTypes.DATE,
+            type: DataTypes.ENUM('Hadir', 'Izin', 'Sakit', 'Alpha'),
             allowNull: false
         }
     }, {

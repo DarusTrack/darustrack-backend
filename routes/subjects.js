@@ -1,43 +1,41 @@
 var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
-const { Subject, Curriculum } = require('../models');
+const { Subject } = require('../models');
 const v = new Validator();
-const roleValidation = require("../middleware/roleValidation");
-const accessValidation = require('../middleware/accessValidation');
+const roleValidation = require("../middlewares/roleValidation");
+const { accessValidation } = require('../middlewares/accessValidation');
 
-// Get semua mata pelajaran
-router.get('/', accessValidation, async (req, res) => {
-    const subjects = await Subject.findAll({
-        include: [
-            { model: Curriculum, as: 'curriculum', attributes: ['id', 'name'] }
-        ]
-    });
-    return res.json(subjects);
-});
-
-// Get mata pelajaran berdasarkan ID
-router.get('/:id', accessValidation, async (req, res) => {
-    const id = req.params.id;
-    const subject = await Subject.findByPk(id, {
-        include: [
-            { model: Curriculum, as: 'curriculum', attributes: ['id', 'name'] }
-        ]
-    });
-
-    if (!subject) {
-        return res.status(404).json({ message: 'Subject not found' });
+// ✅ GET: Daftar mata pelajaran berdasarkan kelas tertentu
+router.get("/", async (req, res) => {
+    try {
+        const subjects = await Subject.findAll({
+            attributes: ['id', 'name'] // ✅ Hanya menampilkan nama siswa
+        });
+        return res.json(subjects);
+    } catch (error) {
+        res.status(500).json({ message: "Error retrieving subjects", error });
     }
-
-    return res.json(subject);
 });
 
+// ✅ GET: Detail mata pelajaran + capaian pembelajaran
+router.get("/:id", async (req, res) => {
+    try {
+        const subject = await Subject.findByPk(req.params.id);
+        if (!subject) {
+            return res.status(404).json({ message: "Subject not found" });
+        }
+        return res.json(subject);
+    } catch (error) {
+        res.status(500).json({ message: "Error retrieving subject", error });
+    }
+});
+  
 // Tambah mata pelajaran baru
-router.post('/',  accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.post('/',  accessValidation, roleValidation(["admin", "orang_tua"]), async (req, res) => {
     const schema = {
         name: 'string',
-        description: 'string|optional',
-        curriculum_id: 'number'
+        learning_goals: 'string'
     };
 
     const validate = v.validate(req.body, schema);
@@ -51,7 +49,7 @@ router.post('/',  accessValidation, roleValidation(["admin"]), async (req, res) 
 });
 
 // Update mata pelajaran
-router.put('/:id',  accessValidation, roleValidation(["admin"]),async (req, res) => {
+router.put('/:id',  accessValidation, roleValidation(["admin", "orang_tua"]),async (req, res) => {
     const id = req.params.id;
 
     let subject = await Subject.findByPk(id);
@@ -61,8 +59,7 @@ router.put('/:id',  accessValidation, roleValidation(["admin"]),async (req, res)
 
     const schema = {
         name: 'string|optional',
-        description: 'string|optional',
-        curriculum_id: 'number|optional'
+        learning_goals: 'string|optional'
     };
 
     const validate = v.validate(req.body, schema);

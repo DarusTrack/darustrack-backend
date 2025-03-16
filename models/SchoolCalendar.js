@@ -2,9 +2,9 @@ module.exports = (sequelize, DataTypes) => {
     const SchoolCalendar = sequelize.define('SchoolCalendar', {
         id: {
             type: DataTypes.INTEGER,
+            // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true,
-            allowNull: false
+            autoIncrement: true
         },
         event_name: {
             type: DataTypes.STRING,
@@ -16,14 +16,6 @@ module.exports = (sequelize, DataTypes) => {
         },
         event_end: {
             type: DataTypes.DATEONLY
-        },
-        createdAt: {
-            type: DataTypes.DATE,
-            allowNull: false
-        },
-        updatedAt: {
-            type: DataTypes.DATE,
-            allowNull: false
         }
     }, {
         tableName: 'school_calendar',

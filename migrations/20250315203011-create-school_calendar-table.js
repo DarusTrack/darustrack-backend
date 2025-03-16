@@ -2,30 +2,24 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('subjects', {
+    await queryInterface.createTable('school_calendar', {
       id: {
         type: Sequelize.INTEGER,
+        // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
+        autoIncrement: true
       },
-      name: {
+      event_name: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      description: {
-        type: Sequelize.TEXT,
+      event_start: {
+        type: Sequelize.DATEONLY,
         allowNull: true
       },
-      curriculum_id: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'curriculums',
-          key: 'id'
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
+      event_end: {
+        type: Sequelize.DATEONLY,
+        allowNull: true
       },
       createdAt: {
         type: Sequelize.DATE,
@@ -34,11 +28,11 @@ module.exports = {
       updatedAt: {
         type: Sequelize.DATE,
         allowNull: false
-      },
+      }
     });
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('subjects');
+    await queryInterface.dropTable('school_calendar');
   }
 };

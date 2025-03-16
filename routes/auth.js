@@ -3,7 +3,7 @@ var router = express.Router();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { User } = require("../models");
-const accessValidation = require("../middleware/accessValidation");
+const { accessValidation, tokenBlacklist } = require("../middlewares/accessValidation");
 const Validator = require("fastest-validator");
 require("dotenv").config();
 const v = new Validator();
@@ -41,7 +41,8 @@ router.post("/login", async (req, res) => {
 });
 
 router.post("/logout", accessValidation, (req, res) => {
-    res.json({ message: "Logout successful" });
+    tokenBlacklist.add(req.headers.authorization.split(" ")[1]);
+    res.json({ message: "Logout successful, token tidak bisa digunakan lagi" });
 });
 
 // Update Profile (Hanya bisa dilakukan oleh user yang login)
@@ -49,7 +50,10 @@ router.put("/profile", accessValidation, async (req, res) => {
     const { name, email, password } = req.body;
 
     try {
-        const user = await User.findByPk(req.user.id);
+        const user = await User.findByPk(req.user.id, {
+            attributes: { exclude: ["password"] }
+        });
+        
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }

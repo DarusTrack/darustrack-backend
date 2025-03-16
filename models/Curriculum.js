@@ -2,9 +2,9 @@ module.exports = (sequelize, DataTypes) => {
     const Curriculum = sequelize.define('Curriculum', {
         id: {
             type: DataTypes.INTEGER,
+            // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true,
-            allowNull: false
+            autoIncrement: true
         },
         name: {
             type: DataTypes.STRING,
@@ -12,14 +12,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         description: {
             type: DataTypes.TEXT,
-        },
-        createdAt: {
-            type: DataTypes.DATE,
-            allowNull: false
-        },
-        updatedAt: {
-            type: DataTypes.DATE,
-            allowNull: false
+            allowNull: true
         }
     }, {
         tableName: 'curriculums',

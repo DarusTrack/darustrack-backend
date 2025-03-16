@@ -5,11 +5,15 @@ module.exports = {
     await queryInterface.createTable('students', {
       id: {
         type: Sequelize.INTEGER,
+        // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
+        autoIncrement: true
       },
       name: {
+        type: Sequelize.STRING,
+        allowNull: false
+      },
+      nisn: {
         type: Sequelize.STRING,
         allowNull: false
       },
@@ -27,7 +31,7 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
-      guardian_id: {
+      parent_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
@@ -44,7 +48,7 @@ module.exports = {
       updatedAt: {
         type: Sequelize.DATE,
         allowNull: false
-      },
+      }
     });
   },
 

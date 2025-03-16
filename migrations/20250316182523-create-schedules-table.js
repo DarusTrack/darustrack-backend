@@ -5,9 +5,9 @@ module.exports = {
     await queryInterface.createTable('schedules', {
       id: {
         type: Sequelize.INTEGER,
+        // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
+        autoIncrement: true
       },
       class_id: {
         type: Sequelize.INTEGER,
@@ -35,11 +35,11 @@ module.exports = {
       },
       start_time: {
         type: Sequelize.TIME,
-        allowNull: false
+        allowNull: true
       },
       end_time: {
-        type: Sequelize.TIME,
-        allowNull: false
+        type: Sequelize.DATEONLY,
+        allowNull: true
       },
       createdAt: {
         type: Sequelize.DATE,
@@ -48,7 +48,7 @@ module.exports = {
       updatedAt: {
         type: Sequelize.DATE,
         allowNull: false
-      },
+      }
     });
   },
 
@@ -56,4 +56,3 @@ module.exports = {
     await queryInterface.dropTable('schedules');
   }
 };
-

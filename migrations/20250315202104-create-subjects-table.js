@@ -2,23 +2,20 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('school_calendar', {
+    await queryInterface.createTable('subjects', {
       id: {
         type: Sequelize.INTEGER,
+        // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
+        autoIncrement: true
       },
-      event_name: {
+      name: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      event_start: {
-        type: Sequelize.DATEONLY,
-        allowNull: false
-      },
-      event_end: {
-        type: Sequelize.DATEONLY
+      learning_goals: {
+        type: Sequelize.TEXT,
+        allowNull: true
       },
       createdAt: {
         type: Sequelize.DATE,
@@ -32,6 +29,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('school_calendar');
+    await queryInterface.dropTable('subjects');
   }
 };

@@ -2,8 +2,8 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { Attendance, Student } = require('../models');
-const accessValidation = require('../middleware/accessValidation');
-const roleValidation = require('../middleware/roleValidation');
+const { accessValidation } = require('../middlewares/accessValidation');
+const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 
 // Get semua kehadiran
@@ -44,7 +44,7 @@ router.get('/:id', accessValidation, async (req, res) => {
 });
 
 // Tambah kehadiran baru
-router.post('/', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.post('/', accessValidation, roleValidation(["wali_kelas", "admin"]), async (req, res) => {
     const schema = {
         student_id: 'number',
         date: {type: 'date', convert: true},

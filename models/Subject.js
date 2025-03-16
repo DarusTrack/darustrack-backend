@@ -2,36 +2,24 @@ module.exports = (sequelize, DataTypes) => {
     const Subject = sequelize.define('Subject', {
         id: {
             type: DataTypes.INTEGER,
+            // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true,
-            allowNull: false
+            autoIncrement: true
         },
         name: {
             type: DataTypes.STRING,
             allowNull: false
         },
-        description: {
+        learning_goals: {
             type: DataTypes.TEXT,
             allowNull: true
-        },
-        curriculum_id: {
-            type: DataTypes.INTEGER,
-            allowNull: false
-        },
-        createdAt: {
-            type: DataTypes.DATE,
-            allowNull: false
-        },
-        updatedAt: {
-            type: DataTypes.DATE,
-            allowNull: false
         }
     }, {
         tableName: 'subjects',
     });
 
     Subject.associate = (models) => {
-        Subject.belongsTo(models.Curriculum, { foreignKey: 'curriculum_id', as: 'curriculum' });
+        Subject.hasMany(models.Grade, { foreignKey: 'subject_id', as: 'grades' });
     };
 
     return Subject;

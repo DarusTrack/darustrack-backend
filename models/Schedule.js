@@ -2,9 +2,9 @@ module.exports = (sequelize, DataTypes) => {
     const Schedule = sequelize.define('Schedule', {
         id: {
             type: DataTypes.INTEGER,
+            // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true,
-            allowNull: false
+            autoIncrement: true
         },
         class_id: {
             type: DataTypes.INTEGER,
@@ -24,14 +24,6 @@ module.exports = (sequelize, DataTypes) => {
         },
         end_time: {
             type: DataTypes.TIME,
-            allowNull: false
-        },
-        createdAt: {
-            type: DataTypes.DATE,
-            allowNull: false
-        },
-        updatedAt: {
-            type: DataTypes.DATE,
             allowNull: false
         }
     }, {

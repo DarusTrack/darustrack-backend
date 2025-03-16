@@ -2,8 +2,8 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { Curriculum } = require('../models');
-const accessValidation = require('../middleware/accessValidation');
-const roleValidation = require('../middleware/roleValidation');
+const { accessValidation } = require('../middlewares/accessValidation');
+const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 
 router.get('/',  accessValidation, async (req, res) => {

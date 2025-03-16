@@ -3,8 +3,8 @@ var router = express.Router();
 const Validator = require('fastest-validator');
 const { Schedule, Class, Subject } = require('../models');
 const { Op } = require('sequelize');
-const accessValidation = require('../middleware/accessValidation');
-const roleValidation = require('../middleware/roleValidation');
+const { accessValidation } = require('../middlewares/accessValidation');
+const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 
 // Get semua jadwal pelajaran (dengan filter opsional)
@@ -80,7 +80,7 @@ async function isScheduleConflict(class_id, day, start_time, end_time, excludeId
 }
 
 // Tambah jadwal pelajaran baru
-router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.post('/', accessValidation, roleValidation(["admin", "orang_tua"]), async (req, res) => {
     const schema = {
         class_id: 'number',
         subject_id: 'number',

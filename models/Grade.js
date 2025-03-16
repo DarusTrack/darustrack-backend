@@ -2,9 +2,9 @@ module.exports = (sequelize, DataTypes) => {
     const Grade = sequelize.define('Grade', {
         id: {
             type: DataTypes.INTEGER,
+            // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true,
-            allowNull: false
+            autoIncrement: true
         },
         student_id: {
             type: DataTypes.INTEGER,
@@ -26,12 +26,8 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DATEONLY,
             allowNull: false
         },
-        createdAt: {
-            type: DataTypes.DATE,
-            allowNull: false
-        },
-        updatedAt: {
-            type: DataTypes.DATE,
+        description: {
+            type: DataTypes.STRING,
             allowNull: false
         }
     }, {

@@ -4,13 +4,18 @@ module.exports = (sequelize, DataTypes) => {
     const User = sequelize.define('User', {
         id: {
             type: DataTypes.INTEGER,
+            // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true,
-            allowNull: false
+            autoIncrement: true
         },
         name: {
             type: DataTypes.STRING,
             allowNull: false
+        },
+        nip: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            unique: true
         },
         email: {
             type: DataTypes.STRING,
@@ -26,14 +31,6 @@ module.exports = (sequelize, DataTypes) => {
         },
         role: {
             type: DataTypes.ENUM('orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'),
-            allowNull: false
-        },
-        createdAt: {
-            type: DataTypes.DATE,
-            allowNull: false
-        },
-        updatedAt: {
-            type: DataTypes.DATE,
             allowNull: false
         }
     }, {

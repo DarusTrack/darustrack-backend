@@ -5,16 +5,17 @@ module.exports = {
     await queryInterface.createTable('curriculums', {
       id: {
         type: Sequelize.INTEGER,
+        // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
+        autoIncrement: true
       },
       name: {
-        type: Sequelize.STRING,
+        type: Sequelize.INTEGER,
         allowNull: false
       },
       description: {
         type: Sequelize.TEXT,
+        allowNull: true
       },
       createdAt: {
         type: Sequelize.DATE,
@@ -23,9 +24,8 @@ module.exports = {
       updatedAt: {
         type: Sequelize.DATE,
         allowNull: false
-      },
-    })
-
+      }
+    });
   },
 
   down: async (queryInterface, Sequelize) => {

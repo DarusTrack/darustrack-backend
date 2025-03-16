@@ -4,8 +4,8 @@ const Validator = require('fastest-validator');
 const { User } = require('../models');
 const bcrypt = require('bcrypt');
 const v = new Validator();
-const roleValidation = require("../middleware/roleValidation");
-const accessValidation = require('../middleware/accessValidation');
+const roleValidation = require("../middlewares/roleValidation");
+const { accessValidation } = require('../middlewares/accessValidation');
 
 // Get semua pengguna
 router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
@@ -31,9 +31,10 @@ router.get('/:id',  accessValidation, roleValidation(["admin"]), async (req, res
 });
 
 // Tambah pengguna baru (Register)
-router.post('/',  accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.post('/', async (req, res) => {
     const schema = {
         name: 'string',
+        nip: 'string|optional',
         email: 'email',
         password: 'string|min:6',
         role: { type: 'enum', values: ['orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'] }
@@ -68,6 +69,7 @@ router.put('/:id',  accessValidation, roleValidation(["admin"]), async (req, res
 
     const schema = {
         name: 'string|optional',
+        nip: 'string|optional',
         email: 'email|optional',
         password: 'string|min:6|optional',
         role: { type: 'enum', values: ['orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'], optional: true }
