@@ -47,7 +47,7 @@ router.get('/:id', accessValidation, roleValidation(["wali_kelas", "admin"]), as
 router.post('/', accessValidation, roleValidation(["wali_kelas", "admin"]), async (req, res) => {
     const schema = {
         student_id: 'number',
-        title: 'number',
+        title:{ type: "enum", values: ["Mengenai Perilaku Anak", "Hasil Evaluasi Belajar Anak"]},
         description: 'string'
     };
 
@@ -72,7 +72,7 @@ router.put('/:id', accessValidation, roleValidation(["wali_kelas"]), async (req,
 
     const schema = {
         student_id: 'number|optional',
-        title: 'number|optional',
+        title: { type: "enum", values: ["Mengenai Perilaku Anak", "Hasil Evaluasi Belajar Anak"]},
         description: 'string|optional'
     };
 

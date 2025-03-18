@@ -1,32 +1,28 @@
-const { Student } = require('../models'); // Import model Student
+const { Student } = require("../models");
 
 const isParentValidation = async (req, res, next) => {
     try {
-        // Ambil user dari request (diasumsikan telah diset di middleware autentikasi)
-        const user = req.user; // Dari token JWT
-        const studentId = req.params.id; // ID siswa dari request params
+        const user = req.user;
+        console.log("User dari token JWT:", user);
 
-        // Pastikan user adalah orang tua
-        if (user.role !== 'orang_tua') {
+        if (!user || user.role !== "orang_tua") {
             return res.status(403).json({ message: "Access denied. Only parents can access this data." });
         }
 
-        // Cari data siswa berdasarkan ID
-        const student = await Student.findByPk(studentId);
+        // Ambil siswa berdasarkan parent_id
+        const students = await Student.findAll({ where: { parent_id: user.id } });
 
-        // Jika siswa tidak ditemukan
-        if (!student) {
-            return res.status(404).json({ message: "Student not found." });
+        console.log("Daftar anak ditemukan:", students.map(s => s.id));
+
+        if (!students.length) {
+            return res.status(404).json({ message: "Tidak ada siswa yang terdaftar untuk akun ini." });
         }
 
-        // Pastikan parent_id siswa sesuai dengan ID orang tua yang sedang login
-        if (student.parent_id !== user.id) {
-            return res.status(403).json({ message: "Access denied. You can only view your own child's data." });
-        }
+        req.children = students; // Simpan daftar anak di request
 
-        // Jika lolos semua validasi, lanjut ke handler berikutnya
         next();
     } catch (error) {
+        console.error("Error di isParentValidation:", error);
         return res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };

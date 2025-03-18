@@ -20,15 +20,15 @@ module.exports = (sequelize, DataTypes) => {
         },
         score: {
             type: DataTypes.FLOAT,
-            allowNull: false
+            allowNull: null
         },
         date: {
             type: DataTypes.DATEONLY,
-            allowNull: false
+            allowNull: null
         },
         description: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: null
         }
     }, {
         tableName: 'grades',

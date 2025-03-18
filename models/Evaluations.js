@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const Evaluations = sequelize.define('Evaluations', {
+    const Evaluation = sequelize.define('Evaluation', {
         id: {
             type: DataTypes.INTEGER,
             // defaultValue: Sequelize.UUIDV4,
@@ -22,9 +22,9 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'evaluations',
     });
 
-    Evaluations.associate = (models) => {
-        Evaluations.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
+    Evaluation.associate = (models) => {
+        Evaluation.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
     };
 
-    return Evaluations;
+    return Evaluation;
 };

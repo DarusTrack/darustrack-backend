@@ -49,63 +49,59 @@ router.get('/:id', accessValidation, roleValidation(["admin", "wali_kelas", "ora
     return res.json(schedule);
 });
 
-// Fungsi untuk mengecek bentrokan jadwal
-async function isScheduleConflict(class_id, day, start_time, end_time, excludeId = null) {
-    const whereClause = {
-        class_id,
-        day,
-        [Op.or]: [
-            {
-                start_time: { [Op.lt]: end_time },
-                end_time: { [Op.gt]: start_time }
+router.post('/', accessValidation, async (req, res) => {
+    try {
+        const { class_id, subject_id, day, start_time, end_time } = req.body;
+
+        // Pastikan semua data ada
+        if (!class_id || !subject_id || !day || !start_time || !end_time) {
+            return res.status(400).json({ message: "Semua field harus diisi" });
+        }
+
+        // Cek apakah ada jadwal lain yang bentrok pada kelas dan hari yang sama
+        const conflictingSchedule = await Schedule.findOne({
+            where: {
+                class_id,
+                day,
+                [Op.or]: [
+                    { start_time: { [Op.between]: [start_time, end_time] } },
+                    { end_time: { [Op.between]: [start_time, end_time] } },
+                    {
+                        [Op.and]: [
+                            { start_time: { [Op.lte]: start_time } },
+                            { end_time: { [Op.gte]: end_time } }
+                        ]
+                    }
+                ]
             },
-            {
-                start_time: { [Op.between]: [start_time, end_time] }
-            },
-            {
-                end_time: { [Op.between]: [start_time, end_time] }
-            },
-            {
-                start_time: { [Op.lte]: start_time },
-                end_time: { [Op.gte]: end_time }
-            }
-        ]
-    };
+            include: [{ model: Subject, as: 'subject', attributes: ['name'] }] // Alias harus cocok dengan model
+        });        
 
-    if (excludeId) {
-        whereClause.id = { [Op.ne]: excludeId };
+        if (!end_time || end_time === "0000-00-00") {
+            return res.status(400).json({ message: "Format waktu tidak valid untuk end_time" });
+        }
+
+        // Jika ada konflik, kirimkan error
+        if (conflictingSchedule) {
+            return res.status(409).json({
+                message: `Jadwal bentrok dengan ${conflictingSchedule.subject.name} dari ${conflictingSchedule.start_time} sampai ${conflictingSchedule.end_time || 'Waktu tidak valid'}`
+            });            
+        }
+
+        // Jika tidak ada konflik, tambahkan jadwal baru
+        const newSchedule = await Schedule.create({
+            class_id,
+            subject_id,
+            day,
+            start_time,
+            end_time
+        });
+
+        res.status(201).json({ message: "Jadwal berhasil ditambahkan", schedule: newSchedule });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
     }
-
-    return await Schedule.findOne({ where: whereClause }) !== null;
-}
-
-// Tambah jadwal pelajaran baru
-router.post('/', accessValidation, roleValidation(["admin", "orang_tua"]), async (req, res) => {
-    const schema = {
-        class_id: 'number',
-        subject_id: 'number',
-        day: { type: 'enum', values: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] },
-        start_time: 'string',
-        end_time: 'string'
-    };
-
-    const validate = v.validate(req.body, schema);
-    if (validate.length) {
-        return res.status(400).json(validate);
-    }
-
-    const { class_id, day, start_time, end_time } = req.body;
-
-    if (start_time >= end_time) {
-        return res.status(400).json({ message: 'Start time must be earlier than end time' });
-    }
-
-    if (await isScheduleConflict(class_id, day, start_time, end_time)) {
-        return res.status(400).json({ message: 'Schedule conflicts with another subject at the same time' });
-    }
-
-    const schedule = await Schedule.create(req.body);
-    res.json(schedule);
 });
 
 // Update jadwal pelajaran

@@ -1,11 +1,11 @@
 var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
-const { Student, Attendance, Schedule, Subject, Class, EvaluationTitle, StudentEvaluation, User } = require('../models');
+const { Student, Attendance, Schedule, Subject, Class, Evaluation, User } = require('../models');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
 const { accessValidation } = require('../middlewares/accessValidation');
-const validateParentAccess = require('../middlewares/isParentValidation');
+const isParentValidation = require('../middlewares/isParentValidation');
 
 // **GET /students** → Hanya menampilkan nama siswa
 router.get('/', accessValidation, roleValidation(["admin", "wali_kelas"]), async (req, res) => {
@@ -22,7 +22,7 @@ router.get('/', accessValidation, roleValidation(["admin", "wali_kelas"]), async
 });
 
 // **GET /students/:id** → Menampilkan detail siswa
-router.get('/:id', accessValidation, validateParentAccess, roleValidation(['orang_tua']), async (req, res) => {
+router.get('/:id', accessValidation, isParentValidation, roleValidation(['orang_tua']), async (req, res) => {
     try {
         const id = req.params.id;
         const student = await Student.findByPk(id, {
@@ -68,31 +68,55 @@ router.get('/:id/attendances', accessValidation, async (req, res) => {
             attributes: ['date', 'status'],
             order: [['date', 'ASC']]
         });
-  
+
         if (!attendances.length) {
             return res.status(404).json({ message: 'Tidak ada data kehadiran untuk siswa ini' });
         }
-  
-        res.json(attendances);
+
+        // Tambahkan informasi hari
+        const formattedAttendances = attendances.map(attendance => {
+            const date = new Date(attendance.date);
+            const dayName = new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(date);
+            return {
+                date: attendance.date,
+                day: dayName, // Nama hari dalam bahasa Indonesia
+                status: attendance.status
+            };
+        });
+
+        res.json(formattedAttendances);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: error.message });
     }
 });
 
-router.get('/:id/schedules', accessValidation, async (req, res) => {
+router.get('/:id/schedules', accessValidation, roleValidation(["orang_tua"]), async (req, res) => {
     try {
-        const id = req.params.id;
+        const { id } = req.params;
+        const { day } = req.query; // Filter berdasarkan hari (opsional)
 
-        // Cari siswa berdasarkan ID
-        const student = await Student.findByPk(id);
+        // Cek apakah siswa dengan ID tersebut ada
+        const student = await Student.findByPk(id, {
+            include: {
+                model: Class,
+                as: 'class',
+                attributes: ['id', 'name'] // Ambil ID dan Nama Kelas
+            }
+        });
+
         if (!student) {
             return res.status(404).json({ message: 'Student not found' });
         }
-  
-        // Ambil data kehadiran siswa
+
+        // Ambil jadwal berdasarkan kelas siswa
+        const whereClause = { class_id: student.class.id };
+        if (day) {
+            whereClause.day = day; // Filter berdasarkan hari jika ada
+        }
+
         const schedules = await Schedule.findAll({
-            where: { class_id: student.class_id },
+            where: whereClause,
             attributes: ['day', 'start_time', 'end_time'],
             include: [
                 {
@@ -103,12 +127,12 @@ router.get('/:id/schedules', accessValidation, async (req, res) => {
             ],
             order: [['day', 'ASC'], ['start_time', 'ASC']]
         });
-  
+
         if (!schedules.length) {
-            return res.status(404).json({ message: 'Tidak ada data jadwal untuk kelas siswa ini' });
+            return res.status(404).json({ message: 'Tidak ada jadwal untuk kelas ini' });
         }
-  
-        // Format data agar hanya menampilkan hari, waktu, dan nama mata pelajaran
+
+        // Format hasil response
         const formattedSchedules = schedules.map(schedule => ({
             day: schedule.day,
             start_time: schedule.start_time,
@@ -118,38 +142,35 @@ router.get('/:id/schedules', accessValidation, async (req, res) => {
 
         res.json(formattedSchedules);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: error.message });
+        console.error("Error fetching schedules:", error);
+        res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
     }
 });
 
-
-// Get semua evaluasi untuk siswa tertentu
+// Get semua evaluasi untuk siswa tertentu (menampilkan daftar title)
 router.get('/:id/evaluations', accessValidation, async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Ambil daftar evaluasi untuk siswa
-        const evaluations = await StudentEvaluation.findAll({
+        // Ambil daftar evaluasi berdasarkan student_id
+        const evaluations = await Evaluation.findAll({
             where: { student_id: id },
-            include: [{ model: EvaluationTitle, as: 'evaluation-title', attributes: ['title'] }],
-            attributes: ['id', 'description']
+            attributes: ['id', 'title'] // Hanya ambil id & title
         });
 
         if (!evaluations.length) {
             return res.status(404).json({ message: 'Evaluasi tidak ditemukan untuk siswa ini' });
         }
 
-        // Format response
-        const response = evaluations.map(e => ({
-            id: e.id,
-            title: e.title,
-            description: e.description
-        }));
-
-        res.json(response);
+        res.json({
+            student_id: id,
+            evaluations: evaluations.map(e => ({
+                id: e.id,
+                title: e.title
+            }))
+        });
     } catch (error) {
-        console.error(error);
+        console.error("Error fetching evaluations:", error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -159,23 +180,44 @@ router.get('/:id/evaluations/:title', accessValidation, async (req, res) => {
     try {
         const { id, title } = req.params;
 
-        const evaluation = await StudentEvaluation.findOne({
-            where: { student_id: id },
-            include: [{ model: EvaluationTitle, as: 'evaluation-title', where: { title }, attributes: ['title'] }]
+        // Cari evaluasi berdasarkan student_id dan title
+        const evaluation = await Evaluation.findOne({
+            where: { student_id: id, title },
+            attributes: ['id', 'title', 'description'] // Ambil id, title, description
         });
 
         if (!evaluation) {
-            return res.status(404).json({ message: 'Evaluasi tidak ditemukan' });
+            return res.status(404).json({ message: 'Evaluasi tidak ditemukan untuk siswa ini' });
         }
 
         res.json({
             id: evaluation.id,
-            title: evaluation.evaluationTitle.title,
+            title: evaluation.title,
             description: evaluation.description
         });
     } catch (error) {
-        console.error(error);
+        console.error("Error fetching evaluation details:", error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+
+// ✅ GET: Orang tua melihat nilai anak
+router.get('/:id/subjects/:subjectId/assessments/:assessmentId/grades', accessValidation, roleValidation(["orang_tua"]), async (req, res) => {
+    try {
+        const { id, subjectId, assessmentId } = req.params;
+
+        const scores = await Score.findAll({
+            where: { student_id: id, assessment_id: assessmentId },
+            attributes: ['date', 'title', 'score'],
+            order: [['date', 'ASC']]
+        });
+
+        if (!scores.length) return res.status(404).json({ message: 'Tidak ada nilai untuk penilaian ini' });
+
+        res.json(scores);
+    } catch (error) {
+        res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
     }
 });
 

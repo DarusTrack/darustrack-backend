@@ -33,7 +33,8 @@ module.exports = (sequelize, DataTypes) => {
     Student.associate = (models) => {
         Student.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
         Student.belongsTo(models.User, { foreignKey: 'parent_id', as: 'parent' });
-        Student.hasMany(models.Attendance, { as: "attendances", foreignKey: "student_id" });
+        Student.hasMany(models.Attendance, { foreignKey: "student_id", as: "attendances" });
+        Student.hasMany(models.Evaluation, { foreignKey: 'student_id', as: 'evaluations' });
     };
 
     return Student;

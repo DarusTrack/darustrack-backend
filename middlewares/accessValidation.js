@@ -16,7 +16,7 @@ const accessValidation = async (req, res, next) => {
             return res.status(401).json({ message: "Unauthorized: User not found" });
         }
 
-        req.user = user; // 🔥 Simpan user ke req.user
+        req.user = user; // Simpan user ke req.user
         next();
     } catch (error) {
         return res.status(401).json({ message: "Unauthorized: Invalid token", error: error.message });
