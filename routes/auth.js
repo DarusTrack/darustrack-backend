@@ -1,7 +1,7 @@
 var express = require("express");
 var router = express.Router();
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const { User } = require("../models");
 const { accessValidation, tokenBlacklist } = require("../middlewares/accessValidation");
 const Validator = require("fastest-validator");
