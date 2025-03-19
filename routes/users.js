@@ -8,7 +8,7 @@ const roleValidation = require("../middlewares/roleValidation");
 const { accessValidation } = require('../middlewares/accessValidation');
 
 // Get semua pengguna
-router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.get('/', async (req, res) => {
     const { role } = req.query;
 
     // Objek filter berdasarkan parameter yang diberikan
