@@ -48,10 +48,10 @@ app.use('/evaluations', evaluationsRouter);
 app.use('/schedules', schedulesRouter);
 app.use('/school-calendar', schoolCalendarRouter);
 
-const sequelize = require('./config/database');
+// const sequelize = require('./config/database');
 
-sequelize.authenticate()
-  .then(() => console.log('Database connected...'))
-  .catch(err => console.error('Error connecting to database:', err));
+// sequelize.authenticate()
+//   .then(() => console.log('Database connected...'))
+//   .catch(err => console.error('Error connecting to database:', err));
 
 module.exports = app;
