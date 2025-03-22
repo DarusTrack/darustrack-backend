@@ -134,7 +134,7 @@ router.get('/evaluations', async (req, res) => {
 
         const evaluations = await Evaluation.findAll({
             where: { student_id: student.id },
-            attributes: ['name', 'description']
+            attributes: ['title', 'description']
         });
 
         res.json(evaluations);
