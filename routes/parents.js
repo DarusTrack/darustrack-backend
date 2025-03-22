@@ -49,7 +49,7 @@ router.get('/schedule', async (req, res) => {
         const schedules = await Schedule.findAll({
             where: { class_id: student.class_id },
             attributes: ['day', 'start_time', 'end_time'],
-            include: [{ model: Subject, attributes: ['name'] }]
+            include: [{ model: Subject,  as: "subject", attributes: ['name'] }]
         });
 
         res.json(schedules);
@@ -79,6 +79,7 @@ router.get('/achievements', async (req, res) => {
         const achievements = await Achievement.findAll({
             include: [{
                 model: Subject,
+                as: "subject",
                 attributes: ['name'],
                 where: { class_id: student.class_id }
             }]
