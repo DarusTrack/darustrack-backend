@@ -3,7 +3,7 @@ var router = express.Router();
 const Validator = require('fastest-validator');
 const { Schedule, Class, Subject } = require('../models');
 const { Op } = require('sequelize');
-const { accessValidation } = require('../middlewares/accessValidation');
+const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 

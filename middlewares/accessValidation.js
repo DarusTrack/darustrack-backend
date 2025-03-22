@@ -23,4 +23,4 @@ const accessValidation = async (req, res, next) => {
     }
 };
 
-module.exports = { accessValidation };
+module.exports = accessValidation;

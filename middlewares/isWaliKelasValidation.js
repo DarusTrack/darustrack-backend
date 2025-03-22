@@ -14,7 +14,7 @@ const isWaliKelas = async (req, res, next) => {
         if (!kelas) {
             return res.status(403).json({ message: "Akses ditolak. Anda bukan wali kelas dari kelas ini." });
         }
-
+        console.log(typeof roleValidation); // Harus 'function'  
         next();
     } catch (error) {
         console.error("Error in isWaliKelas middleware:", error);
@@ -22,4 +22,4 @@ const isWaliKelas = async (req, res, next) => {
     }
 };
 
-module.exports = { isWaliKelas };
+module.exports = isWaliKelas;

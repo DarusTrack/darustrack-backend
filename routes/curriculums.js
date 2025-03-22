@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { Curriculum } = require('../models');
-const { accessValidation } = require('../middlewares/accessValidation');
+const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 
@@ -17,7 +17,7 @@ router.get('/:id', accessValidation, async (req,res) => {
     return res.json(curriculums || {});
 });
 
-router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.post('/', accessValidation, roleValidation(["orang_tua"]), async (req, res) => {
     const schema = {
         name: 'string',
         description: 'string',

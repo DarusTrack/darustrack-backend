@@ -4,7 +4,7 @@ const Validator = require('fastest-validator');
 const { Student, Evaluations } = require('../models');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
-const { accessValidation } = require('../middlewares/accessValidation');
+const accessValidation = require('../middlewares/accessValidation');
 
 // Get semua evaluasi
 router.get('/', accessValidation, roleValidation(["wali_kelas", "admin"]), async (req, res) => {

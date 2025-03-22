@@ -2,13 +2,13 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { User } = require('../models');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
-const { accessValidation } = require('../middlewares/accessValidation');
+const accessValidation = require('../middlewares/accessValidation');
 
 // Get semua pengguna
-router.get('/', async (req, res) => {
+router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const { role } = req.query;
 
     // Objek filter berdasarkan parameter yang diberikan

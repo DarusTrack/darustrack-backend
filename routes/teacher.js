@@ -1,141 +1,196 @@
-var express = require('express');
-var router = express.Router();
-const { Student, Attendance, Schedule, Subject, Class, Evaluation, User } = require('../models');
-// const roleValidation = require("../middlewares/roleValidation");
-const { accessValidation } = require('../middlewares/accessValidation');
-// const isParentValidation = require('../middlewares/isParentValidation');
-const { isWaliKelas } = require('../middlewares/isWaliKelasValidation');
+const express = require('express');
+const router = express.Router();
+const { Student, Evaluation, Attendance, Assessment, StudentEvaluation } = require('../models');
+const accessValidation = require('../middlewares/accessValidation');
+const roleValidation = require('../middlewares/roleValidation');
 
-router.get("/attendances", accessValidation, isWaliKelas, async (req, res) => {
+// Route untuk mendapatkan data siswa dalam kelas wali kelas
+router.get('/students', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
-        const classId = req.classId; // Ambil dari middleware
-        const { date } = req.query;
-        const currentDate = date || new Date().toISOString().split("T")[0]; // Default ke hari ini
-
-        // Ambil daftar siswa di kelas
         const students = await Student.findAll({
-            where: { class_id: classId },
-            attributes: ["id", "name"]
+            where: { class_id: req.user.class_id },
+            attributes: ['id', 'name', 'nisn', 'birth_date']
+        });
+        res.json(students);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+router.get('/evaluations', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const evaluations = await Evaluation.findAll({
+            where: { class_id: req.user.class_id },
+            attributes: ['id', 'title']
         });
 
-        if (!students.length) {
-            return res.status(404).json({ message: "Tidak ada siswa di kelas ini" });
-        }
+        res.json(evaluations);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
 
-        // Ambil daftar kehadiran berdasarkan tanggal
-        let attendances = await Attendance.findAll({
-            where: { date: currentDate },
-            include: [{ model: Student, as: "student", attributes: ["id", "name"] }]
+router.get('/evaluations/:evaluation_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const { evaluation_id } = req.params;
+
+        const studentEvaluations = await StudentEvaluation.findAll({
+            where: { evaluation_id },
+            include: [{ model: Student, attributes: ['id', 'name'] }],
+            attributes: ['id', 'description']
         });
 
-        // Buat daftar kehadiran dengan status `null` jika belum ada
-        const studentAttendanceMap = {};
-        attendances.forEach(att => {
-            studentAttendanceMap[att.student.id] = att;
-        });
+        res.json(studentEvaluations);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
 
-        const attendanceList = students.map(student => ({
+// Route untuk menambahkan evaluasi siswa
+router.post('/evaluations', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const { title } = req.body;
+        const classId = req.user.class_id;
+
+        const evaluation = await Evaluation.create({ class_id: classId, title });
+
+        // Ambil semua siswa di kelas wali kelas
+        const students = await Student.findAll({ where: { class_id: classId } });
+
+        // Tambahkan student_evaluations dengan description NULL
+        const studentEvaluations = students.map(student => ({
+            evaluation_id: evaluation.id,
             student_id: student.id,
-            student_name: student.name,
-            date: currentDate,
-            status: studentAttendanceMap[student.id]?.status || null
+            description: null
         }));
 
-        res.status(200).json(attendanceList);
+        await StudentEvaluation.bulkCreate(studentEvaluations);
+
+        res.status(201).json({ message: 'Judul evaluasi berhasil ditambahkan', evaluation });
     } catch (error) {
-        console.error("Error fetching attendances:", error);
-        res.status(500).json({ error: "Terjadi kesalahan pada server", details: error.message });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
-router.post('/attendances', isWaliKelas, async (req, res) => {
-    console.log("📌 User setelah validasi:", req.user);
+router.put('/evaluations/:evaluation_id/students/:student_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
-        const { date } = req.body;
-        const currentDate = date || new Date().toISOString().split("T")[0];
+        const { evaluation_id, student_id } = req.params;
+        const { description } = req.body;
 
-        if (!date) {
-            return res.status(400).json({ message: "Tanggal (date) wajib diisi." });
+        const studentEvaluation = await StudentEvaluation.findOne({
+            where: { evaluation_id, student_id }
+        });
+
+        if (!studentEvaluation) {
+            return res.status(404).json({ message: 'Evaluasi siswa tidak ditemukan' });
         }
 
-        // Ambil user dari request (wali kelas)
-        const user = req.user;
+        await studentEvaluation.update({ description });
 
-        // Ambil daftar siswa berdasarkan wali kelas
-        const students = await Student.findAll({
-            where: { class_id: user.class_id },
-            attributes: ["id", "name"]
-        });
-
-        if (!students.length) {
-            return res.status(404).json({ message: "Tidak ada siswa di kelas ini." });
-        }
-
-        // Ambil daftar kehadiran yang sudah ada untuk tanggal ini
-        const existingAttendances = await Attendance.findAll({
-            where: { date: currentDate },
-            attributes: ["student_id", "status"]
-        });
-
-        const existingStudentIds = existingAttendances.map(a => a.student_id);
-
-        // Tambahkan kehadiran dengan status null untuk siswa yang belum ada
-        const newAttendances = [];
-        for (const student of students) {
-            if (!existingStudentIds.includes(student.id)) {
-                const attendance = await Attendance.create({
-                    student_id: student.id,
-                    date: currentDate,
-                    status: null
-                });
-                newAttendances.push(attendance);
-            }
-        }
-
-        // Ambil ulang daftar kehadiran yang sudah tersimpan
-        const allAttendances = await Attendance.findAll({
-            where: { date: currentDate },
-            include: [{ model: Student, as: "student", attributes: ["id", "name"] }],
-            attributes: ["id", "status"]
-        });
-
-        res.status(201).json({
-            message: "Data kehadiran berhasil diperbarui",
-            attendances: allAttendances.map(att => ({
-                id: att.id,
-                student_id: att.student.id,
-                student_name: att.student.name,
-                date: currentDate,
-                status: att.status
-            }))
-        });
+        res.json({ message: 'Evaluasi siswa berhasil diperbarui', studentEvaluation });
     } catch (error) {
-        console.error("Error:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
-router.put('/attendances/:attendanceId', accessValidation, isWaliKelas, async (req, res) => {
+// Route untuk menambahkan penilaian akademik siswa
+router.post('/assessments', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
-        const { attendanceId } = req.params;
+        const { student_id, subject_id, type, title, score } = req.body;
+        const assessment = await Assessment.create({
+            student_id,
+            teacher_id: req.user.id,
+            subject_id,
+            type,
+            title,
+            score
+        });
+        res.status(201).json(assessment);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+router.get('/attendance', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const classId = req.user.class_id;
+
+        // Ambil tanggal terakhir yang tersedia
+        const lastDate = await Attendance.max('date', {
+            include: [{ model: Student, as: "student", where: { class_id: classId } }]
+        });
+
+        if (!lastDate) {
+            return res.status(404).json({ message: 'Belum ada data kehadiran' });
+        }
+
+        // Ambil daftar kehadiran siswa berdasarkan tanggal terakhir
+        const attendanceList = await Attendance.findAll({
+            where: { date: lastDate },
+            include: [{ model: Student, as: "student", attributes: ['id', 'name'] }],
+            attributes: ['id', 'date', 'status']
+        });
+
+        res.json({ date: lastDate, attendanceList });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+router.post('/attendance', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const classId = req.user.class_id;
+        const currentDate = new Date().toISOString().split('T')[0];
+
+        // Cek apakah data sudah ada untuk hari ini
+        const existingData = await Attendance.findOne({
+            where: { date: currentDate, class_id: classId }, // Tambahkan class_id
+            include: [{ model: Student, as: "student", where: { class_id: classId } }]
+        });
+
+        if (existingData) {
+            return res.status(400).json({ message: 'Data kehadiran untuk hari ini sudah ada' });
+        }
+
+        // Ambil semua siswa dalam kelas
+        const students = await Student.findAll({ where: { class_id: classId } });
+
+        // Buat data kehadiran dengan status `null`
+        const attendanceRecords = students.map(student => ({
+            student_id: student.id,
+            class_id: classId, // Tambahkan ini
+            date: currentDate,
+            status: null
+        }));
+
+        await Attendance.bulkCreate(attendanceRecords);
+
+        res.status(201).json({ message: 'Data kehadiran berhasil ditambahkan, silakan edit status siswa' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+router.put('/attendance/:attendance_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const { attendance_id } = req.params;
         const { status } = req.body;
-        const classId = req.classId; // Ambil dari middleware
 
-        const attendance = await Attendance.findByPk(attendanceId, {
-            include: [{ model: Student, as: 'student' }]
-        });
-
-        if (!attendance || attendance.student.class_id !== classId) {
-            return res.status(403).json({ message: 'Akses ditolak. Data kehadiran ini bukan dari kelas Anda.' });
+        if (!['hadir', 'izin', 'sakit', 'alpha'].includes(status)) {
+            return res.status(400).json({ message: 'Status tidak valid' });
         }
 
-        attendance.status = status;
-        await attendance.save();
+        const attendance = await Attendance.findByPk(attendance_id);
+        if (!attendance) {
+            return res.status(404).json({ message: 'Data kehadiran tidak ditemukan' });
+        }
 
-        res.status(200).json({ message: "Status kehadiran berhasil diperbarui", attendance });
+        await attendance.update({ status });
+
+        res.json({ message: 'Status kehadiran berhasil diperbarui', attendance });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
-module.exports = router;
+module.exports = router

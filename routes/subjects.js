@@ -4,7 +4,7 @@ const Validator = require('fastest-validator');
 const { Subject, Grade, Student, Class, ClassSubject } = require('../models');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
-const { accessValidation } = require('../middlewares/accessValidation');
+const accessValidation = require('../middlewares/accessValidation');
 
 // ✅ GET: Daftar mata pelajaran berdasarkan kelas tertentu
 router.get("/", async (req, res) => {

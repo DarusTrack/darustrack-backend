@@ -17,6 +17,7 @@ const isParentValidation = async (req, res, next) => {
         if (!students.length) {
             return res.status(404).json({ message: "Tidak ada siswa yang terdaftar untuk akun ini." });
         }
+        console.log(typeof isParentValidation); // Harus 'function'
 
         req.children = students; // Simpan daftar anak di request
 

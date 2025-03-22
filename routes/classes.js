@@ -2,9 +2,9 @@ var express = require("express");
 var router = express.Router();
 const Validator = require("fastest-validator");
 const { Class, User, Student, Evaluation, Attendance, Schedule, Subject } = require("../models");
-const { isWaliKelas } = require('../middlewares/isWaliKelasValidation');
+const isWaliKelas = require('../middlewares/isWaliKelasValidation');
 const roleValidation = require("../middlewares/roleValidation");
-const { accessValidation } = require('../middlewares/accessValidation');
+const accessValidation = require('../middlewares/accessValidation');
 const v = new Validator();
 
 // Get semua kelas

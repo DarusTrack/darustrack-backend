@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const { Student, Attendance, Schedule, Subject, Class, Evaluation, User } = require('../models');
 // const roleValidation = require("../middlewares/roleValidation");
-const { accessValidation } = require('../middlewares/accessValidation');
+const accessValidation = require('../middlewares/accessValidation');
 const isParentValidation = require('../middlewares/isParentValidation');
 
 router.get('/evaluations', accessValidation, isParentValidation, async (req, res) => {

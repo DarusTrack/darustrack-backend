@@ -1,9 +1,10 @@
 var express = require("express");
 var router = express.Router();
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const { User } = require("../models");
-const { accessValidation, tokenBlacklist } = require("../middlewares/accessValidation");
+const accessValidation = require("../middlewares/accessValidation");
+const tokenBlacklist = require("../middlewares/tokenBlacklist");
 const Validator = require("fastest-validator");
 require("dotenv").config();
 const v = new Validator();

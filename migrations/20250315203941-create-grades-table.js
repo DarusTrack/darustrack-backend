@@ -19,6 +19,16 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
+      class_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'classes',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
       subject_id: {
         type: Sequelize.INTEGER,
         allowNull: false,

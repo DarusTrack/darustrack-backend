@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { Attendance, Student } = require('../models');
-const { accessValidation } = require('../middlewares/accessValidation');
+const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 

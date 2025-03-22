@@ -2,43 +2,40 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('evaluations', {
+    await queryInterface.createTable('achievements', {
       id: {
         type: Sequelize.INTEGER,
-        // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
         autoIncrement: true
       },
-      class_id: {
+      subject_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'classes',
+          model: 'subjects',
           key: 'id'
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
-      title: {
+      description: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      description: {
-        type: Sequelize.TEXT,
-        allowNull: true
-      },
       createdAt: {
         type: Sequelize.DATE,
-        allowNull: false
+        allowNull: false,
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
       updatedAt: {
         type: Sequelize.DATE,
-        allowNull: false
+        allowNull: false,
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       }
     });
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('evaluations');
+    await queryInterface.dropTable('achievements');
   }
 };

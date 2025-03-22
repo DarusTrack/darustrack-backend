@@ -4,7 +4,7 @@ const Validator = require('fastest-validator');
 const { Student, Attendance, Schedule, Subject, Class, Evaluation, User } = require('../models');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
-const { accessValidation } = require('../middlewares/accessValidation');
+const accessValidation = require('../middlewares/accessValidation');
 const isParentValidation = require('../middlewares/isParentValidation');
 
 // **GET /students** → Hanya menampilkan nama siswa
