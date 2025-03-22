@@ -15,7 +15,7 @@ router.get('/profile', async (req, res) => {
         const student = await Student.findOne({
             where: { parent_id: parentId },
             attributes: ['name', 'nisn', 'birth_date'],
-            include: [{ model: Class, attributes: ['name'] }]
+            include: [{ model: Class,  as: "class", attributes: ['name'] }]
         });
 
         if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
