@@ -10,6 +10,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             allowNull: false
         },
+        class_id: {
+            type: DataTypes.INTEGER,
+            allowNull: false
+        },
         subject_id: {
             type: DataTypes.INTEGER,
             allowNull: false
@@ -35,8 +39,9 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     Grade.associate = (models) => {
-        Grade.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
-        Grade.belongsTo(models.Subject, { foreignKey: 'subject_id', as: 'subject' });
+        Assessment.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
+        Assessment.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
+        Assessment.belongsTo(models.Subject, { foreignKey: 'subject_id', as: 'subject' });
     };
 
     return Grade;

@@ -6,24 +6,25 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
             autoIncrement: true
         },
-        student_id: {
+        class_id: {
             type: DataTypes.INTEGER,
             allowNull: false
         },
         title: {
-            type: DataTypes.ENUM('Mengenai Perilaku Anak', 'Hasil Evaluasi Belajar Anak'),
+            type: DataTypes.STRING,
             allowNull: false
         },
         description: {
             type: DataTypes.TEXT,
-            allowNull: true
+            allowNull: false
         }
     }, {
         tableName: 'evaluations',
     });
 
     Evaluation.associate = (models) => {
-        Evaluation.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
+        Evaluation.belongsTo(models.Class, { foreignKey: 'class_id' });
+        Evaluation.hasMany(models.StudentEvaluation, { foreignKey: 'evaluation_id' });
     };
 
     return Evaluation;

@@ -23,13 +23,9 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     Class.associate = (models) => {
-        Class.belongsTo(models.User, { foreignKey: 'teacher_id', as: 'teacher' });
         Class.hasMany(models.Student, { foreignKey: 'class_id', as: 'students' });
-        Class.belongsToMany(models.Subject, {
-            through: 'ClassSubject',
-            foreignKey: 'class_id',
-            as: 'subjects'
-        });
+        Class.hasMany(models.Schedule, { foreignKey: 'class_id', as: 'schedules' });
+        Class.hasMany(models.Subject, { foreignKey: 'class_id', as: 'subjects' });
     };
 
     return Class;

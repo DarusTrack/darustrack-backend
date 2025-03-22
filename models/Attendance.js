@@ -10,13 +10,17 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             allowNull: false
         },
+        class_id: {
+            type: DataTypes.INTEGER,
+            allowNull: false  
+        },
         date: {
             type: DataTypes.DATEONLY,
             allowNull: false
         },
         status: {
             type: DataTypes.ENUM('Hadir', 'Izin', 'Sakit', 'Alpha'),
-            allowNull: false
+            allowNull: true
         }
     }, {
         tableName: 'attendances',
@@ -24,6 +28,7 @@ module.exports = (sequelize, DataTypes) => {
 
     Attendance.associate = (models) => {
         Attendance.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
+        Attendance.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
     };
 
     return Attendance;

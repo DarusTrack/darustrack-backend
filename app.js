@@ -23,7 +23,7 @@ var gradesRouter = require('./routes/grades');
 var attendancesRouter = require('./routes/attendances');
 var evaluationsRouter = require('./routes/evaluations');
 var schedulesRouter = require('./routes/schedules');
-var schoolCalendarRouter = require('./routes/school_calendar');
+var academicCalendarRouter = require('./routes/academic_calendar');
 
 var app = express();
 
@@ -48,12 +48,12 @@ app.use('/grades', gradesRouter);
 app.use('/attendances', attendancesRouter);
 app.use('/evaluations', evaluationsRouter);
 app.use('/schedules', schedulesRouter);
-app.use('/school-calendar', schoolCalendarRouter);
+app.use('/academic-calendar', academicCalendarRouter);
 
-// const sequelize = require('./config/database');
+const sequelize = require('./config/database');
 
-// sequelize.authenticate()
-//   .then(() => console.log('Database connected...'))
-//   .catch(err => console.error('Error connecting to database:', err));
+sequelize.authenticate()
+  .then(() => console.log('Database connected...'))
+  .catch(err => console.error('Error connecting to database:', err));
 
 module.exports = app;
