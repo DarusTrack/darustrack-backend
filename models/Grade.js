@@ -39,9 +39,9 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     Grade.associate = (models) => {
-        Assessment.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
-        Assessment.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
-        Assessment.belongsTo(models.Subject, { foreignKey: 'subject_id', as: 'subject' });
+        Grade.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
+        Grade.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
+        Grade.belongsTo(models.Subject, { foreignKey: 'subject_id', as: 'subject' });
     };
 
     return Grade;

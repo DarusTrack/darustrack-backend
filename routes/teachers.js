@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Student, Evaluation, Attendance, Assessment, StudentEvaluation } = require('../models');
+const { Student, Evaluation, Attendance, Grade, StudentEvaluation } = require('../models');
 const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 
@@ -97,7 +97,7 @@ router.put('/evaluations/:evaluation_id/students/:student_id', accessValidation,
 router.post('/assessments', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { student_id, subject_id, type, title, score } = req.body;
-        const assessment = await Assessment.create({
+        const assessment = await Grade.create({
             student_id,
             teacher_id: req.user.id,
             subject_id,
