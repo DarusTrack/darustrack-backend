@@ -30,7 +30,7 @@ router.get('/profile', async (req, res) => {
 router.get('/curriculum', async (req, res) => {
     try {
         const curriculum = await Curriculum.findOne({
-            attributes: ['title', 'description']
+            attributes: ['name', 'description']
         });
         res.json(curriculum);
     } catch (error) {
