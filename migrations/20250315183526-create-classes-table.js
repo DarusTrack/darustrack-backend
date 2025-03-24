@@ -13,6 +13,10 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false
       },
+      grade_level: {
+        type: Sequelize.ENUM('1', '2', '3', '4','5', '6'),
+        allowNull: false
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: false

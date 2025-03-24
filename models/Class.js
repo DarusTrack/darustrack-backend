@@ -13,10 +13,6 @@ module.exports = (sequelize, DataTypes) => {
         grade_level: {
             type: DataTypes.ENUM('1', '2', '3', '4', '5', '6'),
             allowNull: false
-        },
-        teacher_id: {
-            type: DataTypes.INTEGER,
-            allowNull: false
         }
     }, {
         tableName: 'classes',
@@ -25,7 +21,6 @@ module.exports = (sequelize, DataTypes) => {
     Class.associate = (models) => {
         Class.hasMany(models.Student, { foreignKey: 'class_id', as: 'students' });
         Class.hasMany(models.Schedule, { foreignKey: 'class_id', as: 'schedules' });
-        Class.hasMany(models.Subject, { foreignKey: 'class_id', as: 'subjects' });
     };
 
     return Class;

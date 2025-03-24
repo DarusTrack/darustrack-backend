@@ -12,20 +12,8 @@ router.get('/', accessValidation, async (req, res) => {
     return res.json(schedules);
 });
 
-// Get jadwal akademik berdasarkan ID
-router.get('/:id', accessValidation, async (req, res) => {
-    const id = req.params.id;
-    const schedule = await AcademicCalendar.findByPk(id);
-
-    if (!schedule) {
-        return res.status(404).json({ message: 'School Calendar not found' });
-    }
-
-    return res.json(schedule);
-});
-
 // Tambah jadwal akademik baru
-router.post('/',  accessValidation, roleValidation(["orang_tua"]), async (req, res) => {
+router.post('/',  accessValidation, roleValidation(["admin"]), async (req, res) => {
     const schema = {
         event_name: 'string',
         start_date: { type: 'date', convert: true },
@@ -47,7 +35,7 @@ router.put('/:id',  accessValidation, roleValidation(["admin"]), async (req, res
 
     let schedule = await AcademicCalendar.findByPk(id);
     if (!schedule) {
-        return res.status(404).json({ message: 'School Calendar not found' });
+        return res.status(404).json({ message: 'Event not found' });
     }
 
     const schema = {
@@ -71,11 +59,11 @@ router.delete('/:id',  accessValidation, roleValidation(["admin"]), async (req, 
     const schedule = await AcademicCalendar.findByPk(id);
 
     if (!schedule) {
-        return res.status(404).json({ message: 'School Calendar not found' });
+        return res.status(404).json({ message: 'Event not found' });
     }
 
     await schedule.destroy();
-    res.json({ message: 'School Calendar is deleted' });
+    res.json({ message: 'Event is deleted' });
 });
 
 module.exports = router;

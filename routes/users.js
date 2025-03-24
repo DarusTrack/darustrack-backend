@@ -7,7 +7,7 @@ const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
 const accessValidation = require('../middlewares/accessValidation');
 
-// Get semua pengguna
+// Get daftar pengguna berdasarkan role
 router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const { role } = req.query;
 

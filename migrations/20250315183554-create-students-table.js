@@ -15,7 +15,8 @@ module.exports = {
       },
       nisn: {
         type: Sequelize.STRING,
-        allowNull: false
+        allowNull: false,
+        unique: true
       },
       birth_date: {
         type: Sequelize.DATEONLY,

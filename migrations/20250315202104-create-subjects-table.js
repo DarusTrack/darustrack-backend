@@ -13,10 +13,6 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false
       },
-      learning_goals: {
-        type: Sequelize.TEXT,
-        allowNull: true
-      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: false
@@ -24,7 +20,7 @@ module.exports = {
       updatedAt: {
         type: Sequelize.DATE,
         allowNull: false
-      }
+      },
     });
   },
 

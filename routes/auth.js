@@ -46,6 +46,24 @@ router.post("/logout", accessValidation, (req, res) => {
     res.json({ message: "Logout successful, token tidak bisa digunakan lagi" });
 });
 
+// Get Profile (Hanya bisa dilakukan oleh user yang login)
+router.get("/profile", accessValidation, async (req, res) => {
+    try {
+        const user = await User.findByPk(req.user.id, {
+            attributes: { exclude: ["password"] }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json(user);
+    } catch (error) {
+        console.error("Profile Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 // Update Profile (Hanya bisa dilakukan oleh user yang login)
 router.put("/profile", accessValidation, async (req, res) => {
     const { name, email, password } = req.body;
@@ -68,24 +86,6 @@ router.put("/profile", accessValidation, async (req, res) => {
         res.json({ message: "Profile updated successfully", user });
     } catch (error) {
         console.error("Update Profile Error:", error);
-        res.status(500).json({ message: "Internal server error" });
-    }
-});
-
-// Get Profile (Hanya bisa dilakukan oleh user yang login)
-router.get("/profile", accessValidation, async (req, res) => {
-    try {
-        const user = await User.findByPk(req.user.id, {
-            attributes: { exclude: ["password"] }
-        });
-
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        res.json(user);
-    } catch (error) {
-        console.error("Profile Error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 });

@@ -32,7 +32,7 @@ module.exports = (sequelize, DataTypes) => {
         role: {
             type: DataTypes.ENUM('orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'),
             allowNull: false
-        }
+        },
     }, {
         tableName: 'users',
     });
@@ -41,6 +41,10 @@ module.exports = (sequelize, DataTypes) => {
     User.beforeCreate(async (user) => {
         user.password = await bcrypt.hash(user.password, 10);
     });
+
+    User.associate = (models) => {
+        User.hasMany(models.Student, { foreignKey: 'parent_id', as: 'students' });
+    };
 
     return User;
 };

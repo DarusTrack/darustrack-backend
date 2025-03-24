@@ -6,18 +6,17 @@ const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 
-router.get('/',  accessValidation, async (req, res) => {
-    const curriculums = await Curriculum.findAll();
-    return res.json(curriculums);
+// Get data kurikulum (hanya satu yang tersedia)
+router.get('/', async (req, res) => {
+    try {
+        const curriculum = await Curriculum.findOne();
+        res.json(curriculum || {});
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching curriculum', error });
+    }
 });
 
-router.get('/:id', accessValidation, async (req,res) => {
-    const id = req.params.id;
-    const curriculums = await Curriculum.findByPk(id);
-    return res.json(curriculums || {});
-});
-
-router.post('/', accessValidation, roleValidation(["orang_tua"]), async (req, res) => {
+router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const schema = {
         name: 'string',
         description: 'string',

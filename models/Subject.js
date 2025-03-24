@@ -9,17 +9,22 @@ module.exports = (sequelize, DataTypes) => {
         name: {
             type: DataTypes.STRING,
             allowNull: false
-        }
+        },
+        createdAt: {
+            type: DataTypes.DATE,
+            allowNull: false
+        },
+        updatedAt: {
+            type: DataTypes.DATE,
+            allowNull: false
+        },
     }, {
         tableName: 'subjects',
     });
 
     Subject.associate = (models) => {
-        Subject.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
-        Subject.hasMany(models.Achievement, { 
-            foreignKey: 'subject_id',
-            as: 'achievements'
-        });        
+        Subject.hasMany(models.LearningOutcome, { foreignKey: 'subject_id', as: 'learning_outcomes' });
+        Subject.hasMany(models.Schedule, { foreignKey: 'subject_id', as: 'schedules' });
     };
 
     return Subject;
