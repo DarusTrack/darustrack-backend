@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router();
+const { Op } = require("sequelize");
 const Validator = require('fastest-validator');
 const { Student, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation } = require('../models');
 const v = new Validator();
@@ -39,17 +40,27 @@ router.get('/curriculum', async (req, res) => {
 });
 
 // 🔹 Jadwal Mata Pelajaran Anak berdasarkan Hari
-router.get('/schedule', async (req, res) => {
+router.get('/schedule', accessValidation, async (req, res) => {
     try {
         const parentId = req.user.id;
         const student = await Student.findOne({ where: { parent_id: parentId } });
 
-        if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
+        if (!student) {
+            return res.status(404).json({ message: 'Data anak tidak ditemukan' });
+        }
+
+        const { day } = req.query;  // Ambil query parameter "day"
+        const whereCondition = { class_id: student.class_id };
+
+        // Jika ada filter "day", tambahkan ke kondisi where
+        if (day) {
+            whereCondition.day = { [Op.eq]: day };  // Filter case-sensitive untuk MySQL
+        }
 
         const schedules = await Schedule.findAll({
-            where: { class_id: student.class_id },
+            where: whereCondition,
             attributes: ['day', 'start_time', 'end_time'],
-            include: [{ model: Subject,  as: "subject", attributes: ['name'] }]
+            include: [{ model: Subject, as: "subject", attributes: ['name'] }]
         });
 
         res.json(schedules);
@@ -70,6 +81,105 @@ router.get('/academic-calendar', async (req, res) => {
     }
 });
 
+// 🔹 Kehadiran Anak
+router.get('/attendance', accessValidation, async (req, res) => {
+    try {
+        const parentId = req.user.id;
+        const student = await Student.findOne({ where: { parent_id: parentId } });
+
+        if (!student) {
+            return res.status(404).json({ message: "Student not found" });
+        }
+
+        // Ambil parameter date dari query (format: YYYY-MM-DD)
+        const { date } = req.query;
+
+        // Buat kondisi where untuk filter tanggal jika ada
+        const whereCondition = { student_id: student.id };
+        if (date) {
+            whereCondition.date = { [Op.eq]: date };
+        }
+
+        const attendances = await Attendance.findAll({
+            where: whereCondition,
+            attributes: ['date', 'status']
+        });
+
+        // Format response untuk menambahkan nama hari
+        const formattedAttendances = attendances.map(attendance => {
+            const dateObj = new Date(attendance.date);
+            const daysOfWeek = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+            const day = daysOfWeek[dateObj.getUTCDay()];
+
+            return {
+                date: attendance.date,
+                day: day,
+                status: attendance.status
+            };
+        });
+
+        res.json(formattedAttendances);
+    } catch (error) {
+        console.error("Attendance Error:", error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// 🔹 Ambil daftar evaluasi yang ditambahkan oleh wali kelas untuk anak dari orang tua yang login
+router.get('/evaluations', async (req, res) => {
+    try {
+        const parentId = req.user.id;
+
+        const students = await Student.findAll({
+            where: { parent_id: parentId },
+            attributes: ['id', 'class_id']
+        });
+
+        if (!students.length) return res.status(404).json({ message: 'No students found for this parent' });
+
+        const classIds = students.map(student => student.class_id);
+
+        const evaluations = await Evaluation.findAll({
+            where: { class_id: { [Op.in]: classIds } },  // Filter hanya evaluasi yang relevan
+            attributes: ['id', 'title']
+        });
+
+        res.json(evaluations);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// 🔹 Ambil hanya description dari evaluasi berdasarkan ID untuk anak tertentu
+router.get('/evaluations/:id', async (req, res) => {
+    try {
+        const parentId = req.user.id;
+        const evaluationId = req.params.id;
+
+        const students = await Student.findAll({
+            where: { parent_id: parentId },
+            attributes: ['id']
+        });
+
+        if (!students.length) return res.status(404).json({ message: 'No students found for this parent' });
+
+        const studentIds = students.map(student => student.id);
+
+        const studentEvaluation = await StudentEvaluation.findOne({
+            where: { evaluation_id: evaluationId, student_id: { [Op.in]: studentIds } },  // Evaluasi hanya untuk anaknya
+            attributes: ['description']
+        });
+
+        if (!studentEvaluation) {
+            return res.status(404).json({ message: 'Evaluation not found or not assigned to your child' });
+        }
+
+        res.json({ description: studentEvaluation.description });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // 🔹 Penilaian Akademik
 router.get('/assessments/:subject_id/:type', async (req, res) => {
     try {
@@ -83,87 +193,6 @@ router.get('/assessments/:subject_id/:type', async (req, res) => {
         });
 
         res.json(assessments);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// 🔹 Kehadiran Anak
-router.get('/attendance', async (req, res) => {
-    try {
-        const parentId = req.user.id;
-        const student = await Student.findOne({ where: { parent_id: parentId } });
-
-        const attendances = await Attendance.findAll({
-            where: { student_id: student.id },
-            attributes: ['date', 'status']
-        });
-
-        res.json(attendances);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// 🔹 Ambil daftar evaluasi yang ditambahkan oleh wali kelas untuk anak dari orang tua yang login
-router.get('/evaluations', async (req, res) => {
-    try {
-        const parentId = req.user.id;
-
-        // Ambil siswa berdasarkan parentId
-        const students = await Student.findAll({
-            where: { parent_id: parentId },
-            attributes: ['id', 'class_id']
-        });
-
-        if (!students.length) {
-            return res.status(404).json({ message: 'No students found for this parent' });
-        }
-
-        const classIds = students.map(student => student.class_id);
-
-        // Cari evaluasi berdasarkan class_id yang diajar oleh wali kelas
-        const evaluations = await Evaluation.findAll({
-            where: { class_id: classIds },
-            attributes: ['id', 'title']
-        });
-
-        res.json(evaluations);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-
-// 🔹 Ambil hanya description dari evaluasi berdasarkan ID untuk anak tertentu
-router.get('/evaluations/:id', async (req, res) => {
-    try {
-        const parentId = req.user.id;
-        const evaluationId = req.params.id;
-
-        // Ambil siswa berdasarkan parentId
-        const students = await Student.findAll({
-            where: { parent_id: parentId },
-            attributes: ['id']
-        });
-
-        if (!students.length) {
-            return res.status(404).json({ message: 'No students found for this parent' });
-        }
-
-        const studentIds = students.map(student => student.id);
-
-        // Cari evaluasi dengan hanya menampilkan atribut description
-        const studentEvaluation = await StudentEvaluation.findOne({
-            where: { evaluation_id: evaluationId, student_id: studentIds },
-            attributes: ['description']
-        });
-
-        if (!studentEvaluation) {
-            return res.status(404).json({ message: 'Evaluation not found or not assigned to your child' });
-        }
-
-        res.json({ description: studentEvaluation.description });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

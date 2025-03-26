@@ -86,8 +86,18 @@ router.delete('/attendances/:attendance_id', accessValidation, roleValidation(['
 // *** SCHEDULE ***
 router.get('/schedule', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
+        const { day } = req.query;  // Ambil query parameter "day"
+
+        // Buat kondisi filter untuk class_id wali kelas
+        const whereCondition = { class_id: req.user.class_id };
+
+        // Jika ada filter "day", tambahkan ke kondisi where
+        if (day) {
+            whereCondition.day = { [Op.iLike]: `%${day}%` };  // Case-insensitive search
+        }
+
         const schedule = await Schedule.findAll({
-            where: { class_id: req.user.class_id },
+            where: whereCondition,
             attributes: ['id', 'subject_id', 'day', 'start_time', 'end_time']
         });
 

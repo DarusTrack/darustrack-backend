@@ -31,7 +31,7 @@ router.post("/login", async (req, res) => {
         const token = jwt.sign(
             { id: user.id, name: user.name, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || "1h" }
+            { expiresIn: process.env.JWT_EXPIRES_IN}
         );
 
         res.json({ message: "Login successful", token });
@@ -41,23 +41,24 @@ router.post("/login", async (req, res) => {
     }
 });
 
-router.post("/logout", accessValidation, (req, res) => {
-    tokenBlacklist.add(req.headers.authorization.split(" ")[1]);
-    res.json({ message: "Logout successful, token tidak bisa digunakan lagi" });
-});
-
 // Get Profile (Hanya bisa dilakukan oleh user yang login)
 router.get("/profile", accessValidation, async (req, res) => {
     try {
         const user = await User.findByPk(req.user.id, {
-            attributes: { exclude: ["password"] }
+            attributes: ["id", "name", "email", "role", "class_id", "password"]
         });
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        res.json(user);
+        // Tambahkan opsi untuk menampilkan password sebelum di-hash
+        res.json({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            password: "********", // Password tetap tersembunyi secara default
+        });
     } catch (error) {
         console.error("Profile Error:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -66,13 +67,11 @@ router.get("/profile", accessValidation, async (req, res) => {
 
 // Update Profile (Hanya bisa dilakukan oleh user yang login)
 router.put("/profile", accessValidation, async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, showPassword } = req.body;
 
     try {
-        const user = await User.findByPk(req.user.id, {
-            attributes: { exclude: ["password"] }
-        });
-        
+        const user = await User.findByPk(req.user.id);
+
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -80,10 +79,16 @@ router.put("/profile", accessValidation, async (req, res) => {
         // Update data pengguna
         if (name) user.name = name;
         if (email) user.email = email;
-        if (password) user.password = await bcrypt.hash(password, 10);
+        if (password) {
+            user.password = await bcrypt.hash(password, 10);
+        }
 
         await user.save();
-        res.json({ message: "Profile updated successfully", user });
+
+        res.json({
+            message: "Profile updated successfully",
+            password: showPassword ? password : "********", // Jika showPassword true, tampilkan password baru
+        });
     } catch (error) {
         console.error("Update Profile Error:", error);
         res.status(500).json({ message: "Internal server error" });
