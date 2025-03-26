@@ -22,8 +22,8 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     StudentEvaluation.associate = models => {
-        StudentEvaluation.belongsTo(models.Evaluation, { foreignKey: 'evaluation_id' });
-        StudentEvaluation.belongsTo(models.Student, { foreignKey: 'student_id' });
+        StudentEvaluation.belongsTo(models.Evaluation, { foreignKey: 'evaluation_id', as: 'evaluation' });
+        StudentEvaluation.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
     };
 
     return StudentEvaluation;

@@ -6,6 +6,10 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
             autoIncrement: true
         },
+        class_id: {
+            type: DataTypes.INTEGER,
+            allowNull: false
+        },
         title: {
             type: DataTypes.STRING,
             allowNull: false
@@ -15,8 +19,8 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     Evaluation.associate = (models) => {
-        // Evaluation.belongsTo(models.Class, { foreignKey: 'class_id' });
-        Evaluation.hasMany(models.StudentEvaluation, { foreignKey: 'evaluation_id' });
+        Evaluation.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
+        Evaluation.hasMany(models.StudentEvaluation, { foreignKey: 'evaluation_id', as: 'student_evaluation' });
     };
 
     return Evaluation;

@@ -33,6 +33,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.ENUM('orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'),
             allowNull: false
         },
+        class_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true
+        }
     }, {
         tableName: 'users',
     });

@@ -19,8 +19,8 @@ router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) =>
 // Tambah kelas
 router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
-        const { name, grade_level } = req.body;
-        const newClass = await Class.create({ name, grade_level });
+        const { name, grade_level, teacher_id } = req.body;
+        const newClass = await Class.create({ name, grade_level, teacher_id });
         res.status(201).json(newClass);
     } catch (error) {
         res.status(500).json({ message: 'Error creating class', error });
@@ -30,8 +30,8 @@ router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) =
 // Edit kelas
 router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
-        const { name, grade_level } = req.body;
-        await Class.update({ name, grade_level }, { where: { id: req.params.id } });
+        const { name, grade_level, teacher_id } = req.body;
+        await Class.update({ name, grade_level, teacher_id }, { where: { id: req.params.id } });
         res.json({ message: 'Class updated successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error updating class', error });

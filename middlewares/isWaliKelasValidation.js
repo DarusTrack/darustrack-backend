@@ -2,19 +2,24 @@ const { Class } = require('../models');
 
 const isWaliKelas = async (req, res, next) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ message: "Unauthorized: User data not found in request" });
+        }
+
         const { user } = req;
-        const { classId } = req.params;
+        console.log("Checking wali kelas role for:", user); // Debugging log
 
         if (user.role !== "wali_kelas") {
             return res.status(403).json({ message: "Akses ditolak. Anda bukan wali kelas." });
         }
 
-        const kelas = await Class.findOne({ where: { id: classId, teacher_id: user.id } });
+        const kelas = await Class.findOne({ where: { teacher_id: user.id } });
 
         if (!kelas) {
-            return res.status(403).json({ message: "Akses ditolak. Anda bukan wali kelas dari kelas ini." });
+            return res.status(403).json({ message: "Akses ditolak. Anda tidak memiliki kelas." });
         }
-        console.log(typeof roleValidation); // Harus 'function'  
+
+        req.class = kelas;
         next();
     } catch (error) {
         console.error("Error in isWaliKelas middleware:", error);
@@ -23,3 +28,4 @@ const isWaliKelas = async (req, res, next) => {
 };
 
 module.exports = isWaliKelas;
+

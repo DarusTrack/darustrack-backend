@@ -9,16 +9,6 @@ module.exports = {
         primaryKey: true,
         autoIncrement: true
       },
-      student_id: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'students',
-          key: 'id'
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
-      },
       class_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
@@ -38,22 +28,6 @@ module.exports = {
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
-      },
-      type: {
-        type: Sequelize.ENUM('Quiz', 'Tugas', 'UTS', 'UAS'),
-        allowNull: false
-      },
-      score: {
-        type: Sequelize.FLOAT,
-        allowNull: true
-      },
-      date: {
-        type: Sequelize.DATEONLY,
-        allowNull: true
-      },
-      description: {
-        type: Sequelize.STRING,
-        allowNull: true
       },
       createdAt: {
         type: Sequelize.DATE,

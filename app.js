@@ -17,9 +17,6 @@ var parentsRouter = require('./routes/parents');
 var classesRouter = require('./routes/classes');
 var curriculumsRouter = require('./routes/curriculums');
 var subjectsRouter = require('./routes/subjects');
-var gradesRouter = require('./routes/grades');
-var attendancesRouter = require('./routes/attendances');
-var evaluationsRouter = require('./routes/evaluations');
 var academicCalendarRouter = require('./routes/academic_calendar');
 
 var app = express();
@@ -39,9 +36,6 @@ app.use('/parents', parentsRouter);
 app.use('/classes', classesRouter);
 app.use('/curriculums', curriculumsRouter);
 app.use('/subjects', subjectsRouter);
-app.use('/grades', gradesRouter);
-app.use('/attendances', attendancesRouter);
-app.use('/evaluations', evaluationsRouter);
 app.use('/academic-calendar', academicCalendarRouter);
 
 const sequelize = require('./config/database');
