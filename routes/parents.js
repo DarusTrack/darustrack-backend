@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
-const { Student, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum } = require('../models');
+const { Student, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation } = require('../models');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
 const accessValidation = require('../middlewares/accessValidation');
@@ -62,30 +62,9 @@ router.get('/schedule', async (req, res) => {
 router.get('/academic-calendar', async (req, res) => {
     try {
         const events = await AcademicCalendar.findAll({
-            attributes: ['name', 'start_date', 'end_date']
+            attributes: ['event_name', 'start_date', 'end_date']
         });
         res.json(events);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// 🔹 Capaian Mata Pelajaran
-router.get('/achievements', async (req, res) => {
-    try {
-        const parentId = req.user.id;
-        const student = await Student.findOne({ where: { parent_id: parentId } });
-
-        const achievements = await Achievement.findAll({
-            include: [{
-                model: Subject,
-                as: "subject",
-                attributes: ['name'],
-                where: { class_id: student.class_id }
-            }]
-        });
-
-        res.json(achievements);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -126,18 +105,65 @@ router.get('/attendance', async (req, res) => {
     }
 });
 
-// 🔹 Evaluasi Anak
+// 🔹 Ambil daftar evaluasi yang ditambahkan oleh wali kelas untuk anak dari orang tua yang login
 router.get('/evaluations', async (req, res) => {
     try {
         const parentId = req.user.id;
-        const student = await Student.findOne({ where: { parent_id: parentId } });
 
+        // Ambil siswa berdasarkan parentId
+        const students = await Student.findAll({
+            where: { parent_id: parentId },
+            attributes: ['id', 'class_id']
+        });
+
+        if (!students.length) {
+            return res.status(404).json({ message: 'No students found for this parent' });
+        }
+
+        const classIds = students.map(student => student.class_id);
+
+        // Cari evaluasi berdasarkan class_id yang diajar oleh wali kelas
         const evaluations = await Evaluation.findAll({
-            where: { student_id: student.id },
-            attributes: ['title', 'description']
+            where: { class_id: classIds },
+            attributes: ['id', 'title']
         });
 
         res.json(evaluations);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+
+// 🔹 Ambil hanya description dari evaluasi berdasarkan ID untuk anak tertentu
+router.get('/evaluations/:id', async (req, res) => {
+    try {
+        const parentId = req.user.id;
+        const evaluationId = req.params.id;
+
+        // Ambil siswa berdasarkan parentId
+        const students = await Student.findAll({
+            where: { parent_id: parentId },
+            attributes: ['id']
+        });
+
+        if (!students.length) {
+            return res.status(404).json({ message: 'No students found for this parent' });
+        }
+
+        const studentIds = students.map(student => student.id);
+
+        // Cari evaluasi dengan hanya menampilkan atribut description
+        const studentEvaluation = await StudentEvaluation.findOne({
+            where: { evaluation_id: evaluationId, student_id: studentIds },
+            attributes: ['description']
+        });
+
+        if (!studentEvaluation) {
+            return res.status(404).json({ message: 'Evaluation not found or not assigned to your child' });
+        }
+
+        res.json({ description: studentEvaluation.description });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

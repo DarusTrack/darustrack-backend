@@ -81,27 +81,34 @@ router.delete('/:id',  accessValidation, roleValidation(["admin"]), async (req, 
     res.json({ message: 'Subject is deleted' });
 });
 
+
 // Get capaian pembelajaran berdasarkan mata pelajaran (kelas 1-6) dengan filter grade_level
 router.get('/:subject_id/learning-outcomes', async (req, res) => {
     try {
-        const { grade_level } = req.query; // Ambil query parameter untuk filter grade_level
+        const { grade_level } = req.query;
         const { subject_id } = req.params;
 
-        // Buat kondisi pencarian
         let whereCondition = { subject_id };
         if (grade_level) {
-            whereCondition.grade_level = grade_level; // Tambahkan filter jika grade_level ada
+            whereCondition.grade_level = grade_level;
         }
 
-        // Ambil data dari database
+        // Pastikan menggunakan relasi yang benar
         const outcomes = await LearningOutcome.findAll({
             where: whereCondition,
-            order: [['grade_level', 'ASC']]
+            order: [['grade_level', 'ASC']],
+            include: [
+                {
+                    model: Subject,
+                    as: 'subject',
+                    attributes: ['name']
+                }
+            ]
         });
 
         res.json(outcomes);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching learning outcomes', error });
+        res.status(500).json({ message: 'Error fetching learning outcomes', error: error.message });
     }
 });
 

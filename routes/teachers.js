@@ -72,16 +72,16 @@ router.put('/attendances/:attendance_id', accessValidation, roleValidation(['wal
     }
 });
 
-// router.delete('/attendances/:attendance_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-//     try {
-//         const { attendance_id } = req.params;
-//         await Attendance.destroy({ where: { id: attendance_id } });
+router.delete('/attendances/:attendance_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const { attendance_id } = req.params;
+        await Attendance.destroy({ where: { id: attendance_id } });
 
-//         res.json({ message: 'Data kehadiran dihapus' });
-//     } catch (error) {
-//         res.status(500).json({ message: 'Server error', error: error.message });
-//     }
-// });
+        res.json({ message: 'Data kehadiran dihapus' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
 
 // *** SCHEDULE ***
 router.get('/schedule', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
