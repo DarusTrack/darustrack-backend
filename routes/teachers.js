@@ -124,6 +124,53 @@ router.get('/evaluations', accessValidation, roleValidation(['wali_kelas']), asy
     }
 });
 
+// edit title
+router.put('/evaluations/:id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title } = req.body;
+
+        // Cek apakah evaluasi ada di database
+        const evaluation = await Evaluation.findOne({
+            where: { id, class_id: req.user.class_id }
+        });
+
+        if (!evaluation) {
+            return res.status(404).json({ message: 'Evaluasi tidak ditemukan' });
+        }
+
+        // Update title evaluasi
+        await evaluation.update({ title });
+
+        res.json({ message: 'Evaluasi berhasil diperbarui', evaluation });
+    } catch (error) {
+        res.status(500).json({ message: 'Terjadi kesalahan saat memperbarui evaluasi', error: error.message });
+    }
+});
+
+// hapus title
+router.delete('/evaluations/:id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Cek apakah evaluasi ada di database
+        const evaluation = await Evaluation.findOne({
+            where: { id, class_id: req.user.class_id }
+        });
+
+        if (!evaluation) {
+            return res.status(404).json({ message: 'Evaluasi tidak ditemukan' });
+        }
+
+        // Hapus evaluasi
+        await evaluation.destroy();
+
+        res.json({ message: 'Evaluasi berhasil dihapus' });
+    } catch (error) {
+        res.status(500).json({ message: 'Terjadi kesalahan saat menghapus evaluasi', error: error.message });
+    }
+});
+
 // *** MENAMPILKAN DETAIL EVALUASI (DAFTAR SISWA & DESKRIPSI) ***
 router.get('/evaluations/:evaluation_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
