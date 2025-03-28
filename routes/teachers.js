@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Op } = require('sequelize')
+const { Op } = require('sequelize');
 const { Student, Evaluation, Attendance, Grade, StudentEvaluation, Schedule, Subject, Assessment, AssessmentType, StudentScore } = require('../models');
 const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
