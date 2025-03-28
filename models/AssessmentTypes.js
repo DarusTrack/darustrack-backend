@@ -6,10 +6,6 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
             autoIncrement: true
         },
-        grade_id: {
-            type: DataTypes.INTEGER,
-            allowNull: false
-        },
         assessment_id: {
             type: DataTypes.INTEGER,
             allowNull: false
@@ -18,15 +14,18 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false,
             unique: true
+        },
+        date: {
+            type: DataTypes.DATE,
+            allowNull: true
         }
     }, {
         tableName: 'assessment_types',
     });
 
     AssessmentType.associate = (models) => {
-        AssessmentType.belongsTo(models.Grade, { foreignKey: 'grade_id', as: 'grade' });
         AssessmentType.belongsTo(models.Assessment, { foreignKey: 'assessment_id', as: 'assessment' });
-        AssessmentType.hasMany(models.StudentAssessment, { foreignKey: 'type_id', as: 'student_assessment' });
+        AssessmentType.hasMany(models.StudentScore, { foreignKey: 'assessment_type_id', as: 'student_scores' });
     };
 
     return AssessmentType;

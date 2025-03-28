@@ -16,7 +16,10 @@ router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) =>
     if (role) whereClause.role = role;
 
     try {
-        const users = await User.findAll({ where: whereClause });
+        const users = await User.findAll({
+            where: whereClause,
+            attributes: { exclude: ["password", "createdAt", "updatedAt"] } // Mengecualikan password, createdAt, updatedAt dari hasil query
+        });
         return res.json(users);
     } catch (error) {
         return res.status(500).json({ message: 'Error retrieving users', error });
@@ -24,10 +27,22 @@ router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) =>
 });
 
 // Get pengguna berdasarkan ID
-router.get('/:id',  accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.get('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
-    const user = await User.findByPk(id);
-    return res.json(user || {});
+
+    try {
+        const user = await User.findByPk(id, {
+            attributes: { exclude: ["password", "createdAt", "updatedAt"] } // Mengecualikan atribut sensitif
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        return res.json(user);
+    } catch (error) {
+        return res.status(500).json({ message: "Error retrieving user", error });
+    }
 });
 
 // Tambah pengguna baru (Register)

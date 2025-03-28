@@ -1,15 +1,15 @@
 var express = require('express');
 var router = express.Router();
-const { Op } = require("sequelize");
+const { Op } = require('sequelize');
 const Validator = require('fastest-validator');
-const { Student, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation } = require('../models');
+const { Student, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation, Assessment, AssessmentType, Grade, StudentScore } = require('../models');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
 const accessValidation = require('../middlewares/accessValidation');
 
 router.use(accessValidation, roleValidation(['orang_tua']));
 
-// 🔹 Profile Anak
+// Profile Anak
 router.get('/profile', async (req, res) => {
     try {
         const parentId = req.user.id;
@@ -27,7 +27,7 @@ router.get('/profile', async (req, res) => {
     }
 });
 
-// 🔹 Data Kurikulum
+// Data Kurikulum
 router.get('/curriculum', async (req, res) => {
     try {
         const curriculum = await Curriculum.findOne({
@@ -39,7 +39,7 @@ router.get('/curriculum', async (req, res) => {
     }
 });
 
-// 🔹 Jadwal Mata Pelajaran Anak berdasarkan Hari
+// Jadwal Mata Pelajaran Anak berdasarkan Hari
 router.get('/schedule', accessValidation, async (req, res) => {
     try {
         const parentId = req.user.id;
@@ -69,7 +69,7 @@ router.get('/schedule', accessValidation, async (req, res) => {
     }
 });
 
-// 🔹 Kalender Akademik
+// Kalender Akademik
 router.get('/academic-calendar', async (req, res) => {
     try {
         const events = await AcademicCalendar.findAll({
@@ -81,7 +81,7 @@ router.get('/academic-calendar', async (req, res) => {
     }
 });
 
-// 🔹 Kehadiran Anak
+// Kehadiran Anak
 router.get('/attendance', accessValidation, async (req, res) => {
     try {
         const parentId = req.user.id;
@@ -125,7 +125,7 @@ router.get('/attendance', accessValidation, async (req, res) => {
     }
 });
 
-// 🔹 Ambil daftar evaluasi yang ditambahkan oleh wali kelas untuk anak dari orang tua yang login
+// Ambil daftar evaluasi yang ditambahkan oleh wali kelas untuk anak dari orang tua yang login
 router.get('/evaluations', async (req, res) => {
     try {
         const parentId = req.user.id;
@@ -150,7 +150,7 @@ router.get('/evaluations', async (req, res) => {
     }
 });
 
-// 🔹 Ambil hanya description dari evaluasi berdasarkan ID untuk anak tertentu
+// Ambil hanya description dari evaluasi berdasarkan ID untuk anak tertentu
 router.get('/evaluations/:id', async (req, res) => {
     try {
         const parentId = req.user.id;
@@ -180,21 +180,83 @@ router.get('/evaluations/:id', async (req, res) => {
     }
 });
 
-// 🔹 Penilaian Akademik
-router.get('/assessments/:subject_id/:type', async (req, res) => {
+// Daftar Mata Pelajaran Anak
+router.get('/grades', async (req, res) => {
     try {
-        const { subject_id, type } = req.params;
         const parentId = req.user.id;
+
+        // Cari data anak berdasarkan parent_id
         const student = await Student.findOne({ where: { parent_id: parentId } });
 
-        const assessments = await Assessment.findAll({
-            where: { student_id: student.id, subject_id, type },
-            attributes: ['date', 'title', 'score']
+        if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
+
+        // Ambil mata pelajaran yang telah dimasukkan oleh wali kelas
+        const subjects = await Subject.findAll({
+            include: [{
+                model: Schedule,
+                as: "schedule",
+                where: { class_id: student.class_id },
+                attributes: []
+            }],
+            attributes: ['id', 'name']
         });
 
-        res.json(assessments);
+        res.json(subjects);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+
+router.get('/grades/:subjectId/assessments/:assessmentId', async (req, res) => {
+    try {
+        const { subjectId, assessmentId } = req.params;
+        const parentId = req.user.id;
+
+        // ✅ CARI SISWA BERDASARKAN ID ORANG TUA
+        const student = await Student.findOne({ where: { parent_id: parentId } });
+        if (!student) return res.status(404).json({ message: "Siswa tidak ditemukan" });
+
+        console.log("📌 Siswa ditemukan:", student.id);
+
+        // ✅ CARI SEMUA ASSESSMENT UNTUK KELAS SISWA
+        const assessmentsData = await Assessment.findAll({
+            where: { grade_id: student.class_id },
+            include: [
+                {
+                    model: AssessmentType,
+                    as: 'assessment_type',
+                    attributes: ['id', 'date', 'name'],
+                    required: false, // ✅ Ubah menjadi LEFT JOIN
+                    where: { name: 'Quiz' } // ✅ Hanya mengambil yang jenisnya Quiz
+                },
+                {
+                    model: StudentScore,
+                    as: 'student_scores',
+                    required: false, // ✅ LEFT JOIN untuk nilai siswa
+                    where: { student_id: student.id },
+                    attributes: ['score']
+                }
+            ]
+        });
+
+        if (!assessmentsData.length) {
+            return res.json({ assessments: [{ assessment_id: assessmentId, message: "Jenis penilaian tidak ditemukan" }] });
+        }
+
+        const response = assessmentsData.map(assessment => ({
+            assessment_id: assessment.id,
+            date: assessment.assessment_type ? assessment.assessment_type.date : null, // ✅ Pastikan tidak error jika assessment_type null
+            description: assessment.name,
+            score: assessment.student_scores.length > 0 ? assessment.student_scores[0].score : "Null"
+        }));
+
+        console.log("📌 Data untuk Orang Tua:", response);
+        return res.json({ assessments: response });
+
+    } catch (error) {
+        console.error("❌ Error fetching assessment details:", error);
+        return res.status(500).json({ message: "Terjadi kesalahan saat mengambil data" });
     }
 });
 

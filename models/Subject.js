@@ -25,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
     Subject.associate = (models) => {
         Subject.hasMany(models.LearningOutcome, { foreignKey: 'subject_id' });
         Subject.hasMany(models.Schedule, { foreignKey: 'subject_id', as: 'schedule' });
-        Subject.hasMany(models.Grade, { foreignKey: 'subject_id', as: 'grade' });
+        Subject.hasMany(models.Grade, { foreignKey: 'subject_id', as: 'grades' });
     };
 
     return Subject;

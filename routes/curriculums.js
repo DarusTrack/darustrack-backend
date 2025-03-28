@@ -9,31 +9,33 @@ const v = new Validator();
 // Get data kurikulum (hanya satu yang tersedia)
 router.get('/', async (req, res) => {
     try {
-        const curriculum = await Curriculum.findOne();
+        const curriculum = await Curriculum.findOne({
+            attributes: ['name', 'description']
+        });
         res.json(curriculum || {});
     } catch (error) {
         res.status(500).json({ message: 'Error fetching curriculum', error });
     }
 });
 
-router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    const schema = {
-        name: 'string',
-        description: 'string',
-    }
+// router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
+//     const schema = {
+//         name: 'string',
+//         description: 'string',
+//     }
 
-    const validate = v.validate (req.body, schema);
+//     const validate = v.validate (req.body, schema);
 
-    if(validate.length) {
-        return res
-        .status(400)
-        .json(validate);
-    }
+//     if(validate.length) {
+//         return res
+//         .status(400)
+//         .json(validate);
+//     }
 
-    const curriculums = await Curriculum.create(req.body);
+//     const curriculums = await Curriculum.create(req.body);
 
-    res.json(curriculums);
-});
+//     res.json(curriculums);
+// });
 
 router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;

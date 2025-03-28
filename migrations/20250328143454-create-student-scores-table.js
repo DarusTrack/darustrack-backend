@@ -2,37 +2,36 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('assessment_types', {
+    await queryInterface.createTable('student_scores', {
       id: {
         type: Sequelize.INTEGER,
         // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
         autoIncrement: true
       },
-      grade_id: {
+      student_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'grades',
+          model: 'students',
           key: 'id'
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
-      assessment_id: {
+      assessment_type_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'assessments',
+          model: 'assessment_types',
           key: 'id'
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
-      name: {
-        type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
+      score: {
+        type: Sequelize.FLOAT,
+        allowNull: true
       },
       createdAt: {
         type: Sequelize.DATE,
@@ -46,6 +45,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('assessment_types');
+    await queryInterface.dropTable('student_scores');
   }
 };

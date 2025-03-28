@@ -6,7 +6,7 @@ const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
 const accessValidation = require('../middlewares/accessValidation');
 
-// ✅ GET: Daftar mata pelajaran berdasarkan kelas tertentu
+// ✅ GET: Daftar mata pelajaran
 router.get("/", accessValidation, async (req, res) => {
     try {
         const subjects = await Subject.findAll({attributes: ['id','name']});
@@ -118,12 +118,21 @@ router.post('/:subject_id/learning-outcomes', async (req, res) => {
         const { grade_level, description } = req.body;
         const { subject_id } = req.params;
 
-        // Validasi input
+        // Validasi input tidak boleh kosong
         if (!grade_level || !description) {
             return res.status(400).json({ message: 'Grade level dan description wajib diisi' });
         }
 
-        // Buat data baru
+        // Cek apakah sudah ada capaian pembelajaran dengan grade_level yang sama di subject_id yang sama
+        const existingOutcome = await LearningOutcome.findOne({
+            where: { subject_id, grade_level }
+        });
+
+        if (existingOutcome) {
+            return res.status(400).json({ message: `Capaian pembelajaran untuk grade ${grade_level} pada mata pelajaran ini sudah ada` });
+        }
+
+        // Buat capaian pembelajaran baru jika tidak ada duplikasi
         const newOutcome = await LearningOutcome.create({
             subject_id,
             grade_level,
@@ -132,12 +141,12 @@ router.post('/:subject_id/learning-outcomes', async (req, res) => {
 
         res.status(201).json({ message: 'Capaian pembelajaran berhasil ditambahkan', data: newOutcome });
     } catch (error) {
-        res.status(500).json({ message: 'Error adding learning outcome', error });
+        res.status(500).json({ message: 'Error adding learning outcome', error: error.message });
     }
 });
 
 // Update capaian pembelajaran berdasarkan subject_id dan learning_outcome_id
-router.put('/subjects/:subject_id/learning-outcomes/:learning_outcome_id', async (req, res) => {
+router.put('/:subject_id/learning-outcomes/:learning_outcome_id', async (req, res) => {
     try {
         const { subject_id, learning_outcome_id } = req.params;
         const { grade_level, description } = req.body;

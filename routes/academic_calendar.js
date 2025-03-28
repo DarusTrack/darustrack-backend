@@ -8,9 +8,17 @@ const v = new Validator();
 
 // Get semua jadwal akademik
 router.get('/', accessValidation, async (req, res) => {
-    const schedules = await AcademicCalendar.findAll();
-    return res.json(schedules);
+    try {
+        const schedules = await AcademicCalendar.findAll({
+            attributes: ["id", "event_name", "start_date", "end_date"] // Hanya menampilkan kolom yang diperlukan
+        });
+
+        return res.json(schedules);
+    } catch (error) {
+        return res.status(500).json({ message: "Error retrieving schedules", error });
+    }
 });
+
 
 // Tambah jadwal akademik baru
 router.post('/',  accessValidation, roleValidation(["admin"]), async (req, res) => {
