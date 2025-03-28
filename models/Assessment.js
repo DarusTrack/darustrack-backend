@@ -21,7 +21,6 @@ module.exports = (sequelize, DataTypes) => {
     Assessment.associate = (models) => {
         Assessment.belongsTo(models.Grade, { foreignKey: 'grade_id', as: 'grade' });
         Assessment.hasOne(models.AssessmentType, { foreignKey: 'assessment_id', as: 'assessment_type' });
-        Assessment.hasMany(models.StudentScore, { foreignKey: 'assessment_id', as: 'student_scores' });
     };
 
     return Assessment;

@@ -207,8 +207,46 @@ router.get('/grades', async (req, res) => {
     }
 });
 
+// Daftar Penilaian dalam Mata Pelajaran Tertentu
+router.get('/grades/:subject_id', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
+    try {
+        const { subject_id } = req.params;
+        const parentId = req.user.id;
 
-router.get('/grades/:subjectId/assessments/:assessmentId', async (req, res) => {
+        // 🔍 Cari data siswa berdasarkan parent_id
+        const student = await Student.findOne({ where: { parent_id: parentId } });
+
+        if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
+
+        // 🔍 Cari Grade yang sesuai dengan subject_id dan kelas siswa
+        const grade = await Grade.findOne({
+            where: { subject_id, class_id: student.class_id },
+            include: [
+                {
+                    model: Assessment,
+                    as: 'assessment',
+                    attributes: ['id', 'name']
+                }
+            ]
+        });
+
+        if (!grade) return res.status(404).json({ message: 'Tidak ada penilaian untuk mata pelajaran ini' });
+
+        // 🔍 Ambil daftar assessment berdasarkan Grade
+        const assessments = grade.assessment.map(assessment => ({
+            id: assessment.id,
+            name: assessment.name
+        }));
+
+        res.json(assessments);
+    } catch (error) {
+        console.error("Error fetching assessments:", error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+})
+
+// Skor siswa
+router.get('/grades/:subjectId/assessments/:assessmentId', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
     try {
         const { subjectId, assessmentId } = req.params;
         const parentId = req.user.id;
@@ -217,47 +255,53 @@ router.get('/grades/:subjectId/assessments/:assessmentId', async (req, res) => {
         const student = await Student.findOne({ where: { parent_id: parentId } });
         if (!student) return res.status(404).json({ message: "Siswa tidak ditemukan" });
 
-        console.log("📌 Siswa ditemukan:", student.id);
+        console.log(" Siswa ditemukan:", student.id);
 
-        // ✅ CARI SEMUA ASSESSMENT UNTUK KELAS SISWA
-        const assessmentsData = await Assessment.findAll({
-            where: { grade_id: student.class_id },
+        // ✅ CARI ASSESSMENT TYPES BERDASARKAN assessmentId
+        const assessmentTypes = await AssessmentType.findAll({
             include: [
                 {
-                    model: AssessmentType,
-                    as: 'assessment_type',
-                    attributes: ['id', 'date', 'name'],
-                    required: false, // ✅ Ubah menjadi LEFT JOIN
-                    where: { name: 'Quiz' } // ✅ Hanya mengambil yang jenisnya Quiz
-                },
-                {
-                    model: StudentScore,
-                    as: 'student_scores',
-                    required: false, // ✅ LEFT JOIN untuk nilai siswa
-                    where: { student_id: student.id },
-                    attributes: ['score']
+                    model: Assessment,
+                    as: 'assessment',
+                    where: { id: assessmentId },
+                    attributes: ['id', 'name']
                 }
-            ]
+            ],
+            attributes: ['id', 'name', 'date']
         });
 
-        if (!assessmentsData.length) {
-            return res.json({ assessments: [{ assessment_id: assessmentId, message: "Jenis penilaian tidak ditemukan" }] });
+        if (!assessmentTypes.length) {
+            return res.status(404).json({ message: "Jenis penilaian tidak ditemukan" });
         }
 
-        const response = assessmentsData.map(assessment => ({
-            assessment_id: assessment.id,
-            date: assessment.assessment_type ? assessment.assessment_type.date : null, // ✅ Pastikan tidak error jika assessment_type null
-            description: assessment.name,
-            score: assessment.student_scores.length > 0 ? assessment.student_scores[0].score : "Null"
-        }));
+        // ✅ CARI NILAI SISWA BERDASARKAN assessment_type_id
+        const studentScores = await StudentScore.findAll({
+            where: { student_id: student.id },
+            attributes: ['score', 'assessment_type_id']
+        });
 
-        console.log("📌 Data untuk Orang Tua:", response);
-        return res.json({ assessments: response });
+        // ✅ Gabungkan data AssessmentType dengan Nilai Siswa
+        const response = assessmentTypes.map(assessmentType => {
+            const studentScore = studentScores.find(score => score.assessment_type_id === assessmentType.id);
+
+            return {
+                id: assessmentType.id,
+                name: assessmentType.name,
+                date: assessmentType.date,
+                assessment_name: assessmentType.assessment?.name,
+                score: studentScore ? studentScore.score : "Null"
+            };
+        });
+
+        console.log(" Data untuk Orang Tua:", response);
+        // return res.json({ assessment_id: assessmentId, types: response });
+        return res.json(response);
 
     } catch (error) {
-        console.error("❌ Error fetching assessment details:", error);
-        return res.status(500).json({ message: "Terjadi kesalahan saat mengambil data" });
+        console.error(" Error fetching assessment details:", error);
+        return res.status(500).json({ message: "Terjadi kesalahan saat mengambil data", error: error.message });
     }
 });
+
 
 module.exports = router;

@@ -10,7 +10,6 @@ module.exports = (sequelize, DataTypes) => {
 
     StudentScore.associate = (models) => {
         StudentScore.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
-        // StudentScore.belongsTo(models.Assessment, { foreignKey: 'assessment_id', as: 'assessment' });
         StudentScore.belongsTo(models.AssessmentType, { foreignKey: 'assessment_type_id', as: 'assessment_type' });
     };
 

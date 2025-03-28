@@ -458,12 +458,11 @@ router.delete('/grades/:gradeId/assessments/:assessmentId', accessValidation, ro
     }
 });
 
-// daftar macam-macam Assessment Type dari suatu Assessment
 router.get('/grades/:gradeId/assessments/:assessmentId', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { assessmentId } = req.params;
 
-        // Ambil daftar assessment types berdasarkan assessmentId
+        // ✅ Ambil daftar Assessment Type berdasarkan assessmentId
         const assessmentTypes = await AssessmentType.findAll({
             where: { assessment_id: assessmentId },
             attributes: ['id', 'name', 'date'],
@@ -471,19 +470,28 @@ router.get('/grades/:gradeId/assessments/:assessmentId', accessValidation, roleV
                 {
                     model: Assessment,
                     as: 'assessment',
-                    attributes: ['name']
+                    attributes: ['id', 'name', 'grade_id']
                 }
             ]
         });
 
         if (!assessmentTypes.length) {
-            return res.status(404).json({ message: 'Tidak ada assessment type untuk assessment ini' });
+            return res.status(404).json({ message: 'Tidak ada jenis penilaian untuk assessment ini' });
         }
 
-        res.json(assessmentTypes);
+        res.json({
+            assessment_id: assessmentId,
+            types: assessmentTypes.map(at => ({
+                id: at.id,
+                name: at.name,
+                date: at.date,
+                assessment_name: at.assessment.name
+            }))
+        });
+
     } catch (error) {
-        console.error("Error fetching assessment types:", error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error("❌ Error fetching assessment types:", error);
+        res.status(500).json({ message: 'Terjadi kesalahan server', error: error.message });
     }
 });
 
@@ -633,42 +641,61 @@ router.get('/grades/:gradeId/assessments/:assessmentId/types/:typeId', async (re
     }
 });
 
-// Endpoint untuk mengupdate skor siswa
-router.put('/grades/:gradeId/assessments/:assessmentId/types/:typeId/scores/:studentId', accessValidation, roleValidation(['wali_kelas']), 
+router.put(
+    "/grades/:gradeId/assessments/:assessmentId/types/:typeId/scores/:studentId",
+    accessValidation,
+    roleValidation(["wali_kelas"]),
     async (req, res) => {
-        try {
-            const { typeId, studentId } = req.params;
-            const { score } = req.body;
-
-            // Validasi skor harus dalam rentang 0 - 100
-            if (score === undefined || score < 0 || score > 100) {
-                return res.status(400).json({ message: 'Skor harus antara 0-100' });
-            }
-
-            // Cek apakah skor sudah ada untuk siswa ini pada assessment type ini
-            let studentScore = await StudentScore.findOne({ 
-                where: { student_id: studentId, assessment_type_id: typeId } 
-            });
-
-            if (!studentScore) {
-                // Jika skor belum ada, buat baru
-                studentScore = await StudentScore.create({
-                    student_id: studentId,
-                    assessment_type_id: typeId,
-                    score: score
-                });
-            } else {
-                // Jika sudah ada, update skor yang lama
-                studentScore.score = score;
-                await studentScore.save();
-            }
-
-            res.json({ message: 'Skor berhasil diperbarui', studentScore });
-        } catch (error) {
-            console.error("Error updating student score:", error);
-            res.status(500).json({ message: 'Server error', error: error.message });
+      try {
+        const { typeId, studentId } = req.params;
+        const { score } = req.body;
+  
+        // ✅ Validasi skor harus dalam rentang 0 - 100
+        if (score === undefined || score < 0 || score > 100) {
+          return res.status(400).json({ message: "Skor harus antara 0-100" });
         }
+  
+        // ✅ Periksa apakah `assessment_type_id` valid
+        const assessmentType = await AssessmentType.findByPk(typeId);
+        if (!assessmentType) {
+          return res.status(404).json({ message: "Jenis penilaian tidak ditemukan" });
+        }
+  
+        // ✅ Cek apakah siswa ada
+        const student = await Student.findByPk(studentId);
+        if (!student) {
+          return res.status(404).json({ message: "Siswa tidak ditemukan" });
+        }
+  
+        // ✅ Cek apakah skor sudah ada untuk siswa ini pada assessment type ini
+        let studentScore = await StudentScore.findOne({
+          where: {
+            student_id: studentId,
+            assessment_type_id: typeId, // ✅ Gunakan kolom yang benar
+          },
+        });
+  
+        if (!studentScore) {
+          // Jika skor belum ada, buat baru
+          studentScore = await StudentScore.create({
+            student_id: studentId,
+            assessment_type_id: typeId,
+            score: score,
+          });
+        } else {
+          // Jika sudah ada, update skor yang lama
+          await studentScore.update({ score });
+        }
+  
+        res.json({ message: "Skor berhasil diperbarui", studentScore });
+      } catch (error) {
+        console.error("❌ Error updating student score:", error);
+        res.status(500).json({
+          message: "Terjadi kesalahan saat mengupdate skor",
+          error: error.message,
+        });
+      }
     }
-);
-
+);  
+  
 module.exports = router
