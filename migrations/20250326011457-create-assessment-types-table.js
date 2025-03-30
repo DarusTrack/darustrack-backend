@@ -4,13 +4,13 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('assessment_types', {
       id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true
+        allowNull: false
       },
       assessment_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         allowNull: false,
         references: {
           model: 'assessments',
@@ -21,8 +21,7 @@ module.exports = {
       },
       name: {
         type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
+        allowNull: false
       },
       date: {
         type: Sequelize.STRING,

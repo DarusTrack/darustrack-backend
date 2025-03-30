@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 module.exports = (sequelize, DataTypes) => {
     const User = sequelize.define('User', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(5),
             // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
             autoIncrement: true
@@ -34,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         class_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(5),
             allowNull: true
         }
     }, {

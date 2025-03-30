@@ -5,9 +5,8 @@ module.exports = {
     await queryInterface.createTable('curriculums', {
       id: {
         type: Sequelize.INTEGER,
-        // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true
+        allowNull: false
       },
       name: {
         type: Sequelize.STRING,
@@ -19,13 +18,25 @@ module.exports = {
       },
       createdAt: {
         type: Sequelize.DATE,
-        allowNull: false
+        allowNull: false,
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
       updatedAt: {
         type: Sequelize.DATE,
-        allowNull: false
+        allowNull: false,
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
       }
     });
+
+    // Menambahkan data awal
+    await queryInterface.bulkInsert('curriculums', [
+      {
+        name: 'Kurikulum Merdeka',
+        description: 'Kurikulum terbaru yang lebih fleksibel dalam memberikan pembelajaran sesuai kebutuhan siswa.',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ]);
   },
 
   down: async (queryInterface, Sequelize) => {

@@ -1,13 +1,16 @@
+const { nanoid } = require('nanoid');
+
 module.exports = (sequelize, DataTypes) => {
     const Assessment = sequelize.define('Assessment', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(5),
             // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
+            allowNull: false,
+            defaultValue: () => nanoid(5)
         },
         grade_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(5),
             allowNull: false
         },
         name: {
@@ -16,6 +19,12 @@ module.exports = (sequelize, DataTypes) => {
         },
     }, {
         tableName: 'assessments',
+        indexes: [
+            {
+                unique: true,
+                fields: ['grade_id', 'name'] // Unik dalam satu grade
+            }
+        ]
     });
 
     Assessment.associate = (models) => {

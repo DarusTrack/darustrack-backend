@@ -1,10 +1,13 @@
+const { nanoid } = require('nanoid');
+
 module.exports = (sequelize, DataTypes) => {
     const Class = sequelize.define('Class', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(5),
             // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
+            allowNull: false,
+            defaultValue: () => nanoid(5)
         },
         name: {
             type: DataTypes.STRING,
@@ -15,7 +18,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         teacher_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(5),
             allowNull: false
         }
     }, {
@@ -27,6 +30,8 @@ module.exports = (sequelize, DataTypes) => {
         Class.hasMany(models.Student, { foreignKey: 'class_id', as: 'students' });
         Class.hasMany(models.Schedule, { foreignKey: 'class_id', as: 'schedule' });
         Class.hasMany(models.Grade, { foreignKey: 'class_id', as: 'grades' });
+        Class.hasMany(models.StudentScore, { foreignKey: 'class_id', as: 'student_scores' });
+        Class.hasMany(models.Attendance, { foreignKey: 'class_id', as: 'attendance' });
     };
 
     return Class;

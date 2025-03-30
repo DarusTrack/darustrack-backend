@@ -1,12 +1,15 @@
+const { nanoid } = require('nanoid');
+
 module.exports = (sequelize, DataTypes) => {
     const LearningOutcome = sequelize.define('LearningOutcome', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(5),
             primaryKey: true,
-            autoIncrement: true
+            allowNull: false,
+            defaultValue: () => nanoid(5)
         },
         subject_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(5),
             allowNull: false
         },
         grade_level: {

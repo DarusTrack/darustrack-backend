@@ -4,14 +4,15 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('subjects', {
       id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true
+        allowNull: false
       },
       name: {
         type: Sequelize.STRING,
-        allowNull: false
+        allowNull: false, 
+        unique: true
       },
       createdAt: {
         type: Sequelize.DATE,

@@ -1,16 +1,19 @@
+const { nanoid } = require('nanoid');
+
 module.exports = (sequelize, DataTypes) => {
     const StudentEvaluation = sequelize.define('StudentEvaluation', {
         id: { 
-            type: DataTypes.INTEGER, 
-            autoIncrement: true, 
-            primaryKey: true 
+            type: DataTypes.STRING(5), 
+            primaryKey: true, 
+            allowNull: false,
+            defaultValue: () => nanoid(5) 
         },
         evaluation_id: { 
-            type: DataTypes.INTEGER, 
+            type: DataTypes.STRING(5), 
             allowNull: false 
         },
         student_id: { 
-            type: DataTypes.INTEGER, 
+            type: DataTypes.STRING(5), 
             allowNull: false 
         },
         description: { 

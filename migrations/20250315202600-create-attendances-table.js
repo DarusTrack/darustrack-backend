@@ -4,13 +4,13 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('attendances', {
       id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true
+        allowNull: false,
       },
       student_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         allowNull: false,
         references: {
           model: 'students',
@@ -20,7 +20,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       class_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         allowNull: false,
         references: {
           model: 'classes',

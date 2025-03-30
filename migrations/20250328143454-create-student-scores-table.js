@@ -4,13 +4,13 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('student_scores', {
       id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true
+        allowNull: false
       },
       student_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         allowNull: false,
         references: {
           model: 'students',
@@ -19,8 +19,28 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
+      class_id: {
+        type: Sequelize.STRING(5),
+        allowNull: false,
+        references: {
+          model: 'classes',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      subject_id: {
+        type: Sequelize.STRING(5),
+        allowNull: false,
+        references: {
+          model: 'subjects',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
       assessment_type_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         allowNull: false,
         references: {
           model: 'assessment_types',

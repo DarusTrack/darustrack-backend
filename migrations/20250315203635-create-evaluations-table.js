@@ -4,13 +4,12 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('evaluations', {
       id: {
-        type: Sequelize.INTEGER,
-        // defaultValue: Sequelize.UUIDV4,
+        type: Sequelize.STRING(5),
         primaryKey: true,
-        autoIncrement: true
+        allowNull: false
       },
       class_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         allowNull: false,
         references: {
           model: 'classes',

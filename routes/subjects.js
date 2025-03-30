@@ -83,7 +83,7 @@ router.delete('/:id',  accessValidation, roleValidation(["admin"]), async (req, 
 
 
 // Get capaian pembelajaran berdasarkan mata pelajaran (kelas 1-6) dengan filter grade_level
-router.get('/:subject_id/learning-outcomes', async (req, res) => {
+router.get('/:subject_id/learning-outcomes', accessValidation, async (req, res) => {
     try {
         const { grade_level } = req.query;
         const { subject_id } = req.params;
@@ -113,7 +113,7 @@ router.get('/:subject_id/learning-outcomes', async (req, res) => {
 });
 
 // Tambah capaian pembelajaran berdasarkan mata pelajaran (kelas 1-6)
-router.post('/:subject_id/learning-outcomes', async (req, res) => {
+router.post('/:subject_id/learning-outcomes', accessValidation, roleValidation(['admin']), async (req, res) => {
     try {
         const { grade_level, description } = req.body;
         const { subject_id } = req.params;
@@ -146,7 +146,7 @@ router.post('/:subject_id/learning-outcomes', async (req, res) => {
 });
 
 // Update capaian pembelajaran berdasarkan subject_id dan learning_outcome_id
-router.put('/:subject_id/learning-outcomes/:learning_outcome_id', async (req, res) => {
+router.put('/:subject_id/learning-outcomes/:learning_outcome_id', accessValidation, roleValidation(['admin']),async (req, res) => {
     try {
         const { subject_id, learning_outcome_id } = req.params;
         const { grade_level, description } = req.body;

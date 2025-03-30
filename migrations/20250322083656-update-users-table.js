@@ -2,7 +2,7 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.addColumn('users', 'class_id', {
-      type: Sequelize.INTEGER,
+      type: Sequelize.STRING(5),
       allowNull: true,
       references: {
         model: 'classes',

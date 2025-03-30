@@ -1,10 +1,10 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
       await queryInterface.createTable('student_evaluations', {
-          id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-          evaluation_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'evaluations', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
-          student_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'students', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
-          description: { type: Sequelize.TEXT, allowNull: true }, // Null saat pertama kali dibuat
+          id: { type: Sequelize.STRING(5), allowNull: false, primaryKey: true },
+          evaluation_id: { type: Sequelize.STRING(5), allowNull: false, references: { model: 'evaluations', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
+          student_id: { type: Sequelize.STRING(5), allowNull: false, references: { model: 'students', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
+          description: { type: Sequelize.TEXT, allowNull: true },
           createdAt: Sequelize.DATE,
           updatedAt: Sequelize.DATE
       });
