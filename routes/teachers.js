@@ -483,7 +483,7 @@ router.post('/grades/categories/:category_id/details', accessValidation, roleVal
             return res.status(400).json({ message: 'Grade category not found' });
         }
 
-        // 🔍 Cek apakah detail penilaian dengan nama yang sama sudah ada dalam kategori ini
+        // Cek apakah detail penilaian dengan nama yang sama sudah ada dalam kategori ini
         const existingDetail = await GradeDetail.findOne({
             where: { grade_category_id: category_id, name }
         });
@@ -492,10 +492,10 @@ router.post('/grades/categories/:category_id/details', accessValidation, roleVal
             return res.status(400).json({ message: 'Detail name already exists in this category' });
         }
 
-        // ✅ Buat detail penilaian baru
+        // Buat detail penilaian baru
         const newDetail = await GradeDetail.create({ grade_category_id: category_id, name, date });
 
-        // 🔍 Ambil daftar siswa dalam kelas untuk otomatis menambahkan skor default (null)
+        // Ambil daftar siswa dalam kelas untuk otomatis menambahkan skor default (null)
         const students = await Student.findAll({
             where: { class_id: req.user.class_id },
             attributes: ['id']
@@ -518,14 +518,14 @@ router.put('/grades/details/:detail_id', accessValidation, roleValidation(['wali
         const { detail_id } = req.params;
         const { name, date } = req.body;
 
-        // 🔍 Cek apakah detail penilaian ada
+        // Cek apakah detail penilaian ada
         const detailExists = await GradeDetail.findOne({ where: { id: detail_id } });
 
         if (!detailExists) {
             return res.status(404).json({ message: 'Grade detail not found' });
         }
 
-        // 🔍 Cek apakah nama baru sudah ada dalam kategori yang sama
+        // Cek apakah nama baru sudah ada dalam kategori yang sama
         const duplicateDetail = await GradeDetail.findOne({
             where: { 
                 grade_category_id: detailExists.grade_category_id, 
@@ -538,7 +538,7 @@ router.put('/grades/details/:detail_id', accessValidation, roleValidation(['wali
             return res.status(400).json({ message: 'Detail name already exists in this category' });
         }
 
-        // ✅ Update detail penilaian
+        // Update detail penilaian
         await GradeDetail.update({ name, date }, { where: { id: detail_id } });
 
         res.status(200).json({ message: 'Grade detail updated successfully' });
@@ -580,7 +580,7 @@ router.get('/grades/details/:detail_id/students', accessValidation, roleValidati
         
         const scores = await StudentGrade.findAll({
             where: { grade_detail_id: detail_id },
-            include: [{ model: Student, as: 'student', attributes: ['id', 'name'] }]
+            include: [{ model: Student, as: 'students', attributes: ['id', 'name'] }]
         });
 
         res.json(scores);

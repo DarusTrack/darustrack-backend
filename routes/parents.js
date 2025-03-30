@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const { Op } = require('sequelize');
 const Validator = require('fastest-validator');
-const { Student, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation, Assessment, AssessmentType, Grade, StudentScore } = require('../models');
+const { Student, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation, GradeCategory, GradeDetail, StudentGrade } = require('../models');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
 const accessValidation = require('../middlewares/accessValidation');
@@ -207,101 +207,104 @@ router.get('/grades', async (req, res) => {
     }
 });
 
-// Daftar Penilaian dalam Mata Pelajaran Tertentu
+// Daftar Kategori Penilaian dalam Mata Pelajaran Tertentu
 router.get('/grades/:subject_id', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
     try {
         const { subject_id } = req.params;
         const parentId = req.user.id;
 
-        // 🔍 Cari data siswa berdasarkan parent_id
+        // Cari data siswa berdasarkan parent_id
         const student = await Student.findOne({ where: { parent_id: parentId } });
 
         if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
 
-        // 🔍 Cari Grade yang sesuai dengan subject_id dan kelas siswa
-        const grade = await Grade.findOne({
+        // Cari semua GradeCategory yang sesuai dengan subject_id dan class_id anak
+        const gradeCategories = await GradeCategory.findAll({
             where: { subject_id, class_id: student.class_id },
             include: [
                 {
-                    model: Assessment,
-                    as: 'assessment',
+                    model: Subject,
+                    as: 'subject',
                     attributes: ['id', 'name']
                 }
             ]
         });
 
-        if (!grade) return res.status(404).json({ message: 'Tidak ada penilaian untuk mata pelajaran ini' });
-
-        // 🔍 Ambil daftar assessment berdasarkan Grade
-        const assessments = grade.assessment.map(assessment => ({
-            id: assessment.id,
-            name: assessment.name
-        }));
-
-        res.json(assessments);
-    } catch (error) {
-        console.error("Error fetching assessments:", error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-})
-
-// Skor siswa
-router.get('/grades/:subjectId/assessments/:assessmentId', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
-    try {
-        const { subjectId, assessmentId } = req.params;
-        const parentId = req.user.id;
-
-        // ✅ CARI SISWA BERDASARKAN ID ORANG TUA
-        const student = await Student.findOne({ where: { parent_id: parentId } });
-        if (!student) return res.status(404).json({ message: "Siswa tidak ditemukan" });
-
-        console.log(" Siswa ditemukan:", student.id);
-
-        // ✅ CARI ASSESSMENT TYPES BERDASARKAN assessmentId
-        const assessmentTypes = await AssessmentType.findAll({
-            include: [
-                {
-                    model: Assessment,
-                    as: 'assessment',
-                    where: { id: assessmentId },
-                    attributes: ['id', 'name']
-                }
-            ],
-            attributes: ['id', 'name', 'date']
-        });
-
-        if (!assessmentTypes.length) {
-            return res.status(404).json({ message: "Jenis penilaian tidak ditemukan" });
+        if (!gradeCategories || gradeCategories.length === 0) {
+            return res.status(404).json({ message: 'Tidak ada kategori penilaian untuk mata pelajaran ini' });
         }
 
-        // ✅ CARI NILAI SISWA BERDASARKAN assessment_type_id
-        const studentScores = await StudentScore.findAll({
-            where: { student_id: student.id },
-            attributes: ['score', 'assessment_type_id']
+        // Ambil daftar kategori penilaian
+        const categories = gradeCategories.map(category => ({
+            id: category.id,
+            name: category.name
+        }));
+
+        res.json({
+            subject_id,
+            subject_name: gradeCategories[0].subject ? gradeCategories[0].subject.name : "Unknown Subject", // ✅ Perbaikan untuk mencegah error
+            class_id: student.class_id,
+            categories
         });
-
-        // ✅ Gabungkan data AssessmentType dengan Nilai Siswa
-        const response = assessmentTypes.map(assessmentType => {
-            const studentScore = studentScores.find(score => score.assessment_type_id === assessmentType.id);
-
-            return {
-                id: assessmentType.id,
-                name: assessmentType.name,
-                date: assessmentType.date,
-                assessment_name: assessmentType.assessment?.name,
-                score: studentScore ? studentScore.score : "Null"
-            };
-        });
-
-        console.log(" Data untuk Orang Tua:", response);
-        // return res.json({ assessment_id: assessmentId, types: response });
-        return res.json(response);
-
     } catch (error) {
-        console.error(" Error fetching assessment details:", error);
-        return res.status(500).json({ message: "Terjadi kesalahan saat mengambil data", error: error.message });
+        console.error("Error fetching grade categories:", error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
+// detail category mapel (skor siswa)
+router.get('/grades/category/:category_id/details', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
+    try {
+        const { category_id } = req.params;
+        const parentId = req.user.id;
+
+        // Cari data siswa berdasarkan parent_id
+        const student = await Student.findOne({ where: { parent_id: parentId } });
+
+        if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
+
+        // Cari GradeCategory berdasarkan category_id dan pastikan sesuai dengan kelas anak
+        const gradeCategory = await GradeCategory.findOne({
+            where: { id: category_id, class_id: student.class_id },
+            include: [
+                {
+                    model: GradeDetail,
+                    as: 'grade_detail',
+                    attributes: ['id', 'name', 'date'],
+                    include: [
+                        {
+                            model: StudentGrade,
+                            as: 'student_grades',
+                            attributes: ['score'],
+                            where: { student_id: student.id },
+                            required: false // Jika tidak ada nilai, tetap tampilkan
+                        }
+                    ]
+                }
+            ]
+        });
+
+        if (!gradeCategory) return res.status(404).json({ message: 'Kategori penilaian tidak ditemukan atau tidak tersedia untuk anak Anda' });
+
+        // Ambil daftar detail penilaian dalam kategori ini
+        const assessments = gradeCategory.grade_detail.map(detail => ({
+            id: detail.id,
+            title: detail.name,
+            date: detail.date,
+            day: new Date(detail.date).toLocaleDateString('id-ID', { weekday: 'long' }), // 🗓️ Menampilkan hari dalam bahasa Indonesia
+            score: detail.student_grades.length > 0 ? detail.student_grades[0].score : null // 📝 Menampilkan skor jika ada
+        }));
+
+        res.json({
+            category_id,
+            category_name: gradeCategory.name,
+            class_id: student.class_id,
+            assessments
+        });
+    } catch (error) {
+        console.error("Error fetching category details:", error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
 
 module.exports = router;
