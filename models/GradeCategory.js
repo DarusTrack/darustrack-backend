@@ -2,7 +2,7 @@ const { customAlphabet } = require('nanoid');
 const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 5);
 
 module.exports = (sequelize, DataTypes) => {
-    const Assessment = sequelize.define('Assessment', {
+    const GradeCategory = sequelize.define('GradeCategory', {
         id: {
             type: DataTypes.STRING(5),
             // defaultValue: Sequelize.UUIDV4,
@@ -10,7 +10,11 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             defaultValue: () => nanoid()
         },
-        grade_id: {
+        class_id: {
+            type: DataTypes.STRING(5),
+            allowNull: false
+        },
+        subject_id: {
             type: DataTypes.STRING(5),
             allowNull: false
         },
@@ -19,20 +23,21 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
     }, {
-        tableName: 'assessments',
+        tableName: 'grade_categories',
         indexes: [
             {
                 unique: true,
-                fields: ['grade_id', 'name'] // Unik dalam satu grade
+                fields: ['class_id', 'subject_id', 'name']
             }
         ]
     });
 
-    Assessment.associate = (models) => {
-        Assessment.belongsTo(models.Grade, { foreignKey: 'grade_id', as: 'grade' });
-        Assessment.hasOne(models.AssessmentType, { foreignKey: 'assessment_id', as: 'assessment_type' });
+    GradeCategory.associate = (models) => {
+        GradeCategory.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
+        GradeCategory.belongsTo(models.Subject, { foreignKey: 'subject_id', as: 'subject' });
+        GradeCategory.hasMany(models.GradeDetail, { foreignKey: 'grade_category_id', as: 'grade_detail' });
     };
 
-    return Assessment;
+    return GradeCategory;
 };
 

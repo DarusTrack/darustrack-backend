@@ -39,7 +39,7 @@ module.exports = (sequelize, DataTypes) => {
         Student.belongsTo(models.User, { foreignKey: 'parent_id', as: 'parent' });
         Student.hasMany(models.Attendance, { foreignKey: 'student_id', as: 'attendance' });
         Student.hasMany(models.StudentEvaluation, { foreignKey: 'student_id', as: 'student_evaluation' });
-        Student.hasMany(models.StudentScore, { foreignKey: 'student_id', as: 'student_scores' });
+        Student.hasMany(models.StudentGrade, { foreignKey: 'student_id', as: 'student_grade' });
         // Student.hasMany(models.Evaluation, { foreignKey: 'student_id', as: 'evaluations' });
     };
 
