@@ -1,4 +1,5 @@
-const { nanoid } = require('nanoid');
+const { customAlphabet } = require('nanoid');
+const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 5);
 
 module.exports = (sequelize, DataTypes) => {
     const StudentScore = sequelize.define('StudentScore', {
@@ -6,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING(5), 
             primaryKey: true, 
             allowNull: false, 
-            defaultValue: () => nanoid(5) 
+            defaultValue: () => nanoid() 
         },
         student_id: { type: DataTypes.STRING(5), allowNull: false },
         class_id: { type: DataTypes.STRING(5), allowNull: false },

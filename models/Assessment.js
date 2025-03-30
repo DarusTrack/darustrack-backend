@@ -1,4 +1,5 @@
-const { nanoid } = require('nanoid');
+const { customAlphabet } = require('nanoid');
+const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 5);
 
 module.exports = (sequelize, DataTypes) => {
     const Assessment = sequelize.define('Assessment', {
@@ -7,7 +8,7 @@ module.exports = (sequelize, DataTypes) => {
             // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
             allowNull: false,
-            defaultValue: () => nanoid(5)
+            defaultValue: () => nanoid()
         },
         grade_id: {
             type: DataTypes.STRING(5),
