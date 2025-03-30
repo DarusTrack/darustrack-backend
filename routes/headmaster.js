@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Class, Student, StudentGrade, GradeDetail, Attendance } = require('../models');
+const { Class, Student, StudentGrade, GradeCategory, GradeDetail, Attendance, Subject } = require('../models');
 const { Op, fn, col, literal } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -56,6 +56,7 @@ router.get('/classes', async (req, res) => {
                 id: cls.id,
                 name: cls.name,
                 grade_level: cls.grade_level,
+                total_students: totalStudents,
                 average_score: averageScore,
                 attendance_percentage: attendancePercentage
             };
@@ -80,7 +81,15 @@ router.get('/classes/:classId', async (req, res) => {
                         {
                             model: StudentGrade,
                             as: 'student_grade',
-                            include: [{ model: GradeDetail, as: 'grade_detail' }]
+                            include: [{ 
+                                model: GradeDetail, 
+                                as: 'grade_detail',
+                                include: [{ 
+                                    model: GradeCategory, 
+                                    as: 'grade_category',
+                                    include: [{ model: Subject, as: 'subject' }] // ✅ Subject diambil dari GradeCategory
+                                }]
+                            }]                            
                         },
                         { model: Attendance, as: 'attendance' }
                     ]
@@ -92,17 +101,20 @@ router.get('/classes/:classId', async (req, res) => {
 
         console.log('Fetched Class:', cls);
         const students = cls.students || [];
-        const totalStudents = students.length;
+        const totalStudents = students.length; // ✅ Menambahkan jumlah siswa
+
         let subjectScores = {};
         let totalScores = 0;
         let totalGrades = 0;
 
         students.forEach(student => {
             (student.student_grade || []).forEach(grade => {
-                if (grade.score !== null) {
-                    const subjectId = grade.GradeDetail?.subject_id || 'unknown';
+                if (grade.score !== null && grade.grade_detail && grade.grade_detail.grade_category && grade.grade_detail.grade_category.subject) {
+                    const subjectId = grade.grade_detail.grade_category.subject.id;
+                    const subjectName = grade.grade_detail.grade_category.subject.name;
+
                     if (!subjectScores[subjectId]) {
-                        subjectScores[subjectId] = { total: 0, count: 0 };
+                        subjectScores[subjectId] = { name: subjectName, total: 0, count: 0 };
                     }
                     subjectScores[subjectId].total += grade.score;
                     subjectScores[subjectId].count++;
@@ -112,12 +124,14 @@ router.get('/classes/:classId', async (req, res) => {
             });
         });
 
+        // Mengonversi hasil subjectScores menjadi array
         const subjectAverages = Object.keys(subjectScores).map(subjectId => ({
             subject_id: subjectId,
-            average_score: (subjectScores[subjectId].total / subjectScores[subjectId].count).toFixed(2)
+            subject_name: subjectScores[subjectId].name,
+            average_score: subjectScores[subjectId].count ? (subjectScores[subjectId].total / subjectScores[subjectId].count).toFixed(2) : "0.00"
         }));
 
-        const averageScore = totalGrades ? (totalScores / totalGrades).toFixed(2) : 0;
+        const averageScore = totalGrades ? (totalScores / totalGrades).toFixed(2) : "0.00";
 
         let totalPresent = 0;
         let totalAttendances = 0;
@@ -127,8 +141,9 @@ router.get('/classes/:classId', async (req, res) => {
                 totalAttendances++;
             });
         });
+
         console.log(`Class ID: ${classId}, Total Present: ${totalPresent}, Total Attendances: ${totalAttendances}`);
-        const attendancePercentage = totalAttendances ? ((totalPresent / totalAttendances) * 100).toFixed(2) : 0;
+        const attendancePercentage = totalAttendances ? ((totalPresent / totalAttendances) * 100).toFixed(2) : "0.00";
 
         const studentRanks = students.map(student => {
             let studentTotalScore = 0;
@@ -142,7 +157,7 @@ router.get('/classes/:classId', async (req, res) => {
             return {
                 id: student.id,
                 name: student.name,
-                average_score: studentTotalGrades ? (studentTotalScore / studentTotalGrades).toFixed(2) : 0
+                average_score: studentTotalGrades ? (studentTotalScore / studentTotalGrades).toFixed(2) : "0.00"
             };
         });
 
@@ -155,6 +170,7 @@ router.get('/classes/:classId', async (req, res) => {
             class_id: cls.id,
             class_name: cls.name,
             grade_level: cls.grade_level,
+            total_students: totalStudents, // ✅ Menampilkan jumlah siswa
             subject_averages: subjectAverages,
             class_average: averageScore,
             attendance_percentage: attendancePercentage,
