@@ -1,4 +1,6 @@
 const bcrypt = require('bcryptjs');
+const { customAlphabet } = require('nanoid');
+const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 5);
 
 module.exports = (sequelize, DataTypes) => {
     const User = sequelize.define('User', {
@@ -6,7 +8,8 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING(5),
             // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
+            allowNull: false,
+            defaultValue: () => nanoid()
         },
         name: {
             type: DataTypes.STRING,
@@ -32,10 +35,6 @@ module.exports = (sequelize, DataTypes) => {
         role: {
             type: DataTypes.ENUM('orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'),
             allowNull: false
-        },
-        class_id: {
-            type: DataTypes.STRING(5),
-            allowNull: true
         }
     }, {
         tableName: 'users',
@@ -48,6 +47,7 @@ module.exports = (sequelize, DataTypes) => {
 
     User.associate = (models) => {
         User.hasMany(models.Student, { foreignKey: 'parent_id', as: 'students' });
+        User.hasOne(models.Class, { foreignKey: 'teacher_id', as: 'class' }); // ✅ Wali kelas untuk satu kelas
     };
 
     return User;

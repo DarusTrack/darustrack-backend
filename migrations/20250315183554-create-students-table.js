@@ -33,7 +33,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       parent_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         allowNull: false,
         references: {
           model: 'users',

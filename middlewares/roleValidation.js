@@ -9,6 +9,11 @@ const roleValidation = (roles) => {
             return res.status(403).json({ message: "Akses ditolak" });
         }
 
+        // Pastikan wali kelas hanya dapat mengakses data di kelasnya
+        if (req.user.role === 'wali_kelas' && req.user.class_id !== req.params.class_id) {
+            return res.status(403).json({ message: 'You do not have permission to access this class data' });
+        }
+        
         next();
     };
 };

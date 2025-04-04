@@ -4,10 +4,10 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('users', {
       id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(5),
         // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
-        autoIncrement: true
+        allowNull: false
       },
       name: {
         type: Sequelize.STRING,
@@ -43,6 +43,18 @@ module.exports = {
         allowNull: false
       },
     });
+
+    // Menambahkan data awal
+    await queryInterface.bulkInsert('curriculums', [
+      {
+        name: 'Admin',
+        email: 'admin@gmail.com',
+        password: 'password123',
+        role: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ]);
   },
 
   down: async (queryInterface, Sequelize) => {

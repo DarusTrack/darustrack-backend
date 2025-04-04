@@ -7,7 +7,7 @@ const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 
 // Get data kurikulum (hanya satu yang tersedia)
-router.get('/', async (req, res) => {
+router.get('/', accessValidation, async (req, res) => {
     try {
         const curriculum = await Curriculum.findOne({
             attributes: ['name', 'description']
@@ -17,25 +17,6 @@ router.get('/', async (req, res) => {
         res.status(500).json({ message: 'Error fetching curriculum', error });
     }
 });
-
-// router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
-//     const schema = {
-//         name: 'string',
-//         description: 'string',
-//     }
-
-//     const validate = v.validate (req.body, schema);
-
-//     if(validate.length) {
-//         return res
-//         .status(400)
-//         .json(validate);
-//     }
-
-//     const curriculums = await Curriculum.create(req.body);
-
-//     res.json(curriculums);
-// });
 
 router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;

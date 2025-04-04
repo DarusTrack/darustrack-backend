@@ -1,17 +1,54 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const { Student, Evaluation, Attendance, Grade, StudentEvaluation, Schedule, Subject, GradeCategory, GradeDetail, StudentGrade } = require('../models');
+const { User, Student, Evaluation, Attendance, StudentEvaluation, Schedule, Subject, GradeCategory, GradeDetail, StudentGrade, Class } = require('../models');
 const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
+
+router.get('/my-class', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        // Cari kelas wali kelas yang login
+        const teacherClass = await Class.findOne({
+            where: { teacher_id: req.user.id },
+            include: [
+                { model: Student, as: 'students', attributes: ['id', 'name'] }
+            ]
+        });
+
+        if (!teacherClass) {
+            return res.status(404).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        res.json({
+            class_id: teacherClass.id,
+            class_name: teacherClass.name,
+            grade_level: teacherClass.grade_level,
+            students: teacherClass.students
+        });
+    } catch (error) {
+        console.error("Error fetching class for teacher:", error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
 
 // Route untuk mendapatkan data siswa dalam kelas wali kelas
 router.get('/students', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
+        // Ambil class_id berdasarkan teacher_id dari wali kelas yang login
+        const teacherClass = await Class.findOne({
+            where: { teacher_id: req.user.id }
+        });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        // Ambil data siswa hanya dari kelas wali kelas yang login
         const students = await Student.findAll({
-            where: { class_id: req.user.class_id },
+            where: { class_id: teacherClass.id },
             attributes: ['id', 'name', 'nisn', 'birth_date']
         });
+
         res.json(students);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -22,11 +59,13 @@ router.get('/students', accessValidation, roleValidation(['wali_kelas']), async 
 router.get('/attendances/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { date } = req.params;
-        const teacherId = req.user.class_id; // Ambil class_id dari wali kelas yang login
+        const teacherClass = await Class.findOne({
+            where: { teacher_id: req.user.id }
+        });
 
         // Pastikan wali kelas memiliki class_id yang valid
-        if (!teacherId) {
-            return res.status(403).json({ message: 'Anda tidak memiliki akses ke data ini' });
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
         }
 
         // Pastikan wali kelas memilih tanggal
@@ -42,7 +81,7 @@ router.get('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
                     model: Student,
                     as: 'student',
                     attributes: ['id', 'name'],
-                    where: { class_id: teacherId } // Filter berdasarkan kelas wali kelas
+                    where: { class_id: teacherClass.id } // Filter berdasarkan kelas wali kelas
                 }
             ]
         });
@@ -62,19 +101,22 @@ router.get('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
 router.post('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { date } = req.body;
-        const waliKelasClassId = req.user.class_id;
+        // Get class information of the logged-in teacher
+        const teacherClass = await Class.findOne({
+            where: { teacher_id: req.user.id }
+        });
 
-        if (!waliKelasClassId) {
-            return res.status(403).json({ message: 'Anda tidak memiliki akses ke data ini' });
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
         }
 
         if (!date) {
             return res.status(400).json({ message: 'Tanggal harus disertakan' });
         }
 
-        // Ambil semua siswa dalam kelas wali kelas
+        // Get all students from the teacher's class
         const students = await Student.findAll({
-            where: { class_id: waliKelasClassId },
+            where: { class_id: teacherClass.id },
             attributes: ['id']
         });
 
@@ -82,14 +124,15 @@ router.post('/attendances', accessValidation, roleValidation(['wali_kelas']), as
             return res.status(404).json({ message: 'Tidak ada siswa di kelas Anda' });
         }
 
-        // Membuat entri kehadiran untuk setiap siswa
+        // Prepare attendance records for all students
         const attendanceRecords = students.map(student => ({
             student_id: student.id,
-            class_id: waliKelasClassId,
+            class_id: teacherClass.id, // Ensure the correct class_id is used
             date,
-            status: 'null'
+            status: 'null' // Set default status as 'null'
         }));
 
+        // Create attendance records in bulk
         await Attendance.bulkCreate(attendanceRecords);
 
         res.status(201).json({ message: 'Data kehadiran berhasil ditambahkan', data: attendanceRecords });
@@ -103,37 +146,50 @@ router.post('/attendances', accessValidation, roleValidation(['wali_kelas']), as
 router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { date } = req.params;
-        const { student_id, status } = req.body;
-        const waliKelasClassId = req.user.class_id;
+        const { attendances } = req.body; // Array dari student_id dan status
 
-        if (!waliKelasClassId) {
-            return res.status(403).json({ message: 'Anda tidak memiliki akses ke data ini' });
+        if (!attendances || !Array.isArray(attendances) || attendances.length === 0) {
+            return res.status(400).json({ message: 'Daftar kehadiran harus disertakan dalam format array' });
         }
 
-        if (!date || !status) {
-            return res.status(400).json({ message: 'Tanggal dan status harus disertakan' });
-        }
-
-        // Cek apakah siswa berasal dari kelas wali kelas tersebut
-        const student = await Student.findOne({
-            where: { id: student_id, class_id: waliKelasClassId }
+        // Cari kelas wali kelas berdasarkan teacher_id
+        const teacherClass = await Class.findOne({
+            where: { teacher_id: req.user.id }
         });
 
-        if (!student) {
-            return res.status(403).json({ message: 'Anda tidak memiliki akses untuk mengubah data siswa ini' });
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
         }
 
-        // Perbarui status kehadiran siswa
-        const [updated] = await Attendance.update(
-            { status },
-            { where: { student_id, date, class_id: waliKelasClassId } }
-        );
+        // Ambil semua student_id dalam kelas wali kelas
+        const validStudentIds = await Student.findAll({
+            where: { class_id: teacherClass.id },
+            attributes: ['id']
+        }).then(students => students.map(s => s.id));
 
-        if (updated === 0) {
-            return res.status(404).json({ message: 'Data kehadiran tidak ditemukan' });
+        // Filter attendances untuk memastikan hanya siswa dari kelas wali kelas yang diupdate
+        const validAttendances = attendances.filter(a => validStudentIds.includes(a.student_id));
+
+        if (validAttendances.length === 0) {
+            return res.status(403).json({ message: 'Tidak ada siswa yang valid untuk diperbarui' });
         }
 
-        res.json({ message: 'Status kehadiran berhasil diperbarui' });
+        // Bulk update attendance
+        const updates = validAttendances.map(a => ({
+            student_id: a.student_id,
+            date: date,
+            class_id: teacherClass.id,
+            status: a.status
+        }));
+
+        await Promise.all(updates.map(attendance => 
+            Attendance.update(
+                { status: attendance.status },
+                { where: { student_id: attendance.student_id, date: attendance.date, class_id: attendance.class_id } }
+            )
+        ));
+
+        res.json({ message: 'Status kehadiran berhasil diperbarui untuk beberapa siswa' });
     } catch (error) {
         console.error('Error updating attendance:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -145,12 +201,21 @@ router.get('/schedule', accessValidation, roleValidation(['wali_kelas']), async 
     try {
         const { day } = req.query;  // Ambil query parameter "day"
 
+        // Cari class_id dari wali kelas berdasarkan teacher_id
+        const teacherClass = await Class.findOne({
+            where: { teacher_id: req.user.id }
+        });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
         // Buat kondisi filter untuk class_id wali kelas
-        const whereCondition = { class_id: req.user.class_id };
+        const whereCondition = { class_id: teacherClass.id };
 
         // Jika ada filter "day", tambahkan ke kondisi where
         if (day) {
-            whereCondition.day = { [Op.eq]: day };  // Case-insensitive search
+            whereCondition.day = { [Op.eq]: day };  // Case-sensitive search (bisa diganti Op.iLike untuk case-insensitive jika pakai PostgreSQL)
         }
 
         const schedule = await Schedule.findAll({
@@ -159,58 +224,131 @@ router.get('/schedule', accessValidation, roleValidation(['wali_kelas']), async 
             include: [{ model: Subject, as: "subject", attributes: ['name'] }]
         });
 
+        if (schedule.length === 0) {
+            return res.status(404).json({ message: 'Tidak ada jadwal tersedia' });
+        }
+
         res.json(schedule);
     } catch (error) {
+        console.error('Error fetching schedule:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
-// *** MENAMPILKAN DAFTAR EVALUASI (TITLE) ***
+// GET: Ambil title evaluasi untuk wali kelas
 router.get('/evaluations', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
+        // Ambil class_id wali kelas berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        // Ambil semua evaluasi berdasarkan class_id
         const evaluations = await Evaluation.findAll({
-            where: { class_id: req.user.class_id },
+            where: { class_id: teacherClass.id },
             attributes: ['id', 'title']
         });
 
+        if (evaluations.length === 0) {
+            return res.status(404).json({ message: 'Tidak ada evaluasi tersedia' });
+        }
+
         res.json(evaluations);
     } catch (error) {
+        console.error('Error fetching evaluations:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
-// edit title
+// POST: Menambahkan evaluasi baru
+router.post('/evaluations', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const { title } = req.body;
+
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        // Buat evaluasi baru dengan class_id dari teacher_id
+        const newEvaluation = await Evaluation.create({
+            title,
+            class_id: teacherClass.id // Pastikan class_id tidak null
+        });
+
+        // Ambil semua siswa yang terdaftar di kelas wali kelas
+        const students = await Student.findAll({
+            where: { class_id: teacherClass.id }
+        });
+
+        // Untuk setiap siswa, tambahkan entry baru di StudentEvaluation dengan description null
+        await Promise.all(students.map(student =>
+            StudentEvaluation.create({
+                evaluation_id: newEvaluation.id,
+                student_id: student.id,
+                description: null // Set description sebagai null pada awalnya
+            })
+        ));
+
+        res.status(201).json({ message: 'Evaluasi berhasil ditambahkan', evaluation: newEvaluation });
+    } catch (error) {
+        console.error('Error creating evaluation:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+
+// PUT: Edit title evaluasi
 router.put('/evaluations/:id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { id } = req.params;
         const { title } = req.body;
 
-        // Cek apakah evaluasi ada di database
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        // Cek apakah evaluasi ada dan hanya bisa diedit oleh wali kelasnya
         const evaluation = await Evaluation.findOne({
-            where: { id, class_id: req.user.class_id }
+            where: { id, class_id: teacherClass.id }
         });
 
         if (!evaluation) {
             return res.status(404).json({ message: 'Evaluasi tidak ditemukan' });
         }
 
-        // Update title evaluasi
+        // Update evaluasi
         await evaluation.update({ title });
 
         res.json({ message: 'Evaluasi berhasil diperbarui', evaluation });
     } catch (error) {
+        console.error('Error updating evaluation:', error);
         res.status(500).json({ message: 'Terjadi kesalahan saat memperbarui evaluasi', error: error.message });
     }
 });
 
-// hapus title
+// DELETE: Hapus evaluasi
 router.delete('/evaluations/:id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Cek apakah evaluasi ada di database
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        // Cek apakah evaluasi ada dan hanya bisa dihapus oleh wali kelasnya
         const evaluation = await Evaluation.findOne({
-            where: { id, class_id: req.user.class_id }
+            where: { id, class_id: teacherClass.id }
         });
 
         if (!evaluation) {
@@ -222,56 +360,82 @@ router.delete('/evaluations/:id', accessValidation, roleValidation(['wali_kelas'
 
         res.json({ message: 'Evaluasi berhasil dihapus' });
     } catch (error) {
+        console.error('Error deleting evaluation:', error);
         res.status(500).json({ message: 'Terjadi kesalahan saat menghapus evaluasi', error: error.message });
     }
 });
 
-// *** MENAMPILKAN DETAIL EVALUASI (DAFTAR SISWA & DESKRIPSI) ***
-router.get('/evaluations/:evaluation_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+// GET: Menampilkan daftar siswa dan deskripsi evaluasi
+router.get('/evaluations/:id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
-        const { evaluation_id } = req.params;
+        const { id } = req.params;
 
-        const evaluation = await Evaluation.findOne({ 
-            where: { id: evaluation_id, class_id: req.user.class_id },
-            attributes: ['id', 'title']
-        });
+        // Cek apakah evaluasi ada
+        const evaluation = await Evaluation.findByPk(id);
 
         if (!evaluation) {
             return res.status(404).json({ message: 'Evaluasi tidak ditemukan' });
         }
 
-        const studentEvaluations = await StudentEvaluation.findAll({
-            where: { evaluation_id },
-            include: [{ model: Student, as: 'student', attributes: ['id', 'name'] }],
-            attributes: ['id', 'description']
+        // Ambil siswa-siswa yang terkait dengan evaluasi ini
+        const evaluationDetails = await StudentEvaluation.findAll({
+            where: { evaluation_id: id },
+            include: {
+                model: Student,
+                as: 'student',
+                attributes: ['id', 'name'], // Hanya ambil id dan nama siswa
+            }
         });
 
-        res.json({ evaluation, studentEvaluations });
+        // Format data yang akan dikirimkan
+        const result = evaluationDetails.map(detail => ({
+            student_id: detail.student_id,
+            student_name: detail.student.name,
+            description: detail.description || null // Deskripsi evaluasi, jika belum diupdate tampilkan null
+        }));
+
+        res.json({ evaluation: evaluation.title, students: result });
     } catch (error) {
+        console.error('Error fetching evaluation details:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
-// *** MENAMBAHKAN JUDUL EVALUASI BARU ***
-router.post('/evaluations', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+// *** MENGAMBIL DETAIL EVALUASI DARI SEORANG SISWA ***
+router.get('/evaluations/:evaluation_id/students/:student_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
-        const { title } = req.body;
-        const classId = req.user.class_id;
+        const { evaluation_id, student_id } = req.params;
 
-        const evaluation = await Evaluation.create({ class_id: classId, title });
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
 
-        const students = await Student.findAll({ where: { class_id: classId } });
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
 
-        const studentEvaluations = students.map(student => ({
-            evaluation_id: evaluation.id,
-            student_id: student.id,
-            description: null
-        }));
+        // Cek apakah evaluasi ada dan milik kelas yang diajar
+        const evaluation = await Evaluation.findOne({ 
+            where: { id: evaluation_id, class_id: teacherClass.id }
+        });
 
-        await StudentEvaluation.bulkCreate(studentEvaluations);
+        if (!evaluation) {
+            return res.status(404).json({ message: 'Evaluasi tidak ditemukan atau bukan milik kelas Anda' });
+        }
 
-        res.status(201).json({ message: 'Evaluasi berhasil ditambahkan' });
+        // Cek apakah evaluasi siswa ada
+        const studentEvaluation = await StudentEvaluation.findOne({
+            where: { evaluation_id, student_id },
+            include: [{ model: Student, as: 'student', attributes: ['id', 'name'] }],
+            attributes: ['id', 'description']
+        });
+
+        if (!studentEvaluation) {
+            return res.status(404).json({ message: 'Evaluasi siswa tidak ditemukan' });
+        }
+
+        res.json(studentEvaluation);
     } catch (error) {
+        console.error('Error fetching student evaluation:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -282,6 +446,23 @@ router.put('/evaluations/:evaluation_id/students/:student_id', accessValidation,
         const { evaluation_id, student_id } = req.params;
         const { description } = req.body;
 
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        // Cek apakah evaluasi ada dan milik kelas yang diajar
+        const evaluation = await Evaluation.findOne({ 
+            where: { id: evaluation_id, class_id: teacherClass.id }
+        });
+
+        if (!evaluation) {
+            return res.status(404).json({ message: 'Evaluasi tidak ditemukan atau bukan milik kelas Anda' });
+        }
+
+        // Cek apakah evaluasi siswa ada
         const studentEvaluation = await StudentEvaluation.findOne({
             where: { evaluation_id, student_id }
         });
@@ -290,43 +471,29 @@ router.put('/evaluations/:evaluation_id/students/:student_id', accessValidation,
             return res.status(404).json({ message: 'Evaluasi siswa tidak ditemukan' });
         }
 
+        // Update deskripsi evaluasi siswa
         await studentEvaluation.update({ description });
 
         res.json({ message: 'Evaluasi siswa berhasil diperbarui' });
     } catch (error) {
+        console.error('Error updating student evaluation:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
-
-// // *** MENGAMBIL DETAIL EVALUASI DARI SEORANG SISWA ***
-// router.get('/evaluations/:evaluation_id/students/:student_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-//     try {
-//         const { evaluation_id, student_id } = req.params;
-
-//         const studentEvaluation = await StudentEvaluation.findOne({
-//             where: { evaluation_id, student_id },
-//             include: [{ model: Student, attributes: ['id', 'name'] }],
-//             attributes: ['id', 'description']
-//         });
-
-//         if (!studentEvaluation) {
-//             return res.status(404).json({ message: 'Evaluasi siswa tidak ditemukan' });
-//         }
-
-//         res.json(studentEvaluation);
-//     } catch (error) {
-//         res.status(500).json({ message: 'Server error', error: error.message });
-//     }
-// });
 
 // *** GRADES ***
 // list mapel sesuai jadwal
 router.get('/grades', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
-        const classId = req.user.class_id;
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
 
         const schedules = await Schedule.findAll({
-            where: { class_id: classId },
+            where: { class_id: teacherClass.id },
             include: [{ model: Subject, as: 'subject', attributes: ['id', 'name'] }],
             attributes: ['subject_id']
         });
@@ -355,16 +522,25 @@ router.get('/grades', accessValidation, roleValidation(['wali_kelas']), async (r
 router.get('/grades/:subject_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { subject_id } = req.params;
-        const classId = req.user.class_id; // Ambil kelas dari wali kelas yang login
 
-        console.log("Fetching categories for:", { subject_id, classId }); // 🔍 Debugging
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        const classId = teacherClass.id; // Mendapatkan class_id dari teacherClass
+
+        // Periksa apakah classId valid
+        if (!classId) {
+            return res.status(400).json({ message: 'class_id tidak ditemukan untuk wali kelas ini' });
+        }
 
         const categories = await GradeCategory.findAll({
-            where: { subject_id, class_id: classId },
+            where: { subject_id, class_id: classId }, // Pastikan class_id ada
             attributes: ['id', 'name']
         });
-
-        console.log("Found categories:", categories); // 🔍 Debugging hasil query
 
         res.json(categories);
     } catch (error) {
@@ -378,7 +554,15 @@ router.post('/grades/:subject_id/categories', accessValidation, roleValidation([
     try {
         const { subject_id } = req.params;
         const { name } = req.body;
-        const classId = req.user.class_id; // Ambil kelas wali kelas
+
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        const classId = teacherClass.id; // Mendapatkan class_id dari teacherClass
 
         // Cek apakah kategori dengan nama yang sama sudah ada untuk kelas dan mata pelajaran ini
         const existingCategory = await GradeCategory.findOne({
@@ -403,7 +587,15 @@ router.put('/grades/categories/:category_id', accessValidation, roleValidation([
     try {
         const { category_id } = req.params;
         const { name } = req.body;
-        const classId = req.user.class_id;
+
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        const classId = teacherClass.id; // Mendapatkan class_id dari teacherClass
 
         // Cek apakah kategori ada
         const categoryExists = await GradeCategory.findOne({ where: { id: category_id } });
@@ -436,8 +628,17 @@ router.delete('/grades/categories/:category_id', accessValidation, roleValidatio
     try {
         const { category_id } = req.params;
 
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        const classId = teacherClass.id; // Mendapatkan class_id dari teacherClass
+
         // Cek apakah kategori ada
-        const categoryExists = await GradeCategory.findOne({ where: { id: category_id } });
+        const categoryExists = await GradeCategory.findOne({ where: { id: category_id, class_id: classId } });
 
         if (!categoryExists) {
             return res.status(404).json({ message: 'Category not found' });
@@ -483,6 +684,15 @@ router.post('/grades/categories/:category_id/details', accessValidation, roleVal
             return res.status(400).json({ message: 'Grade category not found' });
         }
 
+        // Ambil class_id berdasarkan teacher_id
+        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        const classId = teacherClass.id; // Mendapatkan class_id dari teacherClass
+
         // Cek apakah detail penilaian dengan nama yang sama sudah ada dalam kategori ini
         const existingDetail = await GradeDetail.findOne({
             where: { grade_category_id: category_id, name }
@@ -497,7 +707,7 @@ router.post('/grades/categories/:category_id/details', accessValidation, roleVal
 
         // Ambil daftar siswa dalam kelas untuk otomatis menambahkan skor default (null)
         const students = await Student.findAll({
-            where: { class_id: req.user.class_id },
+            where: { class_id: classId },
             attributes: ['id']
         });
 
@@ -517,28 +727,51 @@ router.put('/grades/details/:detail_id', accessValidation, roleValidation(['wali
     try {
         const { detail_id } = req.params;
         const { name, date } = req.body;
+        const user = req.user;
 
-        // Cek apakah detail penilaian ada
-        const detailExists = await GradeDetail.findOne({ where: { id: detail_id } });
-
-        if (!detailExists) {
-            return res.status(404).json({ message: 'Grade detail not found' });
-        }
-
-        // Cek apakah nama baru sudah ada dalam kategori yang sama
-        const duplicateDetail = await GradeDetail.findOne({
-            where: { 
-                grade_category_id: detailExists.grade_category_id, 
-                name, 
-                id: { [Op.ne]: detail_id } // Cek selain data yang sedang diedit
+        // Ambil data wali kelas beserta kelasnya
+        const waliKelas = await User.findOne({
+            where: { id: user.id },
+            include: {
+                model: Class,
+                as: 'class'
             }
         });
 
-        if (duplicateDetail) {
+        if (!waliKelas || !waliKelas.class) {
+            return res.status(403).json({ message: 'User is not assigned to any class' });
+        }
+
+        // Cek apakah grade detail milik kelas wali kelas (melalui grade category)
+        const gradeDetail = await GradeDetail.findOne({
+            where: { id: detail_id },
+            include: {
+                model: GradeCategory,
+                as: 'grade_category',
+                where: {
+                    class_id: waliKelas.class.id
+                }
+            }
+        });
+
+        if (!gradeDetail) {
+            return res.status(404).json({ message: 'Grade detail not found for this class' });
+        }
+
+        // Cek duplikat nama dalam kategori yang sama
+        const duplicate = await GradeDetail.findOne({
+            where: {
+                grade_category_id: gradeDetail.grade_category_id,
+                name,
+                id: { [Op.ne]: detail_id }
+            }
+        });
+
+        if (duplicate) {
             return res.status(400).json({ message: 'Detail name already exists in this category' });
         }
 
-        // Update detail penilaian
+        // Update
         await GradeDetail.update({ name, date }, { where: { id: detail_id } });
 
         res.status(200).json({ message: 'Grade detail updated successfully' });
@@ -552,15 +785,38 @@ router.put('/grades/details/:detail_id', accessValidation, roleValidation(['wali
 router.delete('/grades/details/:detail_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { detail_id } = req.params;
+        const user = req.user;
 
-        // Cek apakah detail penilaian ada di database
-        const detailExists = await GradeDetail.findOne({ where: { id: detail_id } });
+        // Ambil data wali kelas beserta kelasnya
+        const waliKelas = await User.findOne({
+            where: { id: user.id },
+            include: {
+                model: Class,
+                as: 'class'
+            }
+        });
 
-        if (!detailExists) {
-            return res.status(404).json({ message: 'Grade detail not found' });
+        if (!waliKelas || !waliKelas.class) {
+            return res.status(403).json({ message: 'User is not assigned to any class' });
         }
 
-        // Hapus semua skor siswa yang terkait dengan detail ini
+        // Pastikan grade detail berasal dari kategori yang dimiliki kelas wali kelas
+        const gradeDetail = await GradeDetail.findOne({
+            where: { id: detail_id },
+            include: {
+                model: GradeCategory,
+                as: 'grade_category',
+                where: {
+                    class_id: waliKelas.class.id
+                }
+            }
+        });
+
+        if (!gradeDetail) {
+            return res.status(404).json({ message: 'Grade detail not found for this class' });
+        }
+
+        // Hapus semua nilai siswa terkait
         await StudentGrade.destroy({ where: { grade_detail_id: detail_id } });
 
         // Hapus detail penilaian

@@ -144,7 +144,7 @@ router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), 
 });
 
 // Edit jadwal pelajaran dalam kelas
-router.put('/:class_id/schedule/:schedule_id', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.put('/schedules/:schedule_id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
         const { subject_id, day, start_time, end_time } = req.body;
         await Schedule.update(
@@ -158,7 +158,7 @@ router.put('/:class_id/schedule/:schedule_id', accessValidation, roleValidation(
 });
 
 // Hapus jadwal pelajaran dalam kelas
-router.delete('/:class_id/schedule/:schedule_id', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.delete('/schedules/:schedule_id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
         await Schedule.destroy({ where: { id: req.params.schedule_id } });
         res.json({ message: 'Schedule deleted successfully' });

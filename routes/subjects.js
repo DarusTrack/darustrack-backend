@@ -15,19 +15,6 @@ router.get("/", accessValidation, async (req, res) => {
         res.status(500).json({ message: "Error retrieving subjects", error });
     }
 });
-
-// // ✅ GET: Detail mata pelajaran + capaian pembelajaran
-// router.get("/:id", accessValidation, async (req, res) => {
-//     try {
-//         const subject = await Subject.findByPk(req.params.id);
-//         if (!subject) {
-//             return res.status(404).json({ message: "Subject not found" });
-//         }
-//         return res.json(subject);
-//     } catch (error) {
-//         res.status(500).json({ message: "Error retrieving subject", error });
-//     }
-// });
   
 // Tambah mata pelajaran baru
 router.post('/',  accessValidation, roleValidation(["admin"]), async (req, res) => {

@@ -46,7 +46,7 @@ router.get('/:id', accessValidation, roleValidation(["admin"]), async (req, res)
 });
 
 // Tambah pengguna baru (Register)
-router.post('/', async (req, res) => {
+router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const schema = {
         name: 'string',
         nip: 'string|optional',

@@ -17,7 +17,7 @@ module.exports = {
         allowNull: false
       },
       teacher_id: {
-          type: Sequelize.INTEGER,
+          type: Sequelize.STRING(5),
           allowNull: false,
           references: {
             model: 'users',

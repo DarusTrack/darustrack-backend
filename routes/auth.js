@@ -44,9 +44,7 @@ router.post("/login", async (req, res) => {
 // Get Profile (Hanya bisa dilakukan oleh user yang login)
 router.get("/profile", accessValidation, async (req, res) => {
     try {
-        const user = await User.findByPk(req.user.id, {
-            attributes: ["id", "name", "email", "role", "class_id", "password"]
-        });
+        const user = await User.findByPk(req.user.id);
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
@@ -54,8 +52,8 @@ router.get("/profile", accessValidation, async (req, res) => {
 
         // Tambahkan opsi untuk menampilkan password sebelum di-hash
         res.json({
-            id: user.id,
             name: user.name,
+            nip: user.nip,
             email: user.email,
             password: "********", // Password tetap tersembunyi secara default
         });
@@ -87,6 +85,8 @@ router.put("/profile", accessValidation, async (req, res) => {
 
         res.json({
             message: "Profile updated successfully",
+            email: email,
+            name: name,
             password: showPassword ? password : "********", // Jika showPassword true, tampilkan password baru
         });
     } catch (error) {

@@ -240,12 +240,7 @@ router.get('/grades/:subject_id', accessValidation, roleValidation(['orang_tua']
             name: category.name
         }));
 
-        res.json({
-            subject_id,
-            subject_name: gradeCategories[0].subject ? gradeCategories[0].subject.name : "Unknown Subject", // ✅ Perbaikan untuk mencegah error
-            class_id: student.class_id,
-            categories
-        });
+        res.json(categories);
     } catch (error) {
         console.error("Error fetching grade categories:", error);
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -287,7 +282,7 @@ router.get('/grades/category/:category_id/details', accessValidation, roleValida
         if (!gradeCategory) return res.status(404).json({ message: 'Kategori penilaian tidak ditemukan atau tidak tersedia untuk anak Anda' });
 
         // Ambil daftar detail penilaian dalam kategori ini
-        const assessments = gradeCategory.grade_detail.map(detail => ({
+        const grades = gradeCategory.grade_detail.map(detail => ({
             id: detail.id,
             title: detail.name,
             date: detail.date,
@@ -295,12 +290,7 @@ router.get('/grades/category/:category_id/details', accessValidation, roleValida
             score: detail.student_grades.length > 0 ? detail.student_grades[0].score : null // 📝 Menampilkan skor jika ada
         }));
 
-        res.json({
-            category_id,
-            category_name: gradeCategory.name,
-            class_id: student.class_id,
-            assessments
-        });
+        res.json(grades);
     } catch (error) {
         console.error("Error fetching category details:", error);
         res.status(500).json({ message: 'Server error', error: error.message });
