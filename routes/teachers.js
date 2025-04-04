@@ -11,7 +11,7 @@ router.get('/my-class', accessValidation, roleValidation(['wali_kelas']), async 
         const teacherClass = await Class.findOne({
             where: { teacher_id: req.user.id },
             include: [
-                { model: Student, as: 'students', attributes: ['id', 'name'] }
+                { model: Student, as: 'students', attributes: ['id', 'name', 'nisn', 'birth_date'] }
             ]
         });
 
@@ -27,30 +27,6 @@ router.get('/my-class', accessValidation, roleValidation(['wali_kelas']), async 
         });
     } catch (error) {
         console.error("Error fetching class for teacher:", error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// Route untuk mendapatkan data siswa dalam kelas wali kelas
-router.get('/students', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-    try {
-        // Ambil class_id berdasarkan teacher_id dari wali kelas yang login
-        const teacherClass = await Class.findOne({
-            where: { teacher_id: req.user.id }
-        });
-
-        if (!teacherClass) {
-            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
-        }
-
-        // Ambil data siswa hanya dari kelas wali kelas yang login
-        const students = await Student.findAll({
-            where: { class_id: teacherClass.id },
-            attributes: ['id', 'name', 'nisn', 'birth_date']
-        });
-
-        res.json(students);
-    } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
