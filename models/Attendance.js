@@ -23,7 +23,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         status: {
-            type: DataTypes.ENUM('Hadir', 'Izin', 'Sakit', 'Alpha', 'Null'),
+            type: DataTypes.ENUM('Hadir', 'Izin', 'Sakit', 'Alpha', null),
             allowNull: true
         }
     }, {
