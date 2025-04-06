@@ -4,7 +4,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-const cors = require('cors');
+var cors = require('cors');
 
 var indexRouter = require('./routes/index');
 var authRouter = require('./routes/auth');
@@ -30,7 +30,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
 
 app.use('/', indexRouter);
 app.use('/auth', authRouter);

@@ -57,12 +57,12 @@ router.post('/', accessValidation, roleValidation(['admin']), async (req, res) =
     res.json(subject);
 });
 
-// Update mata pelajaran
-router.put('/:id', accessValidation, roleValidation(['admin']), async (req, res) => {
-    try {
-        const id = req.params.id;
-        let subject = await Subject.findByPk(id);
+// ✅ Update mata pelajaran
+router.put('/:id', async (req, res) => {
+    const id = req.params.id;
 
+    try {
+        let subject = await Subject.findByPk(id);
         if (!subject) {
             return res.status(404).json({ message: 'Subject not found' });
         }
@@ -73,15 +73,15 @@ router.put('/:id', accessValidation, roleValidation(['admin']), async (req, res)
         };
 
         const validate = v.validate(req.body, schema);
-
         if (validate.length) {
             return res.status(400).json(validate);
         }
 
         subject = await subject.update(req.body);
-        res.json(subject);
+        return res.json(subject); // ⬅️ wajib return response
     } catch (error) {
-        res.status(500).json({ message: 'Error updating subject', error: error.message });
+        console.error(error); // log ke Railway
+        return res.status(500).json({ message: "Gagal update subject", error: error.message });
     }
 });
 
