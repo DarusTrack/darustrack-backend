@@ -34,7 +34,7 @@ module.exports = {
         allowNull: false
       },
       status: {
-        type: Sequelize.ENUM('Hadir', 'Izin', 'Sakit', 'Alpha'),
+        type: Sequelize.ENUM('Hadir', 'Izin', 'Sakit', 'Alpha', 'Not Set'),
         allowNull: false,
         defaultValue: 'Not Set'
       },
