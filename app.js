@@ -27,7 +27,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const cors = require('cors');
 const corsOptions = {
-  origin: ['http://localhost:3000', 'https://darustrack-frontend-production.up.railway.app'],
+  origin: ['http://localhost:3000', 'https://darustrack-backend-production.up.railway.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
