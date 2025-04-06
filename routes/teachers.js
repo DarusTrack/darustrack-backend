@@ -105,7 +105,7 @@ router.post('/attendances', accessValidation, roleValidation(['wali_kelas']), as
             student_id: student.id,
             class_id: teacherClass.id, // Ensure the correct class_id is used
             date,
-            status: null
+            status: 'Not Set'
         }));
         console.log(attendanceRecords);
         // Create attendance records in bulk
