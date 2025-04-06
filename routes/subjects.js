@@ -24,7 +24,7 @@ router.get("/", async (req, res) => {
 router.post('/', async (req, res) => {
     const schema = {
         name: 'string',
-        description: 'text'
+        description: 'string'
     };
 
     const validate = v.validate(req.body, schema);
