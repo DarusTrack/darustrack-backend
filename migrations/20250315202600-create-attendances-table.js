@@ -34,8 +34,8 @@ module.exports = {
         allowNull: false
       },
       status: {
-        type: Sequelize.ENUM('Hadir', 'Izin', 'Sakit', 'Alpha'),
-        allowNull: false
+        type: Sequelize.ENUM('Hadir', 'Izin', 'Sakit', 'Alpha', 'Null'),
+        allowNull: true
       },
       createdAt: {
         type: Sequelize.DATE,

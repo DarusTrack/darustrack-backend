@@ -78,9 +78,9 @@ router.put('/:id', async (req, res) => {
         }
 
         subject = await subject.update(req.body);
-        return res.json(subject); // ⬅️ wajib return response
+        return res.json(subject);
     } catch (error) {
-        console.error(error); // log ke Railway
+        console.error(error);
         return res.status(500).json({ message: "Gagal update subject", error: error.message });
     }
 });
