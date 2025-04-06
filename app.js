@@ -30,9 +30,6 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
 app.use('/', indexRouter);
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);
