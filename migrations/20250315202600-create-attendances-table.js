@@ -36,7 +36,7 @@ module.exports = {
       status: {
         type: Sequelize.ENUM('Hadir', 'Izin', 'Sakit', 'Alpha'),
         allowNull: false,
-        defaultValue: 'Alpha'
+        defaultValue: 'Not Set'
       },
       createdAt: {
         type: Sequelize.DATE,
