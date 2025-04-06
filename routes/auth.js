@@ -14,30 +14,36 @@ router.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
+        console.log("Email atau password tidak diisi.");
         return res.status(400).json({ message: "Email dan password harus diisi" });
     }
 
     try {
+        console.log("Mencari user dengan email:", email);
         const user = await User.findOne({ where: { email } });
         if (!user) {
+            console.log("User tidak ditemukan.");
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
+        console.log("Memeriksa password...");
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
+            console.log("Password tidak valid.");
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
+        console.log("Membuat token JWT...");
         const token = jwt.sign(
             { id: user.id, name: user.name, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN}
+            { expiresIn: process.env.JWT_EXPIRES_IN }
         );
 
         res.json({ message: "Login successful", token });
     } catch (error) {
         console.error("Login Error:", error);
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error", error: error.message });
     }
 });
 
