@@ -24,7 +24,8 @@ module.exports = (sequelize, DataTypes) => {
         },
         status: {
             type: DataTypes.ENUM('Hadir', 'Izin', 'Sakit', 'Alpha'),
-            allowNull: true
+            allowNull: false,
+            defaultValue: 'Not Set'
         }
     }, {
         tableName: 'attendances',
