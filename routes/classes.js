@@ -3,6 +3,7 @@ const router = express.Router();
 const { Class, Student, User, Schedule, Subject } = require('../models');
 const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
+const { Op } = require('sequelize');
 
 // Get semua kelas dengan filter grade level
 router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
@@ -130,16 +131,58 @@ router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), a
 router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
         const { subject_id, day, start_time, end_time } = req.body;
+        const class_id = req.params.class_id;
+
+        // Cek apakah ada jadwal yang tumpang tindih
+        const conflict = await Schedule.findOne({
+            where: {
+                class_id,
+                day,
+                [Op.or]: [
+                    {
+                        start_time: {
+                            [Op.between]: [start_time, end_time]
+                        }
+                    },
+                    {
+                        end_time: {
+                            [Op.between]: [start_time, end_time]
+                        }
+                    },
+                    {
+                        [Op.and]: [
+                            {
+                                start_time: {
+                                    [Op.lte]: start_time
+                                }
+                            },
+                            {
+                                end_time: {
+                                    [Op.gte]: end_time
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+
+        if (conflict) {
+            return res.status(409).json({ message: 'Jadwal bentrok dengan pelajaran lain di kelas ini' });
+        }
+
         const newSchedule = await Schedule.create({
-            class_id: req.params.class_id,
+            class_id,
             subject_id,
             day,
             start_time,
             end_time
         });
+
         res.status(201).json(newSchedule);
     } catch (error) {
-        res.status(500).json({ message: 'Error adding schedule', error });
+        console.error('Error adding schedule:', error);
+        res.status(500).json({ message: 'Error adding schedule', error: error.message });
     }
 });
 
