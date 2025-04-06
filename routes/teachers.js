@@ -107,7 +107,7 @@ router.post('/attendances', accessValidation, roleValidation(['wali_kelas']), as
             date,
             status: null
         }));
-
+        console.log(attendanceRecords);
         // Create attendance records in bulk
         await Attendance.bulkCreate(attendanceRecords);
 
