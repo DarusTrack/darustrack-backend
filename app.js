@@ -25,15 +25,17 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const corsOptions = {
-  origin: ['http://localhost:3000', 'https://darustrack-backend-production.up.railway.app'],
+app.use(cors({
+  origin: 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-};
+}));
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.use((req, res, next) => {
+  console.log("CORS headers:", res.getHeaders());
+  next();
+});
 
 app.use('/', indexRouter);
 app.use('/auth', authRouter);
