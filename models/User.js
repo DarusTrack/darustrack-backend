@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { customAlphabet } = require('nanoid');
-const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 5);
+const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 5);
 
 module.exports = (sequelize, DataTypes) => {
     const User = sequelize.define('User', {
