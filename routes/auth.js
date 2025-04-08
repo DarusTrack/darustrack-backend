@@ -6,44 +6,77 @@ const { User } = require("../models");
 const accessValidation = require("../middlewares/accessValidation");
 const tokenBlacklist = require("../middlewares/tokenBlacklist");
 const Validator = require("fastest-validator");
-require("dotenv").config();
 const v = new Validator();
+require("dotenv").config();
 
-// Login Pengguna
+function generateAccessToken(user) {
+    return jwt.sign(
+        { id: user.id, name: user.name, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+}
+
+function generateRefreshToken(user) {
+    return jwt.sign(
+        { id: user.id },
+        process.env.REFRESH_TOKEN_SECRET,
+        { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN }
+    );
+}
+
+// login
 router.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-        console.log("Email atau password tidak diisi.");
         return res.status(400).json({ message: "Email dan password harus diisi" });
     }
 
     try {
-        console.log("Mencari user dengan email:", email);
         const user = await User.findOne({ where: { email } });
         if (!user) {
-            console.log("User tidak ditemukan.");
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
-        console.log("Memeriksa password...");
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
-            console.log("Password tidak valid.");
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
-        console.log("Membuat token JWT...");
-        const token = jwt.sign(
-            { id: user.id, name: user.name, role: user.role },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN }
-        );
+        const accessToken = generateAccessToken(user);
+        const refreshToken = generateRefreshToken(user);
 
-        res.json({ message: "Login successful", token });
+        // Simpan refreshToken di cookie (httpOnly)
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: false, // true kalau pakai https
+            sameSite: "Strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+        });
+
+        res.json({ message: "Login successful", accessToken });
     } catch (error) {
-        console.error("Login Error:", error);
         res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+});
+
+// refresh token
+router.post("/refresh-token", async (req, res) => {
+    const token = req.cookies.refreshToken;
+
+    if (!token) return res.status(401).json({ message: "Refresh token not found" });
+
+    try {
+        const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+        const user = await User.findByPk(decoded.id);
+
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const newAccessToken = generateAccessToken(user);
+        res.json({ accessToken: newAccessToken });
+    } catch (error) {
+        res.status(403).json({ message: "Invalid refresh token", error: error.message });
     }
 });
 
@@ -99,6 +132,12 @@ router.put("/profile", accessValidation, async (req, res) => {
         console.error("Update Profile Error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
+});
+
+// logout
+router.post("/logout", (req, res) => {
+    res.clearCookie("refreshToken");
+    res.json({ message: "Logout successful" });
 });
 
 module.exports = router;
