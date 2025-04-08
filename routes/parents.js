@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const { Op } = require('sequelize');
 const Validator = require('fastest-validator');
-const { Student, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation, GradeCategory, GradeDetail, StudentGrade } = require('../models');
+const { User, Student, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation, GradeCategory, GradeDetail, StudentGrade } = require('../models');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
 const accessValidation = require('../middlewares/accessValidation');
@@ -13,15 +13,31 @@ router.use(accessValidation, roleValidation(['orang_tua']));
 router.get('/profile', async (req, res) => {
     try {
         const parentId = req.user.id;
+
         const student = await Student.findOne({
             where: { parent_id: parentId },
             attributes: ['name', 'nisn', 'birth_date'],
-            include: [{ model: Class,  as: "class", attributes: ['name'] }]
+            include: [{
+                model: Class,
+                as: 'class',
+                attributes: ['name'],
+                include: [{
+                    model: User,
+                    as: 'teacher',
+                    attributes: ['name']
+                }]
+            }]
         });
 
         if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
 
-        res.json(student);
+        const response = {
+            student_name: student.name,
+            class_name: student.class.name,
+            homeroom_teacher: student.class.teacher.name
+        };
+
+        res.json(response);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
