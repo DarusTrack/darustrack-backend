@@ -13,31 +13,24 @@ router.use(accessValidation, roleValidation(['orang_tua']));
 router.get('/profile', async (req, res) => {
     try {
         const parentId = req.user.id;
-
         const student = await Student.findOne({
             where: { parent_id: parentId },
             attributes: ['name', 'nisn', 'birth_date'],
-            include: [{
-                model: Class,
-                as: 'class',
+            include: [{ 
+                model: Class,  
+                as: "class", 
                 attributes: ['name'],
                 include: [{
                     model: User,
                     as: 'teacher',
                     attributes: ['name']
-                }]
+                }] 
             }]
         });
 
         if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
 
-        const response = {
-            student_name: student.name,
-            class_name: student.class.name,
-            homeroom_teacher: student.class.teacher.name
-        };
-
-        res.json(response);
+        res.json(student);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
