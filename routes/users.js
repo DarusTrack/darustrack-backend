@@ -68,10 +68,21 @@ router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) =
         return res.status(400).json({ message: 'Email already registered' });
     }
 
-    // Simpan user tanpa melakukan hashing manual
-    const user = await User.create(req.body);
+    try {
+        if (req.body.nip !== undefined && req.body.nip.trim() === '') {
+            req.body.nip = null;
+        }
 
-    res.json({ message: 'User registered successfully', user });
+        const user = await User.create(req.body);
+        res.json({ message: 'User registered successfully', user });
+    } catch (error) {
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            const field = error.errors[0]?.path;
+            return res.status(400).json({ message: `${field} already exists.` });
+        }
+    
+        res.status(500).json({ message: 'Error registering user', error });
+    }
 });
 
 // Update pengguna
@@ -101,6 +112,11 @@ router.put('/:id',  accessValidation, roleValidation(["admin"]), async (req, res
     // Hash password jika diupdate
     if (req.body.password) {
         req.body.password = await bcrypt.hash(req.body.password, 10);
+    }
+
+    // Ubah nip kosong string jadi null
+    if (req.body.nip !== undefined && req.body.nip.trim() === '') {
+        req.body.nip = null;
     }
 
     user = await user.update(req.body);

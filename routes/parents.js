@@ -49,7 +49,7 @@ router.get('/curriculum', async (req, res) => {
 });
 
 // Jadwal Mata Pelajaran Anak berdasarkan Hari
-router.get('/schedule', accessValidation, async (req, res) => {
+router.get('/schedule', async (req, res) => {
     try {
         const parentId = req.user.id;
         const student = await Student.findOne({ where: { parent_id: parentId } });
