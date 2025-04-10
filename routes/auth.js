@@ -55,7 +55,7 @@ router.post("/login", async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
         });
 
-        res.json({ message: "Login successful", accessToken });
+        res.status(200).json({ message: "Login successful", accessToken });
     } catch (error) {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
