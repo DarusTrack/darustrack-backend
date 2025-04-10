@@ -50,8 +50,8 @@ router.post("/login", async (req, res) => {
         // Simpan refreshToken di cookie (httpOnly)
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
-            secure: false, // true kalau pakai https
-            sameSite: "Strict",
+            secure: true,
+            sameSite: "None",
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
         });
 
