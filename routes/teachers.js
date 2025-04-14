@@ -125,10 +125,62 @@ router.post('/attendances', accessValidation, roleValidation(['wali_kelas']), as
     }
 });
 
-// DELETE: Hapus seluruh data kehadiran berdasarkan tanggal dan kelas
-router.delete('/attendances/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+// PUT: Memperbarui status kehadiran siswa dalam kelas wali kelas
+router.put('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
-        const { date } = req.params;
+        const { date } = req.query;
+        const { attendances } = req.body;
+
+        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return res.status(400).json({ message: 'Tanggal harus disertakan dalam format YYYY-MM-DD' });
+        }
+
+        if (!attendances || !Array.isArray(attendances) || attendances.length === 0) {
+            return res.status(400).json({ message: 'Daftar kehadiran harus disertakan dalam format array' });
+        }
+
+        const teacherClass = await Class.findOne({
+            where: { teacher_id: req.user.id }
+        });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        }
+
+        const validStudentIds = await Student.findAll({
+            where: { class_id: teacherClass.id },
+            attributes: ['id']
+        }).then(students => students.map(s => s.id));
+
+        const validAttendances = attendances.filter(a => validStudentIds.includes(a.student_id));
+
+        if (validAttendances.length === 0) {
+            return res.status(403).json({ message: 'Tidak ada siswa yang valid untuk diperbarui' });
+        }
+
+        await Promise.all(validAttendances.map(a =>
+            Attendance.update(
+                { status: a.status },
+                { where: { student_id: a.student_id, date, class_id: teacherClass.id } }
+            )
+        ));
+
+        res.json({ message: 'Status kehadiran berhasil diperbarui untuk beberapa siswa' });
+    } catch (error) {
+        console.error('Error updating attendance:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// DELETE: Hapus seluruh data kehadiran berdasarkan tanggal dan kelas
+router.delete('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+    try {
+        const { date } = req.query;
+
+        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return res.status(400).json({ message: 'Tanggal harus disertakan dalam format YYYY-MM-DD' });
+        }
+
         const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
 
         if (!teacherClass) {
@@ -149,60 +201,6 @@ router.delete('/attendances/:date', accessValidation, roleValidation(['wali_kela
         res.json({ message: 'Data kehadiran berhasil dihapus' });
     } catch (error) {
         console.error('Error deleting attendance:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// PUT: Memperbarui status kehadiran siswa dalam kelas wali kelas
-router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-    try {
-        const { date } = req.params;
-        const { attendances } = req.body; // Array dari student_id dan status
-
-        if (!attendances || !Array.isArray(attendances) || attendances.length === 0) {
-            return res.status(400).json({ message: 'Daftar kehadiran harus disertakan dalam format array' });
-        }
-
-        // Cari kelas wali kelas berdasarkan teacher_id
-        const teacherClass = await Class.findOne({
-            where: { teacher_id: req.user.id }
-        });
-
-        if (!teacherClass) {
-            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
-        }
-
-        // Ambil semua student_id dalam kelas wali kelas
-        const validStudentIds = await Student.findAll({
-            where: { class_id: teacherClass.id },
-            attributes: ['id']
-        }).then(students => students.map(s => s.id));
-
-        // Filter attendances untuk memastikan hanya siswa dari kelas wali kelas yang diupdate
-        const validAttendances = attendances.filter(a => validStudentIds.includes(a.student_id));
-
-        if (validAttendances.length === 0) {
-            return res.status(403).json({ message: 'Tidak ada siswa yang valid untuk diperbarui' });
-        }
-
-        // Bulk update attendance
-        const updates = validAttendances.map(a => ({
-            student_id: a.student_id,
-            date: date,
-            class_id: teacherClass.id,
-            status: a.status
-        }));
-
-        await Promise.all(updates.map(attendance => 
-            Attendance.update(
-                { status: attendance.status },
-                { where: { student_id: attendance.student_id, date: attendance.date, class_id: attendance.class_id } }
-            )
-        ));
-
-        res.json({ message: 'Status kehadiran berhasil diperbarui untuk beberapa siswa' });
-    } catch (error) {
-        console.error('Error updating attendance:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
