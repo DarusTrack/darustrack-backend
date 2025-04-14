@@ -19,24 +19,11 @@ const academicCalendarRouter = require('./routes/academic_calendar');
 
 const app = express();
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://darustrack-frontend.vercel.app'
-];
-
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: 'https://darustrack-frontend.vercel.app',
+  credentials: true, // untuk mengizinkan cookie / auth header
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Debug header CORS
