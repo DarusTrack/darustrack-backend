@@ -52,8 +52,7 @@ router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) =
         nip: 'string|optional',
         email: 'email',
         password: 'string|min:6',
-        role: { type: 'enum', values: ['orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'] },
-        class_id: 'string|optional'
+        role: { type: 'enum', values: ['orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'] }
     };
 
     const validate = v.validate(req.body, schema);
