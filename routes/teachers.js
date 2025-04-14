@@ -32,24 +32,25 @@ router.get('/my-class', accessValidation, roleValidation(['wali_kelas']), async 
 });
 
 // *** ATTENDANCES ***
-router.get('/attendances/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.get('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
-        const { date } = req.params;
+        const { date } = req.query;
+
+        // Validasi format tanggal (opsional tapi direkomendasikan)
+        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return res.status(400).json({ message: 'Tanggal harus disertakan dalam format YYYY-MM-DD' });
+        }
+
+        // Cari kelas yang diajar wali kelas
         const teacherClass = await Class.findOne({
             where: { teacher_id: req.user.id }
         });
 
-        // Pastikan wali kelas memiliki class_id yang valid
         if (!teacherClass) {
             return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
         }
 
-        // Pastikan wali kelas memilih tanggal
-        if (!date) {
-            return res.status(400).json({ message: 'Tanggal harus disertakan' });
-        }
-
-        // Mencari daftar kehadiran siswa yang berasal dari kelas wali kelas tersebut
+        // Ambil data kehadiran berdasarkan kelas dan tanggal
         const attendances = await Attendance.findAll({
             where: { date },
             include: [
@@ -57,7 +58,7 @@ router.get('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
                     model: Student,
                     as: 'student',
                     attributes: ['id', 'name'],
-                    where: { class_id: teacherClass.id } // Filter berdasarkan kelas wali kelas
+                    where: { class_id: teacherClass.id }
                 }
             ]
         });
