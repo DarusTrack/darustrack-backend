@@ -1,11 +1,10 @@
-'use strict';
+const bcrypt = require('bcryptjs');
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('users', {
       id: {
         type: Sequelize.STRING(5),
-        // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
         allowNull: false
       },
@@ -22,9 +21,6 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
         unique: true, 
-        validate: {
-          isEmail: true
-        }
       },
       password: {
         type: Sequelize.STRING,
@@ -44,12 +40,15 @@ module.exports = {
       },
     });
 
-    // Menambahkan data awal
+    // Hash password sebelum insert
+    const hashedPassword = await bcrypt.hash('password123', 10);
+
     await queryInterface.bulkInsert('users', [
       {
+        id: 'U0001',
         name: 'Admin',
         email: 'admin@gmail.com',
-        password: 'password123',
+        password: hashedPassword,
         role: 'admin',
         createdAt: new Date(),
         updatedAt: new Date()
