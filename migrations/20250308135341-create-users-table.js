@@ -45,7 +45,7 @@ module.exports = {
     });
 
     // Menambahkan data awal
-    await queryInterface.bulkInsert('curriculums', [
+    await queryInterface.bulkInsert('users', [
       {
         name: 'Admin',
         email: 'admin@gmail.com',
