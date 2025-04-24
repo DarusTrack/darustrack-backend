@@ -18,7 +18,7 @@ router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) =>
     try {
         const users = await User.findAll({
             where: whereClause,
-            attributes: { exclude: ["password", "createdAt", "updatedAt"] } // Mengecualikan password, createdAt, updatedAt dari hasil query
+            attributes: { exclude: ["password", "createdAt", "updatedAt", "resetPasswordToken", "resetPasswordExpires"] } // Mengecualikan password, createdAt, updatedAt dari hasil query
         });
         return res.json(users);
     } catch (error) {
@@ -32,7 +32,7 @@ router.get('/:id', accessValidation, roleValidation(["admin"]), async (req, res)
 
     try {
         const user = await User.findByPk(id, {
-            attributes: { exclude: ["password", "createdAt", "updatedAt"] } // Mengecualikan atribut sensitif
+            attributes: { exclude: ["password", "createdAt", "updatedAt", "resetPasswordToken", "resetPasswordExpires"] } // Mengecualikan atribut sensitif
         });
 
         if (!user) {
@@ -97,9 +97,7 @@ router.put('/:id',  accessValidation, roleValidation(["admin"]), async (req, res
         name: 'string|optional',
         nip: 'string|optional',
         email: 'email|optional',
-        password: 'string|min:6|optional',
         role: { type: 'enum', values: ['orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'], optional: true },
-        class_id: 'string|optional'
     };
 
     const validate = v.validate(req.body, schema);

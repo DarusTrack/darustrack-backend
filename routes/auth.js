@@ -6,6 +6,9 @@ const { User } = require("../models");
 const accessValidation = require("../middlewares/accessValidation");
 const Validator = require("fastest-validator");
 const v = new Validator();
+const { Op } = require('sequelize');
+const sendResetPasswordEmail = require('../utils/mailer');
+const crypto = require("crypto");
 require("dotenv").config();
 
 function generateAccessToken(user) {
@@ -76,6 +79,64 @@ router.post("/refresh-token", async (req, res) => {
         res.json({ accessToken: newAccessToken });
     } catch (error) {
         res.status(403).json({ message: "Invalid refresh token", error: error.message });
+    }
+});
+
+router.post('/forgot-password', async (req, res) => {
+    const { email } = req.body;
+  
+    try {
+      const user = await User.findOne({ where: { email } });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+  
+      const token = crypto.randomBytes(20).toString('hex');
+      const expires = Date.now() + 3600000; // 1 jam
+  
+      user.resetPasswordToken = token;
+      user.resetPasswordExpires = expires;
+      await user.save();
+  
+      await sendResetPasswordEmail(email, token); // ✉️ Kirim email
+  
+      res.json({ message: "Link reset password telah dikirim ke email Anda" });
+    } catch (error) {
+      console.error("Forgot Password Error:", error);
+      res.status(500).json({ message: "Server error", error: error.message });
+    }
+});  
+
+router.post('/reset-password', async (req, res) => {
+    const { token, newPassword } = req.body;
+  
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: "Token dan password baru harus diisi" });
+    }
+  
+    try {
+      // Cari user berdasarkan token dan validasi waktu kadaluwarsa
+      const user = await User.findOne({
+        where: {
+          resetPasswordToken: token,
+          resetPasswordExpires: { [Op.gt]: Date.now() }, // Token masih berlaku
+        },
+      });
+  
+      if (!user) {
+        return res.status(400).json({ message: "Token tidak valid atau sudah kadaluarsa" });
+      }
+  
+      // Update password dan hapus token
+      user.password = await bcrypt.hash(newPassword, 10);
+      user.resetPasswordToken = null;
+      user.resetPasswordExpires = null;
+      await user.save();
+  
+      res.json({ message: "Password berhasil direset, silakan login dengan password baru" });
+    } catch (error) {
+      console.error("Reset Password Error:", error);
+      res.status(500).json({ message: "Server error", error: error.message });
     }
 });
 

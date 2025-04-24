@@ -35,7 +35,15 @@ module.exports = (sequelize, DataTypes) => {
         role: {
             type: DataTypes.ENUM('orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'),
             allowNull: false
-        }
+        },
+        resetPasswordToken: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        resetPasswordExpires: {
+            type: DataTypes.DATE,
+            allowNull: true
+        }        
     }, {
         tableName: 'users',
     });
