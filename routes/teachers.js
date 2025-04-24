@@ -225,13 +225,20 @@ router.get('/schedule', accessValidation, roleValidation(['wali_kelas']), async 
 
         // Jika ada filter "day", tambahkan ke kondisi where
         if (day) {
-            whereCondition.day = { [Op.eq]: day };  // Case-sensitive search (bisa diganti Op.iLike untuk case-insensitive jika pakai PostgreSQL)
+            whereCondition.day = { [Op.eq]: day };
         }
 
         const schedule = await Schedule.findAll({
             where: whereCondition,
             attributes: ['id', 'subject_id', 'day', 'start_time', 'end_time'],
-            include: [{ model: Subject, as: "subject", attributes: ['name'] }]
+            include: [
+                {
+                    model: Subject,
+                    as: "subject",
+                    attributes: ['name']
+                }
+            ],
+            order: [['day', 'ASC'], ['start_time', 'ASC']] // Urut berdasarkan hari lalu jam
         });
 
         if (schedule.length === 0) {

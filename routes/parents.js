@@ -69,7 +69,11 @@ router.get('/schedule', async (req, res) => {
         const schedules = await Schedule.findAll({
             where: whereCondition,
             attributes: ['day', 'start_time', 'end_time'],
-            include: [{ model: Subject, as: "subject", attributes: ['name'] }]
+            include: [{ model: Subject, as: "subject", attributes: ['name'] }],
+            order: [
+                ['day', 'ASC'], 
+                ['start_time', 'ASC']
+            ]
         });
 
         res.json(schedules);
@@ -111,7 +115,8 @@ router.get('/attendance', accessValidation, async (req, res) => {
 
         const attendances = await Attendance.findAll({
             where: whereCondition,
-            attributes: ['date', 'status']
+            attributes: ['date', 'status'],
+            order: [['date', 'DESC']] // Urutkan dari tanggal terbaru
         });
 
         // Format response untuk menambahkan nama hari
