@@ -112,20 +112,25 @@ router.delete('/:class_id/students/:student_id', accessValidation, roleValidatio
 
 // Get daftar jadwal pelajaran dari kelas tertentu (filter perhari)
 router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    const { day } = req.query; // Filter berdasarkan hari
+    const { day } = req.query;
     const whereClause = { class_id: req.params.class_id };
     if (day) whereClause.day = day;
 
     try {
         const schedule = await Schedule.findAll({
             where: whereClause,
-            include: [{ model: Subject, as: 'subject', attributes: ['name'] }]
+            include: [{ model: Subject, as: 'subject', attributes: ['name'] }],
+            order: [
+                ['day', 'ASC'],         // Urutkan berdasarkan hari (jika mengambil semua hari)
+                ['start_time', 'ASC']   // Berdasarkan jam mulai
+            ]
         });
         res.json(schedule);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching schedule', error });
     }
 });
+
 
 // Tambah jadwal pelajaran baru dalam kelas
 router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {
