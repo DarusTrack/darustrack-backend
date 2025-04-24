@@ -133,7 +133,6 @@ router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), 
         const { subject_id, day, start_time, end_time } = req.body;
         const class_id = req.params.class_id;
 
-        // Cek apakah ada jadwal yang tumpang tindih
         const conflict = await Schedule.findOne({
             where: {
                 class_id,
@@ -150,18 +149,12 @@ router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), 
                         }
                     },
                     {
-                        [Op.and]: [
-                            {
-                                start_time: {
-                                    [Op.lte]: start_time
-                                }
-                            },
-                            {
-                                end_time: {
-                                    [Op.gte]: end_time
-                                }
-                            }
-                        ]
+                        start_time: {
+                            [Op.lte]: start_time
+                        },
+                        end_time: {
+                            [Op.gte]: end_time
+                        }
                     }
                 ]
             }
@@ -189,14 +182,62 @@ router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), 
 // Edit jadwal pelajaran dalam kelas
 router.put('/schedules/:schedule_id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
-        const { subject_id, day, start_time, end_time } = req.body;
+        const schedule_id = req.params.schedule_id;
+        const currentSchedule = await Schedule.findByPk(schedule_id);
+
+        if (!currentSchedule) {
+            return res.status(404).json({ message: 'Schedule not found' });
+        }
+
+        // Ambil data baru dari body, fallback ke data lama jika tidak dikirim
+        const subject_id = req.body.subject_id ?? currentSchedule.subject_id;
+        const day = req.body.day ?? currentSchedule.day;
+        const start_time = req.body.start_time ?? currentSchedule.start_time;
+        const end_time = req.body.end_time ?? currentSchedule.end_time;
+
+        // Cek apakah ada jadwal lain yang bentrok
+        const conflict = await Schedule.findOne({
+            where: {
+                id: { [Op.ne]: schedule_id },
+                class_id: currentSchedule.class_id,
+                day,
+                [Op.or]: [
+                    {
+                        start_time: {
+                            [Op.between]: [start_time, end_time]
+                        }
+                    },
+                    {
+                        end_time: {
+                            [Op.between]: [start_time, end_time]
+                        }
+                    },
+                    {
+                        start_time: {
+                            [Op.lte]: start_time
+                        },
+                        end_time: {
+                            [Op.gte]: end_time
+                        }
+                    }
+                ]
+            }
+        });
+
+        if (conflict) {
+            return res.status(409).json({ message: 'Jadwal bentrok dengan pelajaran lain di kelas ini' });
+        }
+
+        // Update jadwal
         await Schedule.update(
             { subject_id, day, start_time, end_time },
-            { where: { id: req.params.schedule_id } }
+            { where: { id: schedule_id } }
         );
+
         res.json({ message: 'Schedule updated successfully' });
     } catch (error) {
-        res.status(500).json({ message: 'Error updating schedule', error });
+        console.error('Error updating schedule:', error);
+        res.status(500).json({ message: 'Error updating schedule', error: error.message });
     }
 });
 

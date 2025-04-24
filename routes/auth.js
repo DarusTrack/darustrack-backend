@@ -93,7 +93,7 @@ router.get("/profile", accessValidation, async (req, res) => {
             name: user.name,
             nip: user.nip,
             email: user.email,
-            password: "********", // Password tetap tersembunyi secara default
+            password: "********",
         });
     } catch (error) {
         console.error("Profile Error:", error);
@@ -125,7 +125,7 @@ router.put("/profile", accessValidation, async (req, res) => {
             message: "Profile updated successfully",
             email: email,
             name: name,
-            password: showPassword ? password : "********", // Jika showPassword true, tampilkan password baru
+            password: showPassword ? password : "********",
         });
     } catch (error) {
         console.error("Update Profile Error:", error);
