@@ -14,8 +14,8 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false
         },
-        grade_level: {
-            type: DataTypes.ENUM('1', '2', '3', '4', '5', '6'),
+        semester_id: {
+            type: DataTypes.STRING(5),
             allowNull: false
         },
         teacher_id: {
@@ -27,11 +27,12 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     Class.associate = (models) => {
+        Class.belongsTo(models.Semester, { foreignKey: 'semester_id' });
         Class.belongsTo(models.User, { foreignKey: 'teacher_id', as: 'teacher' });
-        Class.hasMany(models.Student, { foreignKey: 'class_id', as: 'students' });
         Class.hasMany(models.Schedule, { foreignKey: 'class_id', as: 'schedule' });
         Class.hasMany(models.GradeCategory, { foreignKey: 'class_id', as: 'grade_category' });
         Class.hasMany(models.Attendance, { foreignKey: 'class_id', as: 'attendance' });
+        Class.hasMany(models.StudentClass, { foreignKey: 'class_id', as: 'student_class' });
     };
 
     return Class;

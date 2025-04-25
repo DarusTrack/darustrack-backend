@@ -2,25 +2,20 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('classes', {
+    await queryInterface.createTable('academic_years', {
       id: {
         type: Sequelize.STRING(5),
+        // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
         allowNull: false
       },
-      name: {
-        type: Sequelize.STRING,
+      year: {
+        type: Sequelize.STRING(9),
         allowNull: false
       },
-      teacher_id: {
-          type: Sequelize.STRING(5),
-          allowNull: false,
-          references: {
-            model: 'users',
-            key: 'id'
-          },
-          onUpdate: 'CASCADE',
-          onDelete: 'CASCADE'
+      is_active: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false
       },
       createdAt: {
         type: Sequelize.DATE,
@@ -34,6 +29,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('classes');
+    await queryInterface.dropTable('academic_years');
   }
 };

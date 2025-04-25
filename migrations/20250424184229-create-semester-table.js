@@ -2,25 +2,36 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('evaluations', {
+    await queryInterface.createTable('semesters', {
       id: {
         type: Sequelize.STRING(5),
+        // defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
         allowNull: false
       },
-      class_id: {
+      name: {
+        type: Sequelize.ENUM('Ganjil', 'Genap'),
+        allowNull: false
+      },
+      academic_year_id: {
         type: Sequelize.STRING(5),
         allowNull: false,
         references: {
-          model: 'classes',
+          model: 'academic_years',
           key: 'id'
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
-      title: {
-        type: Sequelize.STRING,
+      is_active: {
+        type: Sequelize.BOOLEAN,
         allowNull: false
+      },
+      start_date: {
+        type: Sequelize.DATE
+      },
+      end_date: {
+        type: Sequelize.DATE
       },
       createdAt: {
         type: Sequelize.DATE,
@@ -30,10 +41,10 @@ module.exports = {
         type: Sequelize.DATE,
         allowNull: false
       }
-    });
+    });   
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('evaluations');
+    await queryInterface.dropTable('semesters');
   }
 };

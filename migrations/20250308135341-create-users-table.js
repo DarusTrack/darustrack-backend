@@ -30,6 +30,14 @@ module.exports = {
         type: Sequelize.ENUM('orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'),
         allowNull: false
       },
+      resetPasswordToken: {
+        type: Sequelize.STRING,
+        allowNull: true
+      },
+      resetPasswordExpires: {
+        type: Sequelize.DATE,
+        allowNull: true
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: false
@@ -50,6 +58,33 @@ module.exports = {
         email: 'admin@gmail.com',
         password: hashedPassword,
         role: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 'U0002',
+        name: 'Kepala Sekolah',
+        email: 'kepalasekolah@gmail.com',
+        password: hashedPassword,
+        role: 'kepala_sekolah',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 'U0003',
+        name: 'Wali Kelas',
+        email: 'walikelas1a@gmail.com',
+        password: hashedPassword,
+        role: 'wali_kelas',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 'U0004',
+        name: 'Orang Tua',
+        email: 'orangtua@gmail.com',
+        password: hashedPassword,
+        role: 'orang_tua',
         createdAt: new Date(),
         updatedAt: new Date()
       }

@@ -10,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             defaultValue: () => nanoid()
         },
-        class_id: {
+        student_class_id: {
             type: DataTypes.STRING(5),
             allowNull: false
         },
@@ -21,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
         name: {
             type: DataTypes.STRING,
             allowNull: false
-        },
+        }        
     }, {
         tableName: 'grade_categories',
         indexes: [
@@ -36,6 +36,8 @@ module.exports = (sequelize, DataTypes) => {
         GradeCategory.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
         GradeCategory.belongsTo(models.Subject, { foreignKey: 'subject_id', as: 'subject' });
         GradeCategory.hasMany(models.GradeDetail, { foreignKey: 'grade_category_id', as: 'grade_detail' });
+        GradeCategory.belongsTo(models.Semester, { foreignKey: 'semester_id', as: 'semester' });
+        GradeCategory.belongsTo(models.StudentClass, { foreignKey: 'student_class_id', as: 'student_class' });
     };
 
     return GradeCategory;

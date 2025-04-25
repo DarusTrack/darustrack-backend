@@ -38,12 +38,12 @@ router.post("/login", async (req, res) => {
     try {
         const user = await User.findOne({ where: { email } });
         if (!user) {
-            return res.status(400).json({ message: "Invalid email or password" });
+            return res.status(400).json({ message: "Email atau password salah!" });
         }
 
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
-            return res.status(400).json({ message: "Invalid email or password" });
+            return res.status(400).json({ message: "Email atau password salah!" });
         }
 
         const accessToken = generateAccessToken(user);

@@ -1,32 +1,44 @@
 const express = require('express');
 const router = express.Router();
-const { Class, Student, User, Schedule, Subject } = require('../models');
+const { Class, Student, StudentClass, Schedule, Subject } = require('../models');
 const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 const { Op } = require('sequelize');
 
-// Get semua kelas dengan filter grade level
-router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    const { grade_level } = req.query;
-    const whereClause = grade_level ? { grade_level } : {};
+// GET all classes with students in each class
+router.get('/', accessValidation, roleValidation(['admin']), async (req, res) => {
     try {
-        const classes = await Class.findAll({ where: whereClause });
-        res.json(classes);
+      const classes = await Class.findAll({
+        include: [
+          {
+            model: StudentClass,
+            as: 'student_class',
+            include: [
+              {
+                model: Student,
+                attributes: ['id', 'name', 'nisn', 'birth_date', 'parent_id', 'createdAt', 'updatedAt']
+              }
+            ]
+          }
+        ]
+      });
+      res.json(classes);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching classes', error });
+      console.error(error);
+      res.status(500).json({ message: 'Gagal mengambil data kelas', error });
     }
-});
+});  
 
 // Tambah kelas
-router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.post('/', accessValidation, roleValidation(['admin']), async (req, res) => {
     try {
-        const { name, grade_level, teacher_id } = req.body;
-        const newClass = await Class.create({ name, grade_level, teacher_id });
-        res.status(201).json(newClass);
+      const { name, grade_level, teacher_id } = req.body;
+      const newClass = await Class.create({ name, grade_level, teacher_id });
+      res.status(201).json(newClass);
     } catch (error) {
-        res.status(500).json({ message: 'Error creating class', error });
+      res.status(500).json({ message: 'Gagal menambahkan kelas', error });
     }
-});
+});  
 
 // Edit kelas
 router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
@@ -49,66 +61,45 @@ router.delete('/:id', accessValidation, roleValidation(["admin"]), async (req, r
     }
 });
 
-// Get daftar siswa dalam kelas tertentu
-router.get('/:class_id/students',  accessValidation, roleValidation(["admin"]), async (req, res) => {
+// tambah siswa ke dalam kelas
+router.post('/:classId/add-student', accessValidation, roleValidation(['admin']), async (req, res) => {
     try {
-        const students = await Student.findAll({ 
-            where: { class_id: req.params.class_id },
-            include: [
-                {
-                    model: User,
-                    as: 'parent',
-                    attributes: ['id', 'name'],
-                }
-            ]
-        });
-        res.json(students);
+      const { student_id, semester_id } = req.body;
+      const { classId } = req.params;
+  
+      const existing = await StudentClass.findOne({
+        where: { student_id, class_id: classId, semester_id }
+      });
+  
+      if (existing) {
+        return res.status(400).json({ message: 'Siswa sudah terdaftar di kelas ini untuk semester tersebut.' });
+      }
+  
+      const studentClass = await StudentClass.create({
+        student_id,
+        class_id: classId,
+        semester_id
+      });
+  
+      res.status(201).json({ message: 'Siswa berhasil ditambahkan ke kelas', studentClass });
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching students', error });
-    }
-});
-
-// Tambah siswa ke dalam kelas
-router.post('/:class_id/students', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    try {
-        const { name, nisn, birth_date, parent_id } = req.body;
-        const newStudent = await Student.create({
-            name,
-            nisn,
-            birth_date,
-            parent_id,
-            class_id: req.params.class_id
-        });
-        res.status(201).json(newStudent);
-    } catch (error) {
-        res.status(500).json({ message: 'Error adding student', error });
-    }
-});
-
-// Edit data siswa dalam kelas
-router.put('/:class_id/students/:student_id', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    try {
-        const { name, nisn, birth_date, parent_id } = req.body;
-        await Student.update(
-            { name, nisn, birth_date, parent_id, class_id: req.params.class_id },
-            { where: { id: req.params.student_id } }
-        );
-        res.json({ message: 'Student updated successfully' });
-    } catch (error) {
-        res.status(500).json({ message: 'Error updating student', error });
-    }
+        console.error('Error detail:', error);
+        res.status(500).json({ message: 'Gagal menambahkan siswa ke kelas', error: error.message });
+    }      
 });
 
 // Hapus siswa dari kelas
-router.delete('/:class_id/students/:student_id', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    try {
-        await Student.destroy({ where: { id: req.params.student_id } });
-        res.json({ message: 'Student deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ message: 'Error deleting student', error });
-    }
+router.delete('/:classId/remove-student/:studentId', accessValidation, roleValidation(['admin']), async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+    await StudentClass.destroy({
+      where: { class_id: classId, student_id: studentId }
+    });
+    res.json({ message: 'Siswa berhasil dikeluarkan dari kelas' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menghapus siswa dari kelas', error });
+  }
 });
-
 
 // Get daftar jadwal pelajaran dari kelas tertentu (filter perhari)
 router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {

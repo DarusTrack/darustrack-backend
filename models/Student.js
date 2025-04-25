@@ -22,10 +22,6 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DATEONLY,
             allowNull: false
         },
-        class_id: {
-            type: DataTypes.STRING(5),
-            allowNull: false
-        },
         parent_id: {
             type: DataTypes.INTEGER,
             allowNull: false
@@ -35,12 +31,11 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     Student.associate = (models) => {
-        Student.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
         Student.belongsTo(models.User, { foreignKey: 'parent_id', as: 'parent' });
         Student.hasMany(models.Attendance, { foreignKey: 'student_id', as: 'attendance' });
         Student.hasMany(models.StudentEvaluation, { foreignKey: 'student_id', as: 'student_evaluation' });
         Student.hasMany(models.StudentGrade, { foreignKey: 'student_id', as: 'student_grade' });
-        // Student.hasMany(models.Evaluation, { foreignKey: 'student_id', as: 'evaluations' });
+        Student.hasMany(models.StudentClass, { foreignKey: 'student_id', as: 'student_class' });
     };
 
     return Student;

@@ -10,14 +10,10 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             defaultValue: () => nanoid()
         },
-        student_id: {
+        student_class_id: {
             type: DataTypes.STRING(5),
             allowNull: false
-        },
-        class_id: {
-            type: DataTypes.STRING(5),
-            allowNull: false
-        },
+        },   
         date: {
             type: DataTypes.DATEONLY,
             allowNull: false
@@ -34,6 +30,8 @@ module.exports = (sequelize, DataTypes) => {
     Attendance.associate = (models) => {
         Attendance.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
         Attendance.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
+        Attendance.belongsTo(models.Semester, { foreignKey: 'semester_id', as: 'semester' });
+        Attendance.belongsTo(models.StudentClass, { foreignKey: 'student_class_id', as: 'student_class' });
     };
 
     return Attendance;
