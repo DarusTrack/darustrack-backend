@@ -2,10 +2,12 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { AcademicYear, Semester, StudentClass, Class, Student } = require('../models');
+const { Op } = require('sequelize');
 const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 
+// * TAHUN AJARAN *
 // GET semua tahun ajaran dengan semester aktif
 router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
@@ -49,9 +51,12 @@ router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) =
         data: newAcademicYear
       });
   
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
+    }catch (error) {
+        if (error.name === 'SequelizeUniqueConstraintError') {
+          return res.status(400).json({ message: 'Tahun ajaran sudah ada.' });
+        }
+        res.status(500).json({ message: 'Terjadi kesalahan pada server', error });
+    }      
 });  
 
 // PUT update tahun ajaran
@@ -87,9 +92,11 @@ router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res)
   
       res.json({ message: 'Tahun ajaran berhasil diperbarui' });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Terjadi kesalahan pada server' });
-    }
+        if (error.name === 'SequelizeUniqueConstraintError') {
+          return res.status(400).json({ message: 'Tahun ajaran sudah ada.' });
+        }
+        res.status(500).json({ message: 'Terjadi kesalahan pada server' });
+    }      
 });
 
 // DELETE tahun ajaran
@@ -102,6 +109,7 @@ router.delete('/:id', accessValidation, async (req, res) => {
   }
 });
 
+// * SEMESTER *
 // PUT update semester aktif di tahun ajaran aktif
 router.put('/semester/:id/activate', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
@@ -132,12 +140,12 @@ router.put('/semester/:id/activate', accessValidation, roleValidation(["admin"])
     }
 });
 
-// GET detail tahun ajaran by ID + daftar kelas di salah satu semester
+// * KELAS *
+// GET detail tahun ajaran by ID + daftar kelas di semester Ganjil
 router.get('/:id/classes', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
       const { id } = req.params;
   
-      // Cari tahun ajaran beserta semester-semesternya
       const academicYear = await AcademicYear.findByPk(id, {
         include: [
           {
@@ -145,8 +153,8 @@ router.get('/:id/classes', accessValidation, roleValidation(["admin"]), async (r
             attributes: ['id', 'name'],
             include: [
               {
-                model: StudentClass,
-                include: ['Class'] // pastikan model Class didefinisikan dan di-associate
+                model: Class, // INI YANG PENTING
+                attributes: ['id', 'name']
               }
             ]
           }
@@ -157,16 +165,24 @@ router.get('/:id/classes', accessValidation, roleValidation(["admin"]), async (r
         return res.status(404).json({ message: 'Tahun ajaran tidak ditemukan' });
       }
   
-      // Ambil daftar kelas dari semester Ganjil (karena Genap diasumsikan sama)
       const ganjilSemester = academicYear.Semesters.find(s => s.name === 'Ganjil');
   
       if (!ganjilSemester) {
         return res.status(404).json({ message: 'Semester Ganjil tidak ditemukan di tahun ajaran ini' });
       }
   
-      const classList = ganjilSemester.StudentClasses.map(sc => ({
-        id: sc.Class?.id,
-        name: sc.Class?.name
+      if (!ganjilSemester.Classes) {
+        return res.status(200).json({
+          id: academicYear.id,
+          year: academicYear.year,
+          is_active: academicYear.is_active,
+          classes: []
+        });
+      }
+  
+      const classList = ganjilSemester.Classes.map(cls => ({
+        id: cls.id,
+        name: cls.name
       }));
   
       res.json({
@@ -180,44 +196,44 @@ router.get('/:id/classes', accessValidation, roleValidation(["admin"]), async (r
       console.error(error);
       res.status(500).json({ message: 'Terjadi kesalahan pada server' });
     }
-});   
-
+});
+  
 // POST /academic-years/:id/classes
 router.post('/:id/classes', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
       const { id } = req.params; // academicYearId
       const { name, teacher_id } = req.body;
   
-      // Cek tahun ajaran
       const academicYear = await AcademicYear.findByPk(id, {
         include: [Semester]
       });
+  
       if (!academicYear) return res.status(404).json({ message: "Tahun ajaran tidak ditemukan" });
   
-      // Cek dua semester
       const semesters = academicYear.Semesters;
       if (semesters.length !== 2) return res.status(400).json({ message: "Tahun ajaran harus memiliki dua semester" });
   
-      // Buat kelas
-      const newClass = await Class.create({ name, teacher_id });
-  
-      // Tambahkan kelas ke kedua semester
-      await Promise.all(semesters.map(semester => {
-        return StudentClass.create({
-          semester_id: semester.id,
-          class_id: newClass.id
+      // Tambahkan kelas ke dua semester
+      const createdClasses = await Promise.all(semesters.map(semester => {
+        return Class.create({
+          name,
+          teacher_id,
+          semester_id: semester.id
         });
       }));
   
-      res.status(201).json({ message: "Kelas berhasil ditambahkan ke tahun ajaran", class: newClass });
+      res.status(201).json({
+        message: "Kelas berhasil ditambahkan ke tahun ajaran",
+        classes: createdClasses
+      });
   
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: "Terjadi kesalahan saat menambahkan kelas" });
+      res.status(500).json({ message: "Terjadi kesalahan saat menambahkan kelas", error });
     }
 });  
 
-// PUT /academic-years/:id/classes/:classId
+// PUT /academic-years/classes/:classId
 router.put('/classes/:classId', accessValidation, roleValidation(["admin"]), async (req, res) => {
     try {
       const { classId } = req.params;
@@ -226,17 +242,19 @@ router.put('/classes/:classId', accessValidation, roleValidation(["admin"]), asy
       const targetClass = await Class.findByPk(classId);
       if (!targetClass) return res.status(404).json({ message: "Kelas tidak ditemukan" });
   
-      targetClass.name = name;
-      targetClass.teacher_id = teacher_id;
+      // Update hanya jika value tersedia
+      if (name !== undefined) targetClass.name = name;
+      if (teacher_id !== undefined) targetClass.teacher_id = teacher_id;
+  
       await targetClass.save();
   
-      res.json({ message: "Nama kelas berhasil diperbarui", class: targetClass });
+      res.json({ message: "Kelas berhasil diperbarui", class: targetClass });
   
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: "Terjadi kesalahan saat mengedit nama kelas" });
+      res.status(500).json({ message: "Terjadi kesalahan saat mengedit kelas" });
     }
-});
+});  
   
 // DELETE /academic-years/:id/classes/:classId
 router.delete('/classes/:classId', accessValidation, roleValidation(["admin"]), async (req, res) => {
@@ -260,80 +278,159 @@ router.delete('/classes/:classId', accessValidation, roleValidation(["admin"]), 
     }
 });
 
-router.post("/:academicYearId/classes/:classId/students", async (req, res) => {
-    const { academicYearId, classId } = req.params;
-    const { student_ids } = req.body;
-  
-    // Pastikan student_ids adalah array
-    if (!Array.isArray(student_ids)) {
-      return res.status(400).json({ message: "student_ids harus berupa array" });
-    }
-  
+// * SISWA *
+// ambil data siswa kelas
+router.get('/:yearId/classes/:classId/students', accessValidation, roleValidation(["admin", "wali_kelas"]), async (req, res) => {
     try {
-      // Cari semua semester pada tahun pelajaran ini
-      const semesters = await Semester.findAll({
-        where: { academic_year_id: academicYearId }
-      });
+      const { yearId, classId } = req.params;
   
-      if (!semesters || semesters.length === 0) {
-        return res.status(404).json({ message: "Semester tidak ditemukan" });
+      // Cari tahun ajaran dan semester terkait
+      const academicYear = await AcademicYear.findByPk(yearId, {
+        include: [Semester]
+      });
+      if (!academicYear) return res.status(404).json({ message: "Tahun ajaran tidak ditemukan" });
+  
+      // Pastikan tahun ajaran memiliki dua semester
+      if (academicYear.Semesters.length !== 2) {
+        return res.status(400).json({ message: "Tahun ajaran harus memiliki dua semester" });
       }
   
-      // Verifikasi bahwa semua student_ids ada di tabel students
-      const students = await Student.findAll({
+      const semesterIds = academicYear.Semesters.map(s => s.id);
+  
+      // Ambil siswa berdasarkan kelas dan semester melalui StudentClass dan Class
+      const studentClasses = await StudentClass.findAll({
         where: {
-          id: student_ids
+          class_id: classId,
+        },
+        include: [
+          {
+            model: Student,
+            attributes: ['id', 'name', 'nisn', 'birth_date', 'parent_id'],
+            required: true, // memastikan hanya siswa yang terdaftar yang diambil
+          },
+          {
+            model: Class,
+            where: {
+              semester_id: {
+                [Op.in]: semesterIds, // Filter berdasarkan semester yang terhubung dengan tahun ajaran
+              }
+            },
+            required: true,
+          }
+        ]
+      });
+  
+      // Filter siswa untuk memastikan tidak ada duplikat berdasarkan ID siswa
+      const uniqueStudents = [];
+      const seenStudentIds = new Set();
+  
+      studentClasses.forEach(sc => {
+        const student = sc.Student;
+        if (!seenStudentIds.has(student.id)) {
+          uniqueStudents.push(student);
+          seenStudentIds.add(student.id);
         }
       });
   
-      // Jika ada student_id yang tidak ditemukan
-      if (students.length !== student_ids.length) {
-        const foundStudentIds = students.map(student => student.id);
-        const notFoundIds = student_ids.filter(id => !foundStudentIds.includes(id));
-        return res.status(400).json({
-          message: `Siswa dengan ID berikut tidak ditemukan: ${notFoundIds.join(", ")}`
-        });
+      if (!uniqueStudents.length) {
+        return res.status(404).json({ message: "Tidak ada siswa terdaftar di kelas ini" });
       }
   
-      const studentClassEntries = [];
+      res.json({
+        class_id: classId,
+        students: uniqueStudents // Menampilkan data siswa yang unik
+      });
   
-      // Untuk setiap semester, buat entri student_class jika belum ada
-      for (const semester of semesters) {
-        for (const studentId of student_ids) {
-          // Periksa apakah sudah ada entri student_class dengan kombinasi student_id dan semester_id
-          const existingEntry = await StudentClass.findOne({
-            where: {
-              student_id: studentId,
-              semester_id: semester.id,
-              class_id: classId,
-            }
-          });
-  
-          if (!existingEntry) {
-            studentClassEntries.push({
-              semester_id: semester.id,
-              class_id: classId,
-              student_id: studentId,
-            });
-          }
-        }
-      }
-  
-      // Jika ada entri baru yang akan ditambahkan
-      if (studentClassEntries.length > 0) {
-        await StudentClass.bulkCreate(studentClassEntries);
-        res.status(201).json({
-          message: "Siswa berhasil ditambahkan ke kelas di semua semester tahun pelajaran",
-        });
-      } else {
-        res.status(400).json({
-          message: "Tidak ada siswa yang perlu ditambahkan (mungkin sudah ada di kelas tersebut)."
-        });
-      }
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: "Terjadi kesalahan saat menambahkan siswa", error });
+      res.status(500).json({ message: "Terjadi kesalahan saat mengambil data siswa" });
     }
-  });
+});  
+
+// tambah siswa ke dalam kelas
+router.post('/:yearId/classes/:classId/students', accessValidation, roleValidation(["admin"]), async (req, res) => {
+    try {
+      const { yearId, classId } = req.params;
+      const { student_ids } = req.body;
+  
+      if (!Array.isArray(student_ids) || student_ids.length === 0) {
+        return res.status(400).json({ message: "Daftar siswa tidak boleh kosong" });
+      }
+  
+      // Cek tahun ajaran dan ambil dua semester
+      const academicYear = await AcademicYear.findByPk(yearId, {
+        include: [Semester]
+      });
+      if (!academicYear) return res.status(404).json({ message: "Tahun ajaran tidak ditemukan" });
+  
+      if (academicYear.Semesters.length !== 2) {
+        return res.status(400).json({ message: "Tahun ajaran harus memiliki dua semester" });
+      }
+  
+      // Cek kelas
+      const kelas = await Class.findByPk(classId);
+      if (!kelas) return res.status(404).json({ message: "Kelas tidak ditemukan" });
+  
+      // Tambahkan siswa ke setiap semester
+      const studentClassRecords = [];
+      for (const semester of academicYear.Semesters) {
+        for (const student_id of student_ids) {
+          studentClassRecords.push({
+            semester_id: semester.id,
+            class_id: classId,
+            student_id: student_id
+          });
+        }
+      }
+  
+      // Masukkan ke tabel StudentClass
+      await StudentClass.bulkCreate(studentClassRecords, { ignoreDuplicates: true });
+  
+      res.status(201).json({ message: "Siswa berhasil ditambahkan ke kelas dalam dua semester" });
+  
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Terjadi kesalahan saat menambahkan siswa ke kelas" });
+    }
+});
+
+// hapus siswa dalam kelas
+router.delete('/:yearId/classes/:classId/students', accessValidation, roleValidation(["admin"]), async (req, res) => {
+    try {
+      const { yearId, classId } = req.params;
+      const { student_ids } = req.body;
+  
+      if (!Array.isArray(student_ids) || student_ids.length === 0) {
+        return res.status(400).json({ message: "Daftar siswa tidak boleh kosong" });
+      }
+  
+      // Cari tahun ajaran dan semester
+      const academicYear = await AcademicYear.findByPk(yearId, {
+        include: [Semester]
+      });
+      if (!academicYear) return res.status(404).json({ message: "Tahun ajaran tidak ditemukan" });
+  
+      if (academicYear.Semesters.length !== 2) {
+        return res.status(400).json({ message: "Tahun ajaran harus memiliki dua semester" });
+      }
+  
+      const semesterIds = academicYear.Semesters.map(s => s.id);
+  
+      // Hapus data dari StudentClass berdasarkan kombinasi semester, kelas, dan siswa
+      const deleted = await StudentClass.destroy({
+        where: {
+          semester_id: semesterIds,
+          class_id: classId,
+          student_id: student_ids
+        }
+      });
+  
+      res.json({ message: "Siswa berhasil dihapus dari kelas", deleted });
+  
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Terjadi kesalahan saat menghapus siswa dari kelas" });
+    }
+});
   
 module.exports = router;

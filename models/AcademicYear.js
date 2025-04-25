@@ -11,6 +11,7 @@ module.exports = (sequelize, DataTypes) => {
     year: {
       type: DataTypes.STRING, // contoh: "2024/2025"
       allowNull: false,
+      unique: true
     },
     is_active: {
       type: DataTypes.BOOLEAN,

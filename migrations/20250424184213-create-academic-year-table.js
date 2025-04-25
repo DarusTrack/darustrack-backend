@@ -11,7 +11,8 @@ module.exports = {
       },
       year: {
         type: Sequelize.STRING(9),
-        allowNull: false
+        allowNull: false,
+        unique: true
       },
       is_active: {
         type: Sequelize.BOOLEAN,
