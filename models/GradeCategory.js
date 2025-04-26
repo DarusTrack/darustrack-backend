@@ -14,6 +14,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING(5),
             allowNull: false
         },
+        semester_id: {
+            type: DataTypes.STRING(5),
+            allowNull: false
+        },
         subject_id: {
             type: DataTypes.STRING(5),
             allowNull: false

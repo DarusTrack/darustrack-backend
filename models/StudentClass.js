@@ -21,11 +21,11 @@ module.exports = (sequelize, DataTypes) => {
     });
   
     StudentClass.associate = (models) => {
-        StudentClass.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' }); // tambah alias student
+        StudentClass.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
         StudentClass.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
     
         StudentClass.hasMany(models.GradeCategory, { foreignKey: 'student_class_id' });
-        StudentClass.hasMany(models.Evaluation, { foreignKey: 'student_class_id' });
+        StudentClass.hasMany(models.StudentEvaluation, { foreignKey: 'student_class_id' });
         StudentClass.hasMany(models.Attendance, { foreignKey: 'student_class_id', as: 'attendances' }); // kasih as attendances
     };
     

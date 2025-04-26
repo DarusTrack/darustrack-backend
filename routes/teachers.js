@@ -1,237 +1,47 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const { AcademicYear, Semester, User, Student, Evaluation, Attendance, StudentEvaluation, Schedule, Subject, GradeCategory, GradeDetail, StudentGrade, Class, StudentClass } = require('../models');
+const { User, Semester, Student, StudentClass, Evaluation, Attendance, StudentEvaluation, Schedule, Subject, GradeCategory, GradeDetail, StudentGrade, Class, AcademicYear } = require('../models');
 const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 
-router.get('/my-class', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+// Ambil kelas yang menjadi tanggung jawab wali kelas
+router.get('/my-class', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
-        // Cari kelas wali kelas yang login
-        const teacherClass = await Class.findOne({
-            where: { teacher_id: req.user.id },
-            include: [
-                { model: Student, as: 'students', attributes: ['id', 'name', 'nisn', 'birth_date'] }
-            ]
-        });
-
-        if (!teacherClass) {
-            return res.status(404).json({ message: 'Anda tidak memiliki kelas yang diajar' });
-        }
-
-        res.json({
-            class_id: teacherClass.id,
-            class_name: teacherClass.name,
-            grade_level: teacherClass.grade_level,
-            students: teacherClass.students
-        });
-    } catch (error) {
-        console.error("Error fetching class for teacher:", error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// attendances
-router.get('/attendances/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-    try {
-        const { date } = req.params;
-
-        if (!date) return res.status(400).json({ message: 'Tanggal harus disertakan' });
-
-        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
-        if (!teacherClass) return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
-
-        const academicYear = await AcademicYear.findOne({ where: { is_active: true } });
-        if (!academicYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
-
-        const semester = await Semester.findOne({
-            where: {
-                academic_year_id: academicYear.id,
-                is_active: true
-            }
-        });
-
-        if (!semester) {
-            return res.status(404).json({ message: 'Tidak ditemukan semester aktif yang mencakup tanggal tersebut' });
-        }
-
-        const attendances = await Attendance.findAll({
-            where: {
-                date,
-                semester_id: semester.id
-            },
-            include: [
-                {
-                    model: StudentClass,
-                    as: 'student_class', // HARUS sama kayak associate
-                    where: {
-                        class_id: teacherClass.id
-                    },
-                    include: [
-                        {
-                            model: Student,
-                            as: 'student', // kalau pakai alias student
-                            attributes: ['id', 'name']
-                        }
-                    ]
-                }
-            ]
-        });        
-        
-        if (attendances.length === 0) {
-            return res.status(404).json({ message: 'Tidak ada data kehadiran untuk tanggal ini' });
-        }
-
-        res.json(attendances);
-    } catch (error) {
-        console.error('Error fetching attendance data:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// POST: Tambah kehadiran otomatis mendeteksi semester berdasarkan tanggal
-router.post('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-    try {
-        const { date } = req.body;
-
-        if (!date) return res.status(400).json({ message: 'Tanggal harus disertakan' });
-
-        // Ambil kelas wali berdasarkan user login
-        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
-        if (!teacherClass) return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        const userId = req.user.id;
 
         // Cari tahun ajaran aktif
-        const activeAcademicYear = await AcademicYear.findOne({ where: { is_active: true } });
-        if (!activeAcademicYear) return res.status(404).json({ message: 'Tidak ada tahun ajaran aktif ditemukan' });
+        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+        if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
 
-        // Cari semester aktif berdasarkan tanggal yang diberikan dan tahun ajaran aktif
-        const semester = await Semester.findOne({
+        // Cari kelas yang menjadi tanggung jawab wali kelas pada tahun ajaran aktif
+        const myClass = await Class.findOne({
             where: {
-                academic_year_id: activeAcademicYear.id,
-                start_date: { [Op.lte]: date },
-                end_date: { [Op.gte]: date },
-                is_active: true
+                teacher_id: userId,
+                academic_year_id: activeYear.id
             }
         });
 
-        if (!semester) return res.status(400).json({ message: 'Tanggal kehadiran tidak berada di dalam semester aktif pada tahun ajaran aktif' });
+        if (!myClass) {
+            return res.status(404).json({ message: 'Kelas tidak ditemukan untuk wali kelas ini di tahun ajaran aktif' });
+        }
 
-        // Cek duplikat kehadiran
-        const existing = await Attendance.findOne({
-            where: {
-                class_id: teacherClass.id,
-                date,
-                semester_id: semester.id
-            }
-        });
-
-        if (existing) return res.status(409).json({ message: 'Data kehadiran pada tanggal tersebut sudah ada di semester aktif' });
-
-        // Ambil siswa-siswa di kelas wali
-        const students = await Student.findAll({
-            include: {
-                model: StudentClass,
-                where: { class_id: teacherClass.id },
-                attributes: ['id']
-            },
-            attributes: ['id']
-        });
-
-        if (!students.length) return res.status(404).json({ message: 'Tidak ada siswa di kelas Anda' });
-
-        // Siapkan data kehadiran
-        const attendanceRecords = students.map(student => ({
-            student_id: student.id,
-            student_class_id: student.StudentClasses[0].id,
-            class_id: teacherClass.id,
-            semester_id: semester.id,
-            academic_year_id: activeAcademicYear.id, // tambahkan ini jika kolom ada
-            date,
-            status: 'Not Set'
-        }));
-
-        await Attendance.bulkCreate(attendanceRecords);
-
-        res.status(201).json({ message: 'Data kehadiran berhasil ditambahkan', data: attendanceRecords });
+        res.json({ message: 'Kelas wali kelas berhasil ditemukan', class: myClass });
     } catch (error) {
-        console.error('Error adding attendance:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(500).json({ message: 'Error mengambil data kelas wali kelas', error });
     }
 });
 
-// DELETE: Hapus kehadiran per tanggal dan semester
-router.delete('/attendances/:semester_id/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-    try {
-        const { date, semester_id } = req.params;
-        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
-
-        if (!teacherClass) return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
-
-        const deleted = await Attendance.destroy({
-            where: {
-                date,
-                semester_id,
-                class_id: teacherClass.id
-            }
-        });
-
-        if (deleted === 0) return res.status(404).json({ message: 'Tidak ada data kehadiran yang ditemukan untuk dihapus' });
-
-        res.json({ message: 'Data kehadiran berhasil dihapus' });
-    } catch (error) {
-        console.error('Error deleting attendance:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// PUT: Update kehadiran
-router.put('/attendances/:semester_id/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-    try {
-        const { semester_id, date } = req.params;
-        const { attendances } = req.body;
-
-        if (!attendances || !Array.isArray(attendances) || attendances.length === 0)
-            return res.status(400).json({ message: 'Daftar kehadiran harus disertakan dalam format array' });
-
-        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
-
-        if (!teacherClass) return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
-
-        const validStudentIds = await Student.findAll({
-            where: { class_id: teacherClass.id },
-            attributes: ['id']
-        }).then(students => students.map(s => s.id));
-
-        const validAttendances = attendances.filter(a => validStudentIds.includes(a.student_id));
-
-        if (validAttendances.length === 0)
-            return res.status(403).json({ message: 'Tidak ada siswa yang valid untuk diperbarui' });
-
-        await Promise.all(validAttendances.map(a =>
-            Attendance.update(
-                { status: a.status },
-                {
-                    where: {
-                        student_id: a.student_id,
-                        date,
-                        semester_id,
-                        class_id: teacherClass.id
-                    }
-                }
-            )
-        ));
-
-        res.json({ message: 'Status kehadiran berhasil diperbarui untuk beberapa siswa' });
-    } catch (error) {
-        console.error('Error updating attendance:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// *** SCHEDULE ***
+// schedule
 router.get('/schedule', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { day } = req.query;  // Ambil query parameter "day"
+
+        // Cari tahun ajaran aktif
+        const activeAcademicYear = await getActiveAcademicYear();
+        if (!activeAcademicYear) {
+            return res.status(400).json({ message: 'Tidak ada tahun ajaran aktif' });
+        }
 
         // Cari class_id dari wali kelas berdasarkan teacher_id
         const teacherClass = await Class.findOne({
@@ -242,8 +52,11 @@ router.get('/schedule', accessValidation, roleValidation(['wali_kelas']), async 
             return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
         }
 
-        // Buat kondisi filter untuk class_id wali kelas
-        const whereCondition = { class_id: teacherClass.id };
+        // Buat kondisi filter untuk class_id wali kelas dan tahun ajaran aktif
+        const whereCondition = {
+            class_id: teacherClass.id,
+            academic_year_id: activeAcademicYear.id
+        };
 
         // Jika ada filter "day", tambahkan ke kondisi where
         if (day) {
@@ -260,7 +73,7 @@ router.get('/schedule', accessValidation, roleValidation(['wali_kelas']), async 
                     attributes: ['name']
                 }
             ],
-            order: [['day', 'ASC'], ['start_time', 'ASC']] // Urut berdasarkan hari lalu jam
+            order: [['day', 'ASC'], ['start_time', 'ASC']]
         });
 
         if (schedule.length === 0) {
@@ -271,6 +84,210 @@ router.get('/schedule', accessValidation, roleValidation(['wali_kelas']), async 
     } catch (error) {
         console.error('Error fetching schedule:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// Tampilkan daftar kehadiran siswa berdasarkan tanggal
+router.get('/attendances/:date', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+    const { date } = req.params;
+
+    try {
+        const userId = req.user.id;
+
+        // Cari tahun ajaran aktif
+        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+        if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+
+        // Cari semester aktif
+        const activeSemester = await Semester.findOne({ where: { is_active: true } });
+        if (!activeSemester) return res.status(404).json({ message: 'Semester aktif tidak ditemukan' });
+
+        // Cari kelas wali kelas
+        const myClass = await Class.findOne({
+            where: {
+                teacher_id: userId,
+                academic_year_id: activeYear.id
+            }
+        });
+        if (!myClass) return res.status(404).json({ message: 'Kelas wali kelas tidak ditemukan di tahun ajaran aktif' });
+
+        // Ambil siswa di kelas ini
+        const students = await StudentClass.findAll({ where: { class_id: myClass.id } });
+        if (!students.length) return res.status(404).json({ message: 'Tidak ada siswa di kelas ini' });
+
+        // Ambil data kehadiran siswa di kelas ini untuk tanggal yang diminta
+        const attendanceRecords = await Attendance.findAll({
+            where: {
+                semester_id: activeSemester.id,
+                date,
+                student_class_id: students.map(sc => sc.id) // filtering by student_class_id
+            },
+            include: [
+                {
+                    model: StudentClass,
+                    as: 'student_class',
+                    include: [
+                        {
+                            model: Student,
+                            as: 'student',
+                            attributes: ['id', 'name'] // Include student details
+                        },
+                        {
+                            model: Class, // Include Class model to get class_id
+                            as: 'class',
+                            attributes: ['id', 'name'] // Include the class_id
+                        }
+                    ]
+                }
+            ]
+        });        
+
+        if (!attendanceRecords.length) {
+            return res.status(404).json({ message: 'Tidak ada data kehadiran untuk tanggal ini' });
+        }
+
+        res.status(200).json(attendanceRecords);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error mendapatkan data kehadiran', error: error.message });
+    }
+});
+
+// Tambah tanggal kehadiran baru
+router.post('/attendances', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+    const { date } = req.body;
+
+    try {
+        const userId = req.user.id;
+
+        // Cari tahun ajaran aktif
+        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+        if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+
+        // Cari semester aktif
+        const activeSemester = await Semester.findOne({ where: { is_active: true } });
+        if (!activeSemester) return res.status(404).json({ message: 'Semester aktif tidak ditemukan' });
+
+        // Cari kelas wali kelas
+        const myClass = await Class.findOne({
+            where: {
+                teacher_id: userId,
+                academic_year_id: activeYear.id
+            }
+        });
+        if (!myClass) return res.status(404).json({ message: 'Kelas wali kelas tidak ditemukan di tahun ajaran aktif' });
+
+        // Ambil siswa di kelas ini
+        const students = await StudentClass.findAll({ where: { class_id: myClass.id } });
+        if (!students.length) return res.status(404).json({ message: 'Tidak ada siswa di kelas ini' });
+
+        // Cek apakah tanggal kehadiran sudah dibuat untuk siswa-siswa ini
+        const existingAttendance = await Attendance.findOne({
+            where: {
+                semester_id: activeSemester.id,
+                date,
+                student_class_id: students.map(sc => sc.id)
+            },
+            attributes: ['id', 'student_class_id', 'semester_id', 'date', 'status', 'createdAt', 'updatedAt'] // Ambil hanya kolom yang ada
+        });
+
+        if (existingAttendance) {
+            return res.status(400).json({ message: 'Kehadiran untuk tanggal ini sudah ada' });
+        }
+
+        // Buat data kehadiran default semua siswa (status default: 'Alpha')
+        const attendanceRecords = students.map(student => ({
+            student_class_id: student.id,
+            semester_id: activeSemester.id,
+            date,
+            status: 'Not Set'
+        }));
+
+        await Attendance.bulkCreate(attendanceRecords);
+
+        res.status(201).json({ message: 'Tanggal kehadiran berhasil ditambahkan' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error menambahkan tanggal kehadiran', error: error.message });
+    }
+});
+
+// Edit status kehadiran siswa
+router.put('/attendance/:attendance_id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+    const { attendance_id } = req.params;
+    const { status } = req.body;
+
+    try {
+        const userId = req.user.id;
+
+        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+        const activeSemester = await Semester.findOne({ where: { is_active: true } });
+
+        if (!activeYear || !activeSemester) return res.status(404).json({ message: 'Tahun ajaran atau semester aktif tidak ditemukan' });
+
+        // Cari data kehadiran
+        const attendance = await Attendance.findOne({
+            where: { id: attendance_id },
+            include: {
+                model: AttendanceDate,
+                as: 'attendance_date',
+                where: {
+                    academic_year_id: activeYear.id,
+                    semester_id: activeSemester.id
+                },
+                include: {
+                    model: Class,
+                    as: 'class',
+                    where: { homeroom_teacher_id: userId }
+                }
+            }
+        });
+
+        if (!attendance) return res.status(404).json({ message: 'Data kehadiran tidak ditemukan' });
+
+        // Update status
+        await attendance.update({ status });
+
+        res.json({ message: 'Status kehadiran berhasil diperbarui', attendance });
+    } catch (error) {
+        res.status(500).json({ message: 'Error memperbarui status kehadiran', error });
+    }
+});
+
+// Hapus tanggal kehadiran
+router.delete('/attendance-date/:attendance_date_id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+    const { attendance_date_id } = req.params;
+
+    try {
+        const userId = req.user.id;
+
+        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+        const activeSemester = await Semester.findOne({ where: { is_active: true } });
+
+        if (!activeYear || !activeSemester) return res.status(404).json({ message: 'Tahun ajaran atau semester aktif tidak ditemukan' });
+
+        const attendanceDate = await AttendanceDate.findOne({
+            where: {
+                id: attendance_date_id,
+                academic_year_id: activeYear.id,
+                semester_id: activeSemester.id
+            },
+            include: {
+                model: Class,
+                as: 'class',
+                where: { homeroom_teacher_id: userId }
+            }
+        });
+
+        if (!attendanceDate) return res.status(404).json({ message: 'Tanggal kehadiran tidak ditemukan' });
+
+        // Hapus data attendance (kehadiran siswa) dulu baru attendanceDate
+        await Attendance.destroy({ where: { attendance_date_id: attendanceDate.id } });
+        await attendanceDate.destroy();
+
+        res.json({ message: 'Tanggal kehadiran berhasil dihapus' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error menghapus tanggal kehadiran', error });
     }
 });
 

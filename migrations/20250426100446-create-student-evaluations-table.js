@@ -3,7 +3,26 @@ module.exports = {
       await queryInterface.createTable('student_evaluations', {
           id: { type: Sequelize.STRING(5), allowNull: false, primaryKey: true },
           evaluation_id: { type: Sequelize.STRING(5), allowNull: false, references: { model: 'evaluations', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
-          student_id: { type: Sequelize.STRING(5), allowNull: false, references: { model: 'students', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
+          student_class_id: {
+            type: Sequelize.STRING(5),
+            allowNull: false,
+            references: {
+              model: 'student_classes',
+              key: 'id'
+            },
+            onUpdate: 'CASCADE',
+            onDelete: 'CASCADE'
+          },
+          semester_id: {
+            type: Sequelize.STRING(5),
+            allowNull: false,
+            references: {
+              model: 'semesters',
+              key: 'id'
+            },
+            onUpdate: 'CASCADE',
+            onDelete: 'CASCADE'
+          },
           description: { type: Sequelize.TEXT, allowNull: true },
           createdAt: Sequelize.DATE,
           updatedAt: Sequelize.DATE

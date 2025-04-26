@@ -1,5 +1,5 @@
 const { customAlphabet } = require('nanoid');
-const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
+const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 6);
 
 module.exports = (sequelize, DataTypes) => {
   const AcademicYear = sequelize.define('AcademicYear', {
@@ -23,6 +23,7 @@ module.exports = (sequelize, DataTypes) => {
 
   AcademicYear.associate = (models) => {
     AcademicYear.hasMany(models.Semester, { foreignKey: 'academic_year_id' });
+    AcademicYear.hasMany(models.Class, { foreignKey: 'academic_year_id', as: 'classes' });
   };
 
   AcademicYear.addHook('afterCreate', async (academicYear, options) => {

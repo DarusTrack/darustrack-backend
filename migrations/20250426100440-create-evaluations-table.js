@@ -8,16 +8,6 @@ module.exports = {
         primaryKey: true,
         allowNull: false
       },
-      student_class_id: {
-        type: Sequelize.STRING(5),
-        allowNull: false,
-        references: {
-          model: 'student_classes',
-          key: 'id'
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
-      },
       title: {
         type: Sequelize.STRING,
         allowNull: false
