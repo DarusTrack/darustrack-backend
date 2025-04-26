@@ -20,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         teacher_id: {
             type: DataTypes.STRING(5),
-            allowNull: false
+            allowNull: true
         }
     }, {
         tableName: 'classes',

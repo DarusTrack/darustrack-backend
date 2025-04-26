@@ -23,8 +23,8 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         parent_id: {
-            type: DataTypes.INTEGER,
-            allowNull: false
+            type: DataTypes.STRING(5),
+            allowNull: true
         }
     }, {
         tableName: 'students',

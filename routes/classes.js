@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Class, Student, StudentClass, Schedule, Subject } = require('../models');
+const { Class, Student, StudentClass, Semester, Schedule, Subject } = require('../models');
 const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 const { Op } = require('sequelize');
@@ -8,97 +8,30 @@ const { Op } = require('sequelize');
 // GET all classes with students in each class
 router.get('/', accessValidation, roleValidation(['admin']), async (req, res) => {
     try {
-      const classes = await Class.findAll({
-        include: [
-          {
-            model: StudentClass,
-            as: 'student_class',
-            include: [
-              {
-                model: Student,
-                attributes: ['id', 'name', 'nisn', 'birth_date', 'parent_id', 'createdAt', 'updatedAt']
-              }
-            ]
-          }
-        ]
+      // Cari semester aktif
+      const activeSemester = await Semester.findOne({
+        where: {
+          is_active: true
+        }
       });
+  
+      if (!activeSemester) {
+        return res.status(404).json({ message: 'Tidak ada semester aktif ditemukan' });
+      }
+  
+      // Ambil kelas yang terkait dengan semester aktif
+      const classes = await Class.findAll({
+        where: {
+          semester_id: activeSemester.id // Menambahkan filter berdasarkan semester aktif
+        },
+        attributes: ['id', 'name', 'semester_id', 'teacher_id'], // Menampilkan hanya atribut yang diperlukan
+      });
+  
       res.json(classes);
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: 'Gagal mengambil data kelas', error });
     }
-});  
-
-// Tambah kelas
-router.post('/', accessValidation, roleValidation(['admin']), async (req, res) => {
-    try {
-      const { name, grade_level, teacher_id } = req.body;
-      const newClass = await Class.create({ name, grade_level, teacher_id });
-      res.status(201).json(newClass);
-    } catch (error) {
-      res.status(500).json({ message: 'Gagal menambahkan kelas', error });
-    }
-});  
-
-// Edit kelas
-router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    try {
-        const { name, grade_level, teacher_id } = req.body;
-        await Class.update({ name, grade_level, teacher_id }, { where: { id: req.params.id } });
-        res.json({ message: 'Class updated successfully' });
-    } catch (error) {
-        res.status(500).json({ message: 'Error updating class', error });
-    }
-});
-
-// Hapus kelas
-router.delete('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    try {
-        await Class.destroy({ where: { id: req.params.id } });
-        res.json({ message: 'Class deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ message: 'Error deleting class', error });
-    }
-});
-
-// tambah siswa ke dalam kelas
-router.post('/:classId/add-student', accessValidation, roleValidation(['admin']), async (req, res) => {
-    try {
-      const { student_id, semester_id } = req.body;
-      const { classId } = req.params;
-  
-      const existing = await StudentClass.findOne({
-        where: { student_id, class_id: classId, semester_id }
-      });
-  
-      if (existing) {
-        return res.status(400).json({ message: 'Siswa sudah terdaftar di kelas ini untuk semester tersebut.' });
-      }
-  
-      const studentClass = await StudentClass.create({
-        student_id,
-        class_id: classId,
-        semester_id
-      });
-  
-      res.status(201).json({ message: 'Siswa berhasil ditambahkan ke kelas', studentClass });
-    } catch (error) {
-        console.error('Error detail:', error);
-        res.status(500).json({ message: 'Gagal menambahkan siswa ke kelas', error: error.message });
-    }      
-});
-
-// Hapus siswa dari kelas
-router.delete('/:classId/remove-student/:studentId', accessValidation, roleValidation(['admin']), async (req, res) => {
-  try {
-    const { classId, studentId } = req.params;
-    await StudentClass.destroy({
-      where: { class_id: classId, student_id: studentId }
-    });
-    res.json({ message: 'Siswa berhasil dikeluarkan dari kelas' });
-  } catch (error) {
-    res.status(500).json({ message: 'Gagal menghapus siswa dari kelas', error });
-  }
 });
 
 // Get daftar jadwal pelajaran dari kelas tertentu (filter perhari)

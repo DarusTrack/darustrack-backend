@@ -19,12 +19,6 @@ module.exports = (sequelize, DataTypes) => {
         is_active: {
             type: DataTypes.BOOLEAN,
             allowNull: false
-        },
-        start_date: {
-            type: DataTypes.DATE
-        },
-        end_date: {
-            type: DataTypes.DATE
         }
     }, {
         tableName: 'semesters',

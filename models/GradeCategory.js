@@ -27,13 +27,12 @@ module.exports = (sequelize, DataTypes) => {
         indexes: [
             {
                 unique: true,
-                fields: ['class_id', 'subject_id', 'name']
+                fields: ['student_class_id', 'subject_id', 'name']
             }
         ]
     });
 
     GradeCategory.associate = (models) => {
-        GradeCategory.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
         GradeCategory.belongsTo(models.Subject, { foreignKey: 'subject_id', as: 'subject' });
         GradeCategory.hasMany(models.GradeDetail, { foreignKey: 'grade_category_id', as: 'grade_detail' });
         GradeCategory.belongsTo(models.Semester, { foreignKey: 'semester_id', as: 'semester' });

@@ -15,7 +15,7 @@ router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) =>
           include: [
             {
               model: Semester,
-              attributes: ['id', 'name', 'is_active', 'start_date', 'end_date']
+              attributes: ['id', 'name', 'is_active']
             }
           ],
           order: [['year', 'DESC']]
@@ -153,7 +153,7 @@ router.get('/:id/classes', accessValidation, roleValidation(["admin"]), async (r
             attributes: ['id', 'name'],
             include: [
               {
-                model: Class, // INI YANG PENTING
+                model: Class,
                 attributes: ['id', 'name']
               }
             ]

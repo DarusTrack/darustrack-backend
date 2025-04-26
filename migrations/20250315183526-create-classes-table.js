@@ -14,7 +14,7 @@ module.exports = {
       },
       teacher_id: {
           type: Sequelize.STRING(5),
-          allowNull: false,
+          allowNull: true,
           references: {
             model: 'users',
             key: 'id'

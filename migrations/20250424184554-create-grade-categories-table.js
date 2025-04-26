@@ -30,7 +30,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       name: {
-        type: Sequelize.ENUM('Asesmen Sumatif Harian', 'Asesmen Sumatif Tengah Semester', 'Asesment Sumatif Akhir Semester'),
+        type: Sequelize.STRING,
         allowNull: false
       },
       createdAt: {
