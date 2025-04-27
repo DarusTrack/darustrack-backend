@@ -17,10 +17,6 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING(5),
             allowNull: false
         },
-        semester_id: {
-            type: DataTypes.STRING(5),
-            allowNull: false
-        },
         description: { 
             type: DataTypes.TEXT, 
             allowNull: true 
@@ -31,7 +27,6 @@ module.exports = (sequelize, DataTypes) => {
 
     StudentEvaluation.associate = models => {
         StudentEvaluation.belongsTo(models.Evaluation, { foreignKey: 'evaluation_id', as: 'evaluation' });
-        StudentEvaluation.belongsTo(models.Semester, { foreignKey: 'semester_id', as: 'semester' });
         StudentEvaluation.belongsTo(models.StudentClass, { foreignKey: 'student_class_id', as: 'student_class' });
     };
 

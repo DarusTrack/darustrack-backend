@@ -13,13 +13,23 @@ module.exports = (sequelize, DataTypes) => {
         title: {
             type: DataTypes.STRING,
             allowNull: false
+        },
+        class_id: {
+            type: DataTypes.STRING(5),
+            allowNull: false
+        },   
+        semester_id: {
+            type: DataTypes.STRING(5),
+            allowNull: false
         }   
     }, {
         tableName: 'evaluations',
     });
 
     Evaluation.associate = (models) => {
-        Evaluation.hasMany(models.StudentEvaluation, { foreignKey: 'evaluation_id', as: 'student_evaluation' });
+        Evaluation.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
+        Evaluation.belongsTo(models.Semester, { foreignKey: 'semester_id', as: 'semester' });
+        Evaluation.hasMany(models.StudentEvaluation, { foreignKey: 'evaluation_id', as: 'student_evaluations' });
     };
 
     return Evaluation;

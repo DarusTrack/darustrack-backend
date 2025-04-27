@@ -26,7 +26,8 @@ module.exports = (sequelize, DataTypes) => {
     
         StudentClass.hasMany(models.GradeCategory, { foreignKey: 'student_class_id' });
         StudentClass.hasMany(models.StudentEvaluation, { foreignKey: 'student_class_id' });
-        StudentClass.hasMany(models.Attendance, { foreignKey: 'student_class_id', as: 'attendances' }); // kasih as attendances
+        StudentClass.hasMany(models.Attendance, { foreignKey: 'student_class_id', as: 'attendances' });
+        StudentClass.hasOne(models.Student, { foreignKey: 'student_id' });
     };
     
     return StudentClass;

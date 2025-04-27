@@ -12,6 +12,26 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false
       },
+      class_id: {
+        type: Sequelize.STRING(5),
+        allowNull: false,
+        references: {
+            model: 'classes',
+            key: 'id',
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      semester_id: {
+          type: Sequelize.STRING(5),
+          allowNull: false,
+          references: {
+              model: 'semesters',
+              key: 'id',
+          },
+          onUpdate: 'CASCADE',
+          onDelete: 'CASCADE'
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: false
