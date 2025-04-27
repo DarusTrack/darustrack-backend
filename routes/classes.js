@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { Class, AcademicYear, Semester, Schedule, Subject } = require('../models');
+const { Sequelize, Op } = require('sequelize'); 
 const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
-const { Op } = require('sequelize');
 
 router.get('/', accessValidation, roleValidation(['admin']), async (req, res) => {
     try {
@@ -22,25 +22,47 @@ router.get('/', accessValidation, roleValidation(['admin']), async (req, res) =>
           }
         ]
       });
-
+  
       if (!activeSemester) {
         return res.status(404).json({ message: 'Tidak ada semester aktif ditemukan' });
       }
-
-      // Ambil kelas yang terkait dengan semester aktif
+  
+      // Ambil parameter grade_level dari query string (jika ada)
+      const { grade_level } = req.query;
+  
+      // Filter berdasarkan grade_level jika parameter tersedia
+      const whereConditions = {
+        academic_year_id: activeSemester.academic_year_id // Filter berdasarkan tahun ajaran yang aktif
+      };
+  
+      // Jika ada grade_level, tambahkan filter berdasarkan grade_level
+      if (grade_level) {
+        whereConditions.name = {
+          [Sequelize.Op.like]: `${grade_level}%` // Filter berdasarkan angka pertama pada nama kelas
+        };
+      }
+  
+      // Ambil kelas yang terkait dengan semester aktif dan filter berdasarkan grade_level (jika ada)
       const classes = await Class.findAll({
-        where: {
-          academic_year_id: activeSemester.academic_year_id // Filter berdasarkan tahun ajaran yang aktif
-        },
-        attributes: ['id', 'name', 'academic_year_id', 'teacher_id'], // Menampilkan hanya atribut yang diperlukan
+        where: whereConditions,
+        attributes: ['id', 'name', 'academic_year_id', 'teacher_id'],
       });
   
-      res.json(classes);
+      // Menambahkan grade_level ke setiap kelas berdasarkan angka pertama dari nama kelas
+      const classesWithGradeLevel = classes.map(cls => {
+        const gradeLevel = parseInt(cls.name.charAt(0)); // Ambil angka pertama dari nama kelas
+        return {
+          ...cls.toJSON(),
+          grade_level: isNaN(gradeLevel) ? null : gradeLevel // Jika angka pertama tidak valid, set null
+        };
+      });
+  
+      res.json(classesWithGradeLevel);
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: 'Gagal mengambil data kelas', error });
     }
-});
+});  
 
 // Get daftar jadwal pelajaran dari kelas tertentu (filter perhari)
 router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {
@@ -140,10 +162,17 @@ router.put('/schedule/:schedule_id', accessValidation, roleValidation(["admin"])
     const { schedule_id } = req.params;
     const { subject_id, day, start_time, end_time } = req.body;
 
+    // Pastikan start_time dan end_time terisi jika mereka ingin diperbarui
+    if ((start_time || end_time) && (!start_time || !end_time)) {
+        return res.status(400).json({ message: 'Jika waktu mulai atau waktu selesai diubah, keduanya harus diisi' });
+    }
+
     try {
+        // Mencari tahun ajaran aktif
         const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
         if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
 
+        // Mencari jadwal yang ingin diperbarui
         const schedule = await Schedule.findOne({
             where: { id: schedule_id },
             include: {
@@ -155,42 +184,63 @@ router.put('/schedule/:schedule_id', accessValidation, roleValidation(["admin"])
 
         if (!schedule) return res.status(404).json({ message: 'Jadwal tidak ditemukan untuk tahun ajaran aktif' });
 
-        // Validasi bentrok jadwal (kecuali dirinya sendiri)
-        const conflictingSchedule = await Schedule.findOne({
+        // Validasi bentrok hanya jika start_time atau end_time diubah
+        if (start_time || end_time) {
+            const conflictingSchedule = await Schedule.findOne({
+                where: {
+                    id: { [Op.ne]: schedule_id }, // Tidak mempertimbangkan jadwal itu sendiri
+                    class_id: schedule.class_id, // Kelas yang sama
+                    day: day || schedule.day, // Hari yang sama atau yang baru
+                    [Op.or]: [
+                        {
+                            start_time: { [Op.between]: [start_time, end_time] } // Cek apakah waktu mulai bentrok
+                        },
+                        {
+                            end_time: { [Op.between]: [start_time, end_time] } // Cek apakah waktu selesai bentrok
+                        },
+                        {
+                            [Op.and]: [
+                                { start_time: { [Op.lte]: start_time } }, // Cek apakah jadwal yang ada lebih awal
+                                { end_time: { [Op.gte]: end_time } } // Cek apakah jadwal yang ada lebih akhir
+                            ]
+                        }
+                    ]
+                }
+            });
+
+            // Jika ditemukan jadwal yang bentrok
+            if (conflictingSchedule) {
+                return res.status(400).json({ message: 'Terdapat jadwal lain yang bentrok pada hari dan jam tersebut di kelas yang sama' });
+            }
+        }
+
+        // Pastikan jadwal yang baru tidak sama persis dengan jadwal lainnya
+        const exactSameSchedule = await Schedule.findOne({
             where: {
-                id: { [Op.ne]: schedule_id },
+                id: { [Op.ne]: schedule_id }, // Tidak mempertimbangkan dirinya sendiri
                 class_id: schedule.class_id,
-                day: day,
-                [Op.or]: [
-                    {
-                        start_time: { [Op.between]: [start_time, end_time] }
-                    },
-                    {
-                        end_time: { [Op.between]: [start_time, end_time] }
-                    },
-                    {
-                        [Op.and]: [
-                            { start_time: { [Op.lte]: start_time } },
-                            { end_time: { [Op.gte]: end_time } }
-                        ]
-                    }
-                ]
+                day: day || schedule.day, // Hari yang sama atau yang baru
+                start_time: start_time || schedule.start_time, // Gunakan waktu lama jika tidak diubah
+                end_time: end_time || schedule.end_time // Gunakan waktu lama jika tidak diubah
             }
         });
 
-        if (conflictingSchedule) {
-            return res.status(400).json({ message: 'Terdapat jadwal lain yang bentrok pada hari dan jam tersebut' });
+        // Jika jadwal yang persis sama ditemukan, batalkan pembaruan
+        if (exactSameSchedule) {
+            return res.status(400).json({ message: 'Jadwal yang sama persis sudah ada pada kelas dan hari yang sama' });
         }
 
+        // Update jadwal jika tidak ada bentrok dan tidak ada jadwal yang sama persis
         await schedule.update({
-            subject_id,
-            day,
-            start_time,
-            end_time
+            subject_id: subject_id || schedule.subject_id, // Gunakan subject lama jika tidak diubah
+            day: day || schedule.day, // Gunakan hari lama jika tidak diubah
+            start_time: start_time || schedule.start_time, // Gunakan waktu lama jika tidak diubah
+            end_time: end_time || schedule.end_time // Gunakan waktu lama jika tidak diubah
         });
 
-        res.json({ message: 'Jadwal berhasil diperbarui', schedule });
+        res.json({ message: 'Jadwal berhasil diperbarui' });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Error mengedit jadwal', error });
     }
 });

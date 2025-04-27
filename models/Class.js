@@ -33,11 +33,6 @@ module.exports = (sequelize, DataTypes) => {
         Class.hasMany(models.GradeCategory, { foreignKey: 'class_id', as: 'grade_category' });
         Class.hasMany(models.Attendance, { foreignKey: 'class_id', as: 'attendance' });
         Class.hasMany(models.StudentClass, { foreignKey: 'class_id', as: 'student_class' });
-        Class.belongsToMany(models.Student, {
-            through: 'StudentClass',
-            foreignKey: 'class_id',
-            as: 'students'
-        });
     };
 
     return Class;
