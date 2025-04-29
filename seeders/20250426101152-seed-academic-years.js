@@ -45,12 +45,20 @@ module.exports = {
     await queryInterface.bulkInsert('classes', [
       {
         id: nanoid(),
-        name: '6E',
+        name: '6D',
         teacher_id: 'U0003',
         academic_year_id: academicYearId,
         createdAt: new Date(),
         updatedAt: new Date()
-      }
+      },
+      {
+        id: nanoid(),
+        name: '6E',
+        teacher_id: 'U0004',
+        academic_year_id: academicYearId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
     ]);
   },
 

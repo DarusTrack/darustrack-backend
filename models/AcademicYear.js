@@ -9,7 +9,7 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: () => nanoid()
     },
     year: {
-      type: DataTypes.STRING, // contoh: "2024/2025"
+      type: DataTypes.STRING(9),
       allowNull: false,
       unique: true
     },

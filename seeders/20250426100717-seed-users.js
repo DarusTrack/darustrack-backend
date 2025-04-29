@@ -27,8 +27,8 @@ module.exports = {
       },
       {
         id: 'U0003',
-        name: 'Wali Kelas',
-        email: 'walikelas6e@gmail.com',
+        name: 'Wali Kelas 6D',
+        email: 'walikelas6d@gmail.com',
         password: hashedPassword,
         role: 'wali_kelas',
         createdAt: new Date(),
@@ -36,13 +36,31 @@ module.exports = {
       },
       {
         id: 'U0004',
-        name: 'Orang Tua',
-        email: 'orangtua@gmail.com',
+        name: 'Wali Kelas 6E',
+        email: 'walikelas6e@gmail.com',
+        password: hashedPassword,
+        role: 'wali_kelas',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 'U0005',
+        name: 'Orang Tua Atthar',
+        email: 'orangtuaAtthar@gmail.com',
         password: hashedPassword,
         role: 'orang_tua',
         createdAt: new Date(),
         updatedAt: new Date()
-      }
+      },
+      {
+        id: 'U0006',
+        name: 'Orang Tua Mirza',
+        email: 'orangtuamirza@gmail.com',
+        password: hashedPassword,
+        role: 'orang_tua',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
     ]);
   },
 
