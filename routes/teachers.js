@@ -341,8 +341,8 @@ router.delete('/attendances/:date', accessValidation, roleValidation(['wali_kela
     }
 });
 
-// semester aktif
-router.get('/semesters/active', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+// academic year aktif
+router.get('/semesters', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
       const activeYear = await AcademicYear.findOne({
         where: { is_active: true },
@@ -388,51 +388,50 @@ router.post('/semesters/:semester_id/evaluations', accessValidation, roleValidat
         const { title } = req.body;
         const userId = req.user.id;
 
-        // Cek tahun ajaran aktif
-        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
-        if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+        if (!title || title.trim() === '') {
+            return res.status(400).json({ message: 'Judul evaluasi harus diisi' });
+        }
 
-        // Cek kelas wali kelas
-        const myClass = await Class.findOne({
-            where: { teacher_id: userId, academic_year_id: activeYear.id }
+        const semester = await Semester.findOne({
+            where: { id: semester_id },
+            include: {
+                model: AcademicYear,
+                where: { is_active: true }
+            }
         });
-        if (!myClass) return res.status(404).json({ message: 'Kelas tidak ditemukan' });
+        if (!semester) return res.status(404).json({ message: 'Semester tidak ditemukan atau tidak aktif' });
 
-        // Cek semester valid
-        const semester = await Semester.findByPk(semester_id);
-        if (!semester) return res.status(404).json({ message: 'Semester tidak ditemukan' });
+        const myClass = await Class.findOne({
+            where: { teacher_id: userId, academic_year_id: semester.academic_year_id }
+        });
+        if (!myClass) return res.status(404).json({ message: 'Anda tidak menjadi wali kelas pada tahun ajaran ini' });
 
-        // Cek apakah evaluasi dengan judul sama sudah ada di semester & kelas tersebut
         const existingEvaluation = await Evaluation.findOne({
             where: {
-                title,
+                title: title.trim(),
                 class_id: myClass.id,
-                semester_id: semester_id
+                semester_id: semester.id
             }
         });
 
         if (existingEvaluation) {
-            return res.status(400).json({ message: 'Evaluasi dengan judul ini sudah ada pada semester ini untuk kelas tersebut' });
+            return res.status(400).json({ message: 'Evaluasi dengan judul ini sudah ada di semester ini untuk kelas Anda' });
         }
 
-        // Buat evaluasi baru
         const evaluation = await Evaluation.create({
-            title,
+            title: title.trim(),
             class_id: myClass.id,
-            semester_id
+            semester_id: semester.id
         });
 
-        // Ambil semua siswa di kelas ini
         const studentClasses = await StudentClass.findAll({ where: { class_id: myClass.id } });
 
-        // Siapkan data evaluasi siswa (deskripsi default: null)
         const evaluationsToInsert = studentClasses.map(sc => ({
             evaluation_id: evaluation.id,
             student_class_id: sc.id,
             description: null
         }));
 
-        // Masukkan evaluasi siswa secara bulk
         await StudentEvaluation.bulkCreate(evaluationsToInsert);
 
         res.status(201).json({ message: 'Evaluasi berhasil ditambahkan ke semua siswa', evaluation });
@@ -445,13 +444,69 @@ router.post('/semesters/:semester_id/evaluations', accessValidation, roleValidat
 // Edit title evaluasi
 router.put('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
-      const { title } = req.body;
-      const { id } = req.params;
-  
-      const updated = await Evaluation.update({ title }, { where: { id } });
-      res.json({ message: 'Evaluasi berhasil diperbarui' });
+        const { title } = req.body;
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        if (!title || title.trim() === '') {
+            return res.status(400).json({ message: 'Judul evaluasi harus diisi' });
+        }
+
+        // Cari evaluasi yang mau diubah
+        const evaluation = await Evaluation.findByPk(id);
+        if (!evaluation) {
+            return res.status(404).json({ message: 'Evaluasi tidak ditemukan' });
+        }
+
+        // Cari semester untuk ambil academic_year_id
+        const semester = await Semester.findByPk(evaluation.semester_id);
+        if (!semester) {
+            return res.status(404).json({ message: 'Semester tidak ditemukan' });
+        }
+
+        // Pastikan semester berada di tahun ajaran aktif
+        const academicYear = await AcademicYear.findOne({
+            where: { id: semester.academic_year_id, is_active: true }
+        });
+        if (!academicYear) {
+            return res.status(400).json({ message: 'Tahun ajaran tidak aktif' });
+        }
+
+        // Cari kelas wali kelas
+        const myClass = await Class.findOne({
+            where: { teacher_id: userId, academic_year_id: academicYear.id }
+        });
+        if (!myClass) {
+            return res.status(403).json({ message: 'Anda bukan wali kelas pada tahun ajaran aktif' });
+        }
+
+        // Pastikan evaluasi ini memang milik kelas wali tersebut
+        if (evaluation.class_id !== myClass.id) {
+            return res.status(403).json({ message: 'Anda tidak berhak mengedit evaluasi ini' });
+        }
+
+        // Cek apakah title baru sudah ada di semester dan kelas yang sama
+        const existingEvaluation = await Evaluation.findOne({
+            where: {
+                title: title.trim(),
+                class_id: myClass.id,
+                semester_id: evaluation.semester_id,
+                id: { [Op.ne]: evaluation.id } // selain evaluasi yang sedang diedit
+            }
+        });
+
+        if (existingEvaluation) {
+            return res.status(400).json({ message: 'Judul evaluasi ini sudah digunakan di semester dan kelas Anda' });
+        }
+
+        // Update evaluasi
+        await evaluation.update({ title: title.trim() });
+
+        res.json({ message: 'Evaluasi berhasil diperbarui', evaluation });
+
     } catch (error) {
-      res.status(500).json({ message: 'Gagal mengedit evaluasi', error });
+        console.error('Error updating evaluation:', error);
+        res.status(500).json({ message: 'Gagal mengedit evaluasi', error: error.message });
     }
 });
 
@@ -470,25 +525,58 @@ router.delete('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"
 router.get('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
         const { id } = req.params;
+        const userId = req.user.id;
+
+        const evaluation = await Evaluation.findByPk(id);
+        if (!evaluation) {
+            return res.status(404).json({ message: 'Evaluasi tidak ditemukan' });
+        }
+
+        const semester = await Semester.findByPk(evaluation.semester_id);
+        if (!semester) {
+            return res.status(404).json({ message: 'Semester tidak ditemukan' });
+        }
+
+        const academicYear = await AcademicYear.findOne({
+            where: { id: semester.academic_year_id, is_active: true }
+        });
+        if (!academicYear) {
+            return res.status(403).json({ message: 'Tahun ajaran tidak aktif' });
+        }
+
+        const myClass = await Class.findOne({
+            where: { teacher_id: userId, academic_year_id: academicYear.id }
+        });
+        if (!myClass || evaluation.class_id !== myClass.id) {
+            return res.status(403).json({ message: 'Anda tidak berhak melihat evaluasi ini' });
+        }
 
         const studentEvaluations = await StudentEvaluation.findAll({
-            where: { id },
-            include: [
-                {
-                    model: StudentClass,
-                    as: 'student_class',
-                    include: [
-                        {
-                            model: Student,
-                            as: 'student',
-                            attributes: ['id', 'name', 'nisn', 'birth_date']
-                        }
-                    ]
+            where: { evaluation_id: id },
+            include: {
+                model: StudentClass,
+                as: 'student_class',
+                include: {
+                    model: Student,
+                    as: 'student',
+                    attributes: ['id', 'name', 'nisn', 'birth_date']
                 }
-            ]
+            }
         });
 
-        res.json({ studentEvaluations });
+        const result = studentEvaluations.map(se => {
+            const studentData = se.student_class?.student;
+            return {
+                student_evaluation_id: se.id,
+                student_id: studentData?.id || null,
+                name: studentData?.name || null,
+                nisn: studentData?.nisn || null,
+                birth_date: studentData?.birth_date || null,
+                description: se.description
+            };
+        });        
+
+        res.json(result);
     } catch (error) {
         console.error('Error fetching student evaluations:', error);
         res.status(500).json({ message: 'Gagal mengambil evaluasi siswa', error: error.message });
@@ -500,17 +588,33 @@ router.put('/student-evaluations/:id', accessValidation, roleValidation(["wali_k
     try {
         const { id } = req.params;
         const { description } = req.body;
+        const userId = req.user.id;
 
-        const evaluation = await StudentEvaluation.findByPk(id);
+        const studentEvaluation = await StudentEvaluation.findByPk(id, {
+            include: {
+                model: Evaluation,
+                as: 'evaluation'
+            }
+        });
 
-        if (!evaluation) {
+        if (!studentEvaluation) {
             return res.status(404).json({ message: "Evaluasi siswa tidak ditemukan" });
         }
 
-        evaluation.description = description;
-        await evaluation.save();
+        const evaluation = studentEvaluation.evaluation;
 
-        res.json({ message: "Deskripsi evaluasi berhasil diperbarui", evaluation });
+        const semester = await Semester.findByPk(evaluation.semester_id);
+        const academicYear = await AcademicYear.findOne({ where: { id: semester.academic_year_id, is_active: true } });
+        const myClass = await Class.findOne({ where: { teacher_id: userId, academic_year_id: academicYear.id } });
+
+        if (!myClass || evaluation.class_id !== myClass.id) {
+            return res.status(403).json({ message: 'Anda tidak berhak mengubah evaluasi ini' });
+        }
+
+        studentEvaluation.description = description;
+        await studentEvaluation.save();
+
+        res.json({ message: "Deskripsi evaluasi berhasil diperbarui", studentEvaluation });
     } catch (error) {
         console.error('Error updating evaluation description:', error);
         res.status(500).json({ message: 'Gagal memperbarui deskripsi evaluasi', error: error.message });

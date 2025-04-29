@@ -28,10 +28,10 @@ module.exports = (sequelize, DataTypes) => {
 
     Class.associate = (models) => {
         Class.belongsTo(models.User, { foreignKey: 'teacher_id', as: 'teacher' });
-        Class.belongsTo(models.AcademicYear, { foreignKey: 'academic_year_id', as: 'academic_year' });
+        Class.belongsTo(models.AcademicYear, { foreignKey: 'academic_year_id' });
         Class.hasMany(models.Schedule, { foreignKey: 'class_id', as: 'schedule' });
         Class.hasMany(models.GradeCategory, { foreignKey: 'class_id', as: 'grade_category' });
-        Class.hasMany(models.StudentClass, { foreignKey: 'class_id', as: 'student_classes' }); 
+        Class.hasMany(models.StudentClass, { foreignKey: 'class_id' }); 
     };
 
     return Class;
