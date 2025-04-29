@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const { Op } = require('sequelize');
 const Validator = require('fastest-validator');
-const { User, Student, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation, GradeCategory, GradeDetail, StudentGrade } = require('../models');
+const { User, Student, StudentClass, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation, GradeCategory, GradeDetail, StudentGrade } = require('../models');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
 const accessValidation = require('../middlewares/accessValidation');
@@ -17,13 +17,18 @@ router.get('/profile', async (req, res) => {
             where: { parent_id: parentId },
             attributes: ['name', 'nisn', 'birth_date'],
             include: [{ 
-                model: Class,  
-                as: "class", 
-                attributes: ['name'],
+                model: StudentClass,  
+                as: "student_class", 
+                attributes: ['id'],
                 include: [{
-                    model: User,
-                    as: 'teacher',
-                    attributes: ['name']
+                    model: Class,
+                    as: 'class',
+                    attributes: ['name'],
+                    include: [{
+                        model: User,
+                        as: 'teacher',
+                        attributes: ['name']
+                    }] 
                 }] 
             }]
         });
@@ -52,26 +57,43 @@ router.get('/curriculum', async (req, res) => {
 router.get('/schedule', async (req, res) => {
     try {
         const parentId = req.user.id;
-        const student = await Student.findOne({ where: { parent_id: parentId } });
+
+        // Cari siswa berdasarkan parent_id
+        const student = await Student.findOne({
+            where: { parent_id: parentId },
+            include: [{
+                model: StudentClass,
+                as: 'student_class',
+                attributes: ['class_id']
+            }]
+        });
 
         if (!student) {
             return res.status(404).json({ message: 'Data anak tidak ditemukan' });
         }
 
+        // Ambil class_id dari relasi student_classes
+        const classId = student.student_classes?.[0]?.class_id; // Ambil class_id pertama
+
+        if (!classId) {
+            return res.status(404).json({ message: 'Class ID tidak ditemukan untuk anak ini' });
+        }
+
         const { day } = req.query;  // Ambil query parameter "day"
-        const whereCondition = { class_id: student.class_id };
+        const whereCondition = { class_id: classId };
 
         // Jika ada filter "day", tambahkan ke kondisi where
         if (day) {
             whereCondition.day = { [Op.eq]: day };  // Filter case-sensitive untuk MySQL
         }
 
+        // Cari jadwal berdasarkan class_id yang ada di StudentClass
         const schedules = await Schedule.findAll({
             where: whereCondition,
             attributes: ['day', 'start_time', 'end_time'],
             include: [{ model: Subject, as: "subject", attributes: ['name'] }],
             order: [
-                ['day', 'ASC'], 
+                ['day', 'ASC'],
                 ['start_time', 'ASC']
             ]
         });
