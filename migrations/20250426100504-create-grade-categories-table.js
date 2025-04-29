@@ -9,11 +9,11 @@ module.exports = {
         primaryKey: true,
         allowNull: false
       },
-      student_class_id: {
+      class_id: {
         type: Sequelize.STRING(5),
         allowNull: false,
         references: {
-          model: 'student_classes',
+          model: 'classes',
           key: 'id'
         },
         onUpdate: 'CASCADE',

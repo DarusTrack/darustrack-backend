@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         academic_year_id: {
-            type: DataTypes.STRING(5), // contoh: "2024/2025"
+            type: DataTypes.STRING(5),
             allowNull: false
         },
         is_active: {

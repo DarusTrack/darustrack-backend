@@ -222,9 +222,8 @@ router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
     try {
         const userId = req.user.id;
         const { date } = req.params; // Format diharapkan: 'YYYY-MM-DD'
-        const { attendanceUpdates } = req.body; // Array of { student_id, status }
+        const { attendanceUpdates } = req.body; // Array of { student_class_id, status }
 
-        // Pastikan attendanceUpdates berupa array dan tidak kosong
         if (!Array.isArray(attendanceUpdates) || attendanceUpdates.length === 0) {
             return res.status(400).json({ message: 'Data update kehadiran tidak valid' });
         }
@@ -235,7 +234,7 @@ router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
             return res.status(404).json({ message: 'Semester aktif tidak ditemukan' });
         }
 
-        // Cari kelas yang dikelola wali kelas
+        // Cek kelas wali kelas
         const classData = await Class.findOne({
             where: { teacher_id: userId, academic_year_id: activeSemester.academic_year_id },
         });
@@ -244,44 +243,38 @@ router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
             return res.status(404).json({ message: 'Wali kelas tidak mengelola kelas di semester aktif' });
         }
 
-        // Ambil semua student_class_id untuk kelas yang dikelola wali kelas
+        // Ambil student_class_id yang valid untuk wali kelas tersebut
         const studentClasses = await StudentClass.findAll({
             where: { class_id: classData.id },
-            attributes: ['id', 'student_id'],
+            attributes: ['id'],
         });
 
-        const studentClassIds = studentClasses.map(sc => sc.id);
-        const studentIds = studentClasses.map(sc => sc.student_id);
+        const validStudentClassIds = studentClasses.map(sc => sc.id);
 
-        // Validasi apakah semua siswa yang diupdate berada di kelas yang benar
-        const invalidUpdates = attendanceUpdates.filter(update => !studentIds.includes(update.student_id));
+        // Validasi apakah semua student_class_id dalam update berada dalam kelas ini
+        const invalidUpdates = attendanceUpdates.filter(update => !validStudentClassIds.includes(update.student_class_id));
         if (invalidUpdates.length > 0) {
-            return res.status(400).json({ message: 'Beberapa siswa tidak terdaftar di kelas ini', invalidUpdates });
+            return res.status(400).json({ message: 'Beberapa student_class_id tidak terdaftar di kelas ini', invalidUpdates });
         }
 
-        // Memperbarui status kehadiran untuk setiap siswa tanpa duplikasi
         const updatedAttendances = [];
         for (const update of attendanceUpdates) {
-            // Cari attendance yang sudah ada berdasarkan student_class_id, semester_id, dan date
-            const studentClassId = studentClassIds.find(id => studentClasses.find(sc => sc.student_id === update.student_id).id === id);
             const existingAttendance = await Attendance.findOne({
                 where: {
-                    student_class_id: studentClassId,
+                    student_class_id: update.student_class_id,
                     semester_id: activeSemester.id,
                     date: date,
                 },
-                attributes: ['id', 'student_class_id', 'semester_id', 'date', 'status'], // sesuaikan dengan atribut yang ada
-            });            
+                attributes: ['id', 'student_class_id', 'semester_id', 'date', 'status'],
+            });
 
             if (existingAttendance) {
-                // Jika data kehadiran sudah ada, update statusnya
                 existingAttendance.status = update.status;
                 await existingAttendance.save();
                 updatedAttendances.push(existingAttendance);
             } else {
-                // Jika data kehadiran belum ada, buat data baru
                 const newAttendance = await Attendance.create({
-                    student_class_id: studentClassId,
+                    student_class_id: update.student_class_id,
                     semester_id: activeSemester.id,
                     date: date,
                     status: update.status,
@@ -291,7 +284,7 @@ router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
         }
 
         res.json({ message: `${updatedAttendances.length} data kehadiran berhasil diperbarui`, updatedAttendances });
-        
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Terjadi kesalahan saat memperbarui data kehadiran', error: error.message });
@@ -348,300 +341,219 @@ router.delete('/attendances/:date', accessValidation, roleValidation(['wali_kela
     }
 });
 
-router.get('/evaluation', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+// semester aktif
+router.get('/semesters/active', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
-        const userId = req.user.id;
-
-        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
-        if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan.' });
-
-        const myClass = await Class.findOne({ where: { teacher_id: userId, academic_year_id: activeYear.id } });
-        if (!myClass) return res.status(404).json({ message: 'Kelas tidak ditemukan.' });
-
-        const evaluations = await Evaluation.findAll({
-            where: { class_id: myClass.id },
-            attributes: ['id', 'title'],
-            group: ['title']  // Group by title, karena 2 semester
-        });
-
-        res.json({ evaluations });
+      const activeYear = await AcademicYear.findOne({
+        where: { is_active: true },
+        include: [{ model: Semester }]
+      });
+  
+      if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+  
+      res.json({ semesters: activeYear.Semesters });
     } catch (error) {
-        res.status(500).json({ message: 'Terjadi kesalahan.', error: error.message });
+      res.status(500).json({ message: 'Gagal mengambil semester', error });
+    }
+});  
+
+// title evaluasi semester
+router.get('/semesters/:semester_id/evaluations', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const semesterId = req.params.semester_id;
+  
+      const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+      const myClass = await Class.findOne({ where: { teacher_id: userId, academic_year_id: activeYear.id } });
+  
+      if (!myClass) return res.status(404).json({ message: 'Kelas tidak ditemukan' });
+  
+      const evaluations = await Evaluation.findAll({
+        where: {
+          class_id: myClass.id,
+          semester_id: semesterId
+        }
+      });
+  
+      res.json({ evaluations });
+    } catch (error) {
+      res.status(500).json({ message: 'Gagal mengambil evaluasi', error });
     }
 });
 
-// Tambah title evaluasi
-router.post('/evaluation', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+// Tambah title evaluasi per semester
+router.post('/semesters/:semester_id/evaluations', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
-        const userId = req.user.id;
+        const { semester_id } = req.params;
         const { title } = req.body;
+        const userId = req.user.id;
 
-        if (!title) {
-            return res.status(400).json({ message: 'Judul evaluasi wajib diisi.' });
-        }
-
-        // Cari tahun ajaran aktif
+        // Cek tahun ajaran aktif
         const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
-        if (!activeYear) {
-            return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan.' });
-        }
+        if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
 
-        // Cari kelas wali kelas di tahun ajaran aktif
+        // Cek kelas wali kelas
         const myClass = await Class.findOne({
-            where: {
-                teacher_id: userId,
-                academic_year_id: activeYear.id
-            }
+            where: { teacher_id: userId, academic_year_id: activeYear.id }
         });
-        if (!myClass) {
-            return res.status(404).json({ message: 'Kelas untuk wali kelas ini tidak ditemukan.' });
-        }
+        if (!myClass) return res.status(404).json({ message: 'Kelas tidak ditemukan' });
 
-        // Cari semester Ganjil
-        const semesterGanjil = await Semester.findOne({
+        // Cek semester valid
+        const semester = await Semester.findByPk(semester_id);
+        if (!semester) return res.status(404).json({ message: 'Semester tidak ditemukan' });
+
+        // Cek apakah evaluasi dengan judul sama sudah ada di semester & kelas tersebut
+        const existingEvaluation = await Evaluation.findOne({
             where: {
-                academic_year_id: activeYear.id,
-                name: 'Ganjil'
-            }
-        });
-        if (!semesterGanjil) {
-            return res.status(404).json({ message: 'Semester Ganjil tidak ditemukan.' });
-        }
-
-        // Cari semester Genap
-        const semesterGenap = await Semester.findOne({
-            where: {
-                academic_year_id: activeYear.id,
-                name: 'Genap'
-            }
-        });
-        if (!semesterGenap) {
-            return res.status(404).json({ message: 'Semester Genap tidak ditemukan.' });
-        }
-
-        // Buat evaluasi untuk semester Ganjil dan Genap
-        const [evaluationGanjil, evaluationGenap] = await Promise.all([
-            Evaluation.create({
-                title: title,
+                title,
                 class_id: myClass.id,
-                semester_id: semesterGanjil.id
-            }),
-            Evaluation.create({
-                title: title,
-                class_id: myClass.id,
-                semester_id: semesterGenap.id
-            })
-        ]);
+                semester_id: semester_id
+            }
+        });
 
-        // Tambahkan student evaluations
-        const students = await StudentClass.findAll({ where: { class_id: myClass.id } });
-        const studentEvaluations = students.map(student => ({
-            evaluation_id: evaluationGanjil.id,
-            student_class_id: student.id
+        if (existingEvaluation) {
+            return res.status(400).json({ message: 'Evaluasi dengan judul ini sudah ada pada semester ini untuk kelas tersebut' });
+        }
+
+        // Buat evaluasi baru
+        const evaluation = await Evaluation.create({
+            title,
+            class_id: myClass.id,
+            semester_id
+        });
+
+        // Ambil semua siswa di kelas ini
+        const studentClasses = await StudentClass.findAll({ where: { class_id: myClass.id } });
+
+        // Siapkan data evaluasi siswa (deskripsi default: null)
+        const evaluationsToInsert = studentClasses.map(sc => ({
+            evaluation_id: evaluation.id,
+            student_class_id: sc.id,
+            description: null
         }));
-        await StudentEvaluation.bulkCreate(studentEvaluations);
 
-        res.status(201).json({
-            message: 'Evaluasi berhasil dibuat untuk semester Ganjil dan Genap.',
-            evaluations: {
-                ganjil: evaluationGanjil,
-                genap: evaluationGenap
-            }
-        });
+        // Masukkan evaluasi siswa secara bulk
+        await StudentEvaluation.bulkCreate(evaluationsToInsert);
+
+        res.status(201).json({ message: 'Evaluasi berhasil ditambahkan ke semua siswa', evaluation });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Terjadi kesalahan saat membuat evaluasi.', error: error.message });
+        console.error('Error creating evaluation:', error);
+        res.status(500).json({ message: 'Gagal menambahkan evaluasi', error: error.message });
     }
 });
 
 // Edit title evaluasi
-router.put('/evaluation/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.put('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
-        const { id } = req.params;
-        const { title } = req.body;
-        const userId = req.user.id;
-
-        if (!title) return res.status(400).json({ message: 'Judul evaluasi wajib diisi.' });
-
-        const evaluation = await Evaluation.findByPk(id, { include: { model: Class, as: 'class' } });
-        if (!evaluation) return res.status(404).json({ message: 'Evaluasi tidak ditemukan.' });
-
-        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
-        if (!activeYear || evaluation.class.academic_year_id !== activeYear.id) {
-            return res.status(403).json({ message: 'Tahun ajaran tidak aktif.' });
-        }
-
-        if (evaluation.class.teacher_id !== userId) {
-            return res.status(403).json({ message: 'Anda tidak berhak mengedit evaluasi ini.' });
-        }
-
-        // Update semua evaluasi (Ganjil dan Genap)
-        await Evaluation.update({ title }, {
-            where: {
-                title: evaluation.title,
-                class_id: evaluation.class_id
-            }
-        });
-
-        res.json({ message: 'Judul evaluasi berhasil diperbarui untuk kedua semester.' });
+      const { title } = req.body;
+      const { id } = req.params;
+  
+      const updated = await Evaluation.update({ title }, { where: { id } });
+      res.json({ message: 'Evaluasi berhasil diperbarui' });
     } catch (error) {
-        res.status(500).json({ message: 'Terjadi kesalahan.', error: error.message });
+      res.status(500).json({ message: 'Gagal mengedit evaluasi', error });
     }
 });
 
 // Hapus title evaluasi
-router.delete('/evaluation/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.delete('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
-        const { id } = req.params;
-        const userId = req.user.id;
-
-        const evaluation = await Evaluation.findByPk(id, { include: { model: Class, as: 'class' } });
-        if (!evaluation) return res.status(404).json({ message: 'Evaluasi tidak ditemukan.' });
-
-        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
-        if (!activeYear || evaluation.class.academic_year_id !== activeYear.id) {
-            return res.status(403).json({ message: 'Tidak dapat menghapus evaluasi di tahun ajaran non-aktif.' });
-        }
-
-        if (evaluation.class.teacher_id !== userId) {
-            return res.status(403).json({ message: 'Anda bukan wali kelas yang berhak menghapus evaluasi ini.' });
-        }
-
-        await StudentEvaluation.destroy({ where: { evaluation_id: evaluation.id } });
-
-        // Hapus kedua semester berdasarkan title dan class_id
-        await Evaluation.destroy({
-            where: {
-                title: evaluation.title,
-                class_id: evaluation.class_id
-            }
-        });
-
-        res.json({ message: 'Evaluasi di kedua semester berhasil dihapus.' });
+      const { id } = req.params;
+      await Evaluation.destroy({ where: { id } });
+      res.json({ message: 'Evaluasi berhasil dihapus' });
     } catch (error) {
-        res.status(500).json({ message: 'Terjadi kesalahan.', error: error.message });
+      res.status(500).json({ message: 'Gagal menghapus evaluasi', error });
     }
 });
 
 // daftar evaluasi siswa per judul di tiap semester
-router.get('/evaluation/:title', async (req, res) => {
-    const { title } = req.params;
-    const { semester } = req.query;
-
+router.get('/evaluations/:evaluation_id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
-        // Mengambil data evaluation berdasarkan title dan semester
-        const evaluations = await Evaluation.findAll({
-            where: {
-                title: title,
-                semester: semester
-            },
+        const { evaluation_id } = req.params;
+
+        const studentEvaluations = await StudentEvaluation.findAll({
+            where: { evaluation_id },
             include: [
                 {
-                    model: StudentEvaluation,
-                    as: 'student_evaluations',
+                    model: StudentClass,
+                    as: 'student_class',
                     include: [
                         {
-                            model: StudentClass,
-                            as: 'student_class',
-                            include: [Student]  // Menyertakan data Student di dalam StudentClass
+                            model: Student,
+                            as: 'student',
+                            attributes: ['id', 'name', 'nisn', 'birth_date']
                         }
                     ]
                 }
             ]
         });
 
-        // Mengecek apakah data evaluation ditemukan
-        if (!evaluations || evaluations.length === 0) {
-            return res.status(404).json({ message: 'Evaluations not found for the given title and semester.' });
-        }
-
-        // Mapping data untuk memastikan student_class tersedia
-        const responseData = evaluations.map((evaluation) => {
-            return {
-                title: evaluation.title,
-                semester: evaluation.semester,
-                student_evaluations: evaluation.student_evaluations.map((se) => {
-                    // Pastikan student_class ada sebelum mengakses properti
-                    if (se.student_class) {
-                        return {
-                            student_id: se.student_class.student ? se.student_class.student.id : null,
-                            student_name: se.student_class.student ? se.student_class.student.name : 'Nama Tidak Tersedia',
-                            description: se.description || 'Deskripsi Tidak Ada',
-                        };
-                    } else {
-                        return {
-                            student_id: null,
-                            student_name: 'Student Class Tidak Ditemukan',
-                            description: se.description || 'Deskripsi Tidak Ada',
-                        };
-                    }
-                })
-            };
-        });
-
-        // Mengirimkan data response
-        res.status(200).json(responseData);
-
+        res.json({ studentEvaluations });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal Server Error', error: error.message });
+        console.error('Error fetching student evaluations:', error);
+        res.status(500).json({ message: 'Gagal mengambil evaluasi siswa', error: error.message });
     }
 });
 
 // Edit deskripsi evaluasi siswa
-router.put('/evaluation/:evaluationId/student/:studentId', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.put('/student-evaluations/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
-        const { evaluationId, studentId } = req.params;
+        const { id } = req.params;
         const { description } = req.body;
 
-        if (!description) {
-            return res.status(400).json({ message: 'Deskripsi evaluasi wajib diisi.' });
-        }
+        const evaluation = await StudentEvaluation.findByPk(id);
 
-        const evaluation = await Evaluation.findByPk(evaluationId);
         if (!evaluation) {
-            return res.status(404).json({ message: 'Evaluasi tidak ditemukan.' });
+            return res.status(404).json({ message: "Evaluasi siswa tidak ditemukan" });
         }
 
-        const studentEvaluation = await StudentEvaluation.findOne({
-            where: {
-                evaluation_id: evaluationId,
-                student_class_id: studentId
-            }
-        });
+        evaluation.description = description;
+        await evaluation.save();
 
-        if (!studentEvaluation) {
-            return res.status(404).json({ message: 'Evaluasi siswa tidak ditemukan.' });
-        }
-
-        // Update deskripsi evaluasi siswa
-        studentEvaluation.description = description;
-        await studentEvaluation.save();
-
-        res.status(200).json({ message: 'Evaluasi siswa berhasil diperbarui.' });
+        res.json({ message: "Deskripsi evaluasi berhasil diperbarui", evaluation });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Terjadi kesalahan saat memperbarui evaluasi.', error: error.message });
+        console.error('Error updating evaluation description:', error);
+        res.status(500).json({ message: 'Gagal memperbarui deskripsi evaluasi', error: error.message });
     }
 });
 
 // *** GRADES ***
 // list mapel sesuai jadwal
-router.get('/grades', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.get('/subjects/grades', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
-        // Ambil class_id berdasarkan teacher_id
-        const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
+        // 1. Cari tahun ajaran aktif
+        const activeAcademicYear = await AcademicYear.findOne({ where: { is_active: true } });
 
-        if (!teacherClass) {
-            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+        if (!activeAcademicYear) {
+            return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
         }
 
+        // 2. Cari kelas wali berdasarkan user.id dan tahun ajaran aktif
+        const teacherClass = await Class.findOne({
+            where: {
+                teacher_id: req.user.id,
+                academic_year_id: activeAcademicYear.id
+            }
+        });
+
+        if (!teacherClass) {
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar di tahun ajaran aktif' });
+        }
+
+        // 3. Ambil jadwal kelas beserta mata pelajaran
         const schedules = await Schedule.findAll({
             where: { class_id: teacherClass.id },
-            include: [{ model: Subject, as: 'subject', attributes: ['id', 'name'] }],
+            include: [
+                {
+                    model: Subject,
+                    as: 'subject',
+                    attributes: ['id', 'name']
+                }
+            ],
             attributes: ['subject_id']
         });
 
+        // 4. Ambil daftar mata pelajaran unik
         const uniqueSubjects = [];
         const subjectSet = new Set();
 
@@ -657,7 +569,7 @@ router.get('/grades', accessValidation, roleValidation(['wali_kelas']), async (r
 
         res.json(uniqueSubjects);
     } catch (error) {
-        console.error("Error fetching grades:", error);
+        console.error("Error fetching subjects for academic grades:", error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });

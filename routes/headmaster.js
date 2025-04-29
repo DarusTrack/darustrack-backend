@@ -1,184 +1,172 @@
 const express = require('express');
 const router = express.Router();
-const { Class, Student, StudentGrade, GradeCategory, GradeDetail, Attendance, Subject } = require('../models');
+const { Class, StudentGrade, GradeCategory, GradeDetail, Attendance, Subject, AcademicYear, Semester, StudentClass } = require('../models');
 const { Op, fn, col, literal } = require('sequelize');
 const sequelize = require('../config/database');
+const accessValidation = require('../middlewares/accessValidation');
+const roleValidation = require('../middlewares/roleValidation');
 
-router.get('/classes', async (req, res) => {
+// Endpoint: Get all classes summary
+router.get('/classes', accessValidation, roleValidation(["kepala_sekolah"]), async (req, res) => {
     try {
+        // Mendapatkan tahun ajaran aktif
+        const academicYear = await AcademicYear.findOne({ where: { is_active: true } });
+        if (!academicYear) {
+            return res.status(404).json({ message: 'No active academic year found.' });
+        }
+
+        // Mendapatkan semester aktif
+        const semester = await Semester.findOne({
+            where: {
+                academic_year_id: academicYear.id,
+                is_active: true
+            }
+        });
+        if (!semester) {
+            return res.status(404).json({ message: 'No active semester found.' });
+        }
+
+        // Mendapatkan kelas yang terkait dengan tahun ajaran aktif
         const classes = await Class.findAll({
+            where: {
+                academic_year_id: academicYear.id
+            },
             include: [
-                {
-                    model: Student,
-                    as: 'students',
+                { 
+                    model: StudentClass, 
+                    as: 'student_classes',
                     include: [
                         {
-                            model: StudentGrade,
-                            as: 'student_grade',
-                            include: [{ model: GradeDetail, as: 'grade_detail' }]
+                            model: Attendance,
+                            as: 'attendances',  // Mengambil data kehadiran setiap kelas siswa
+                            where: { semester_id: semester.id },
+                            attributes: ['status'] 
                         },
-                        { model: Attendance, as: 'attendance' }
+                        { 
+                            model: GradeCategory,
+                            as: 'GradeCategories',
+                            include: [
+                                { 
+                                    model: StudentGrade, 
+                                    as: 'student_grades',
+                                    attributes: ['score'],
+                                    where: { student_class_id: sequelize.col('student_classes.id') }  // Gabungkan dengan student_class_id
+                                }
+                            ]
+                        }
                     ]
                 }
             ]
-        });
-
-        console.log('Fetched Classes:', classes);
+        });        
         
-        const formattedClasses = classes.map(cls => {
-            const students = cls.students || [];
-            const totalStudents = students.length;
+        // Format data untuk kelas
+        const formattedClasses = classes.map(classItem => {
+            const grade_level = classItem.name.split(' ')[0];  // Contoh: "1A" -> "1"
 
-            let totalScores = 0;
-            let totalGrades = 0;
-            students.forEach(student => {
-                (student.student_grade || []).forEach(grade => {
-                    if (grade.score !== null) {
-                        totalScores += grade.score;
-                        totalGrades++;
-                    }
-                });
-            });
-            const averageScore = totalGrades ? (totalScores / totalGrades).toFixed(2) : 0;
+            // Hitung total siswa
+            const total_students = classItem.student_classes.length;
 
-            let totalPresent = 0;
-            let totalAttendances = 0;
-            students.forEach(student => {
-                (student.attendance || []).forEach(att => {
-                    if (att.status === 'Hadir') totalPresent++;
-                    totalAttendances++;
-                });
-            });
-            console.log(`Class: ${cls.name}, Total Present: ${totalPresent}, Total Attendances: ${totalAttendances}`);
-            const attendancePercentage = totalAttendances ? ((totalPresent / totalAttendances) * 100).toFixed(2) : 0;
+            // Hitung rata-rata nilai
+            const totalScore = classItem.student_classes.reduce((acc, studentClass) => {
+                const scores = studentClass.GradeCategories.flatMap(gradeCategory => 
+                    gradeCategory.student_grades.map(grade => grade.score)
+                );
+                return acc + scores.reduce((sum, score) => sum + score, 0);
+            }, 0);
+            const average_score = (totalScore / (total_students * classItem.student_classes[0].GradeCategories.length)) || 0;
 
+            // Hitung persentase kehadiran
+            const totalAttendance = classItem.student_classes.reduce((acc, studentClass) => {
+                return acc + studentClass.attendances.length;
+            }, 0);
+            const presentAttendance = classItem.student_classes.reduce((acc, studentClass) => {
+                return acc + studentClass.attendances.filter(att => att.status === 'Hadir').length;
+            }, 0);
+            const attendance_percentage = (totalAttendance === 0) ? '0%' : `${(presentAttendance / totalAttendance) * 100}%`;
+
+            // Kembalikan data yang sudah diformat
             return {
-                id: cls.id,
-                name: cls.name,
-                grade_level: cls.grade_level,
-                total_students: totalStudents,
-                average_score: averageScore,
-                attendance_percentage: attendancePercentage
+                id: classItem.id,
+                name: classItem.name,
+                grade_level,  // Level kelas yang diekstrak dari nama kelas
+                total_students,
+                average_score: average_score.toFixed(2), // Bulatkan ke 2 angka desimal
+                attendance_percentage
             };
         });
 
-        res.json(formattedClasses);
+        // Kirim data dalam bentuk JSON
+        return res.json(formattedClasses);
     } catch (error) {
-        console.error('Error fetching classes:', error);
-        res.status(500).json({ error: error.message });
+        console.error(error); // Log error untuk debugging
+        return res.status(500).json({ message: 'Internal Server Error', error });
     }
 });
 
+// Endpoint: Get detail class
 router.get('/classes/:classId', async (req, res) => {
     try {
         const { classId } = req.params;
-        const cls = await Class.findByPk(classId, {
+
+        const classData = await Class.findByPk(classId, {
             include: [
-                {
-                    model: Student,
-                    as: 'students',
-                    include: [
-                        {
-                            model: StudentGrade,
-                            as: 'student_grade',
-                            include: [{ 
-                                model: GradeDetail, 
-                                as: 'grade_detail',
-                                include: [{ 
-                                    model: GradeCategory, 
-                                    as: 'grade_category',
-                                    include: [{ model: Subject, as: 'subject' }] // ✅ Subject diambil dari GradeCategory
-                                }]
-                            }]                            
-                        },
-                        { model: Attendance, as: 'attendance' }
-                    ]
-                }
+                { model: StudentClass, as: 'student_classes', include: [{ model: Attendance, as: 'attendance' }] },
+                { model: GradeCategory, as: 'grade_category', include: [{ model: StudentGrade, as: 'student_grades' }] }
             ]
         });
 
-        if (!cls) return res.status(404).json({ error: "Class not found" });
+        if (!classData) {
+            return res.status(404).json({ message: 'Class not found.' });
+        }
 
-        console.log('Fetched Class:', cls);
-        const students = cls.students || [];
-        const totalStudents = students.length; // ✅ Menambahkan jumlah siswa
+        const totalStudents = classData.student_classes.length;
+        const subjectAverages = [];
 
-        let subjectScores = {};
-        let totalScores = 0;
-        let totalGrades = 0;
-
-        students.forEach(student => {
-            (student.student_grade || []).forEach(grade => {
-                if (grade.score !== null && grade.grade_detail && grade.grade_detail.grade_category && grade.grade_detail.grade_category.subject) {
-                    const subjectId = grade.grade_detail.grade_category.subject.id;
-                    const subjectName = grade.grade_detail.grade_category.subject.name;
-
-                    if (!subjectScores[subjectId]) {
-                        subjectScores[subjectId] = { name: subjectName, total: 0, count: 0 };
-                    }
-                    subjectScores[subjectId].total += grade.score;
-                    subjectScores[subjectId].count++;
-                    totalScores += grade.score;
-                    totalGrades++;
-                }
+        for (let gradeCategory of classData.grade_category) {
+            const subjectId = gradeCategory.subject_id;
+            const grades = await StudentGrade.findAll({
+                where: { grade_category_id: gradeCategory.id },
             });
-        });
+            const averageScore = grades.reduce((acc, grade) => acc + grade.score, 0) / grades.length;
 
-        // Mengonversi hasil subjectScores menjadi array
-        const subjectAverages = Object.keys(subjectScores).map(subjectId => ({
-            subject_id: subjectId,
-            subject_name: subjectScores[subjectId].name,
-            average_score: subjectScores[subjectId].count ? (subjectScores[subjectId].total / subjectScores[subjectId].count).toFixed(2) : "0.00"
-        }));
-
-        const averageScore = totalGrades ? (totalScores / totalGrades).toFixed(2) : "0.00";
-
-        let totalPresent = 0;
-        let totalAttendances = 0;
-        students.forEach(student => {
-            (student.attendance || []).forEach(att => {
-                if (att.status === 'Hadir') totalPresent++;
-                totalAttendances++;
+            subjectAverages.push({
+                subject_id: subjectId,
+                subject_name: gradeCategory.subject.name,
+                average_score: averageScore
             });
-        });
+        }
 
-        console.log(`Class ID: ${classId}, Total Present: ${totalPresent}, Total Attendances: ${totalAttendances}`);
-        const attendancePercentage = totalAttendances ? ((totalPresent / totalAttendances) * 100).toFixed(2) : "0.00";
+        const classAverage = subjectAverages.reduce((acc, subject) => acc + subject.average_score, 0) / subjectAverages.length;
 
-        const studentRanks = students.map(student => {
-            let studentTotalScore = 0;
-            let studentTotalGrades = 0;
-            (student.student_grade || []).forEach(grade => {
-                if (grade.score !== null) {
-                    studentTotalScore += grade.score;
-                    studentTotalGrades++;
-                }
-            });
+        const attendancePercentage = (classData.student_classes.reduce((acc, studentClass) => {
+            const totalAttendance = studentClass.attendance.length;
+            const attended = studentClass.attendance.filter(a => a.status === 'Hadir').length;
+            return acc + (attended / totalAttendance);
+        }, 0)) / totalStudents;
+
+        const studentRanks = classData.student_classes.map((studentClass, index) => {
+            const studentGrades = studentClass.student_grades;
+            const avgScore = studentGrades.reduce((acc, grade) => acc + grade.score, 0) / studentGrades.length;
             return {
-                id: student.id,
-                name: student.name,
-                average_score: studentTotalGrades ? (studentTotalScore / studentTotalGrades).toFixed(2) : "0.00"
+                id: studentClass.id,
+                name: studentClass.student.name,
+                average_score: avgScore,
+                rank: index + 1 // Rank could be calculated based on the scores
             };
         });
 
-        studentRanks.sort((a, b) => b.average_score - a.average_score);
-        studentRanks.forEach((student, index) => {
-            student.rank = index + 1;
-        });
-
-        res.json({
-            class_id: cls.id,
-            class_name: cls.name,
-            grade_level: cls.grade_level,
-            total_students: totalStudents, // ✅ Menampilkan jumlah siswa
+        return res.json({
+            id: classData.id,
+            name: classData.name,
+            grade_level: classData.grade_level,
+            total_students: totalStudents,
             subject_averages: subjectAverages,
-            class_average: averageScore,
+            class_average: classAverage,
             attendance_percentage: attendancePercentage,
             student_ranks: studentRanks
         });
     } catch (error) {
-        console.error('Error fetching class details:', error);
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ message: 'Internal Server Error', error });
     }
 });
 

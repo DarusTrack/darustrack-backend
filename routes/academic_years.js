@@ -289,7 +289,7 @@ router.get('/:academicYearId/classes/:classId/students', accessValidation, roleV
       include: [
         {
           model: StudentClass, // Sertakan StudentClass sebagai penghubung
-          as: 'student_class', // Alias sesuai dengan relasi di model Class
+          as: 'student_classes', // Alias sesuai dengan relasi di model Class
           include: [
             {
               model: Student, // Sertakan model Student
@@ -306,10 +306,13 @@ router.get('/:academicYearId/classes/:classId/students', accessValidation, roleV
     }
 
     // Menyusun response untuk daftar siswa
+    const students = classData.student_classes ? classData.student_classes.map(sc => sc.student) : [];
+
+    // Kirim response
     res.json({
       class_id: classData.id,
       class_name: classData.name,
-      students: classData.student_class.map(sc => sc.student) // Ambil data siswa melalui relasi StudentClass
+      students: students
     });
   } catch (error) {
     console.error(error);

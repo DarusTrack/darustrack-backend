@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         date: {
-            type: DataTypes.DATE,
+            type: DataTypes.DATEONLY,
             allowNull: false
         }
     }, {
@@ -34,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
 
     GradeDetail.associate = (models) => {
         GradeDetail.belongsTo(models.GradeCategory, { foreignKey: 'grade_category_id', as: 'grade_category' });
-        GradeDetail.hasMany(models.StudentGrade, { foreignKey: 'grade_detail_id', as: 'student_grades' });
+        GradeDetail.hasMany(models.StudentGrade, { foreignKey: 'grade_detail_id', as: 'student_grade' });
     };
 
     return GradeDetail;

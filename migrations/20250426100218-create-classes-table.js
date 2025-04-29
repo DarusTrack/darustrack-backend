@@ -20,7 +20,7 @@ module.exports = {
             key: 'id'
           },
           onUpdate: 'CASCADE',
-          onDelete: 'CASCADE'
+          onDelete: 'SET NULL'
       },
       academic_year_id: {
         type: Sequelize.STRING(5),

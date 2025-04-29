@@ -31,8 +31,7 @@ module.exports = (sequelize, DataTypes) => {
         Class.belongsTo(models.AcademicYear, { foreignKey: 'academic_year_id', as: 'academic_year' });
         Class.hasMany(models.Schedule, { foreignKey: 'class_id', as: 'schedule' });
         Class.hasMany(models.GradeCategory, { foreignKey: 'class_id', as: 'grade_category' });
-        Class.hasMany(models.Attendance, { foreignKey: 'class_id', as: 'attendance' });
-        Class.hasMany(models.StudentClass, { foreignKey: 'class_id', as: 'student_class' });
+        Class.hasMany(models.StudentClass, { foreignKey: 'class_id', as: 'student_classes' }); 
     };
 
     return Class;

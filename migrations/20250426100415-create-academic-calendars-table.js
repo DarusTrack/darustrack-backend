@@ -5,6 +5,7 @@ module.exports = {
     await queryInterface.createTable('academic_calendar', {
       id: {
         type: Sequelize.INTEGER,
+        allowNull: false,
         primaryKey: true,
         autoIncrement: true
       },
