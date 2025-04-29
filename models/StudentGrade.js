@@ -9,9 +9,18 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false, 
             defaultValue: () => nanoid() 
         },
-        student_class_id: { type: DataTypes.STRING(5), allowNull: false },
-        grade_detail_id: { type: DataTypes.STRING(5), allowNull: false },
-        score: { type: DataTypes.FLOAT, allowNull: true },
+        student_class_id: { 
+            type: DataTypes.STRING(5), 
+            allowNull: false 
+        },
+        grade_detail_id: { 
+            type: DataTypes.STRING(5), 
+            allowNull: false 
+        },
+        score: { 
+            type: DataTypes.FLOAT, 
+            allowNull: true 
+        },
     }, {
         tableName: 'student_grades'
     });

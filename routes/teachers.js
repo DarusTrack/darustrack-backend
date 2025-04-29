@@ -519,7 +519,7 @@ router.put('/student-evaluations/:id', accessValidation, roleValidation(["wali_k
 
 // *** GRADES ***
 // list mapel sesuai jadwal
-router.get('/subjects/grades', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.get('/grades/subjects', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         // 1. Cari tahun ajaran aktif
         const activeAcademicYear = await AcademicYear.findOne({ where: { is_active: true } });
@@ -575,68 +575,81 @@ router.get('/subjects/grades', accessValidation, roleValidation(['wali_kelas']),
 });
 
 // kategori penilaian setiap mapel
-router.get('/grades/:subject_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-    try {
-        const { subject_id } = req.params;
-
-        // Ambil class_id berdasarkan teacher_id
+router.get('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+      try {
+        const { subject_id, semester_id } = req.params;
+  
+        // Ambil class_id dari wali kelas yang login
         const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
-
+  
         if (!teacherClass) {
-            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+          return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
         }
-
-        const classId = teacherClass.id; // Mendapatkan class_id dari teacherClass
-
-        // Periksa apakah classId valid
-        if (!classId) {
-            return res.status(400).json({ message: 'class_id tidak ditemukan untuk wali kelas ini' });
-        }
-
+  
+        const classId = teacherClass.id;
+  
+        // Ambil kategori penilaian yang cocok
         const categories = await GradeCategory.findAll({
-            where: { subject_id, class_id: classId }, // Pastikan class_id ada
-            attributes: ['id', 'name']
+          where: {
+            class_id: classId,
+            subject_id,
+            semester_id
+          },
+          attributes: ['id', 'name']
         });
-
+  
         res.json(categories);
-    } catch (error) {
-        console.error("Error fetching categories:", error);
+      } catch (error) {
+        console.error('Error fetching grade categories:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
+      }
     }
-});
+);  
 
 // tambah kategori
-router.post('/grades/:subject_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-    try {
-        const { subject_id } = req.params;
+router.post('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+      try {
+        const { subject_id, semester_id } = req.params;
         const { name } = req.body;
-
+  
         // Ambil class_id berdasarkan teacher_id
         const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
-
+  
         if (!teacherClass) {
-            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+          return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
         }
-
-        const classId = teacherClass.id; // Mendapatkan class_id dari teacherClass
-
-        // Cek apakah kategori dengan nama yang sama sudah ada untuk kelas dan mata pelajaran ini
+  
+        const classId = teacherClass.id;
+  
+        // Cek apakah kategori sudah ada untuk kombinasi kelas, mata pelajaran, semester, dan nama
         const existingCategory = await GradeCategory.findOne({
-            where: { subject_id, class_id: classId, name }
+          where: {
+            subject_id,
+            class_id: classId,
+            semester_id,
+            name
+          }
         });
-
+  
         if (existingCategory) {
-            return res.status(400).json({ message: 'Category already exists for this class and subject' });
+          return res.status(400).json({ message: 'Kategori sudah ada untuk mata pelajaran dan semester ini' });
         }
-
+  
         // Jika belum ada, buat kategori baru
-        const newCategory = await GradeCategory.create({ subject_id, class_id: classId, name });
-
+        const newCategory = await GradeCategory.create({
+          subject_id,
+          class_id: classId,
+          semester_id,
+          name
+        });
+  
         res.status(201).json(newCategory);
-    } catch (error) {
+      } catch (error) {
+        console.error('Error creating grade category:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
+      }
     }
-});
+);
 
 // Edit kategori penilaian
 router.put('/grades/categories/:category_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
