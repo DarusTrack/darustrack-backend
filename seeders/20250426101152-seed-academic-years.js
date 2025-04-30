@@ -5,6 +5,8 @@ const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvw
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    const now = new Date();
+    
     // Step 1: Generate ID
     const academicYearId = 'AY01';
     const semesterGanjilId = nanoid();

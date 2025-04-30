@@ -31,26 +31,38 @@ router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) =>
 // POST - Tambah Tahun Ajaran Baru
 router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
   try {
-    const { year } = req.body;
+    const { year, is_active = false } = req.body;
 
-    // Cek apakah tahun ajaran sudah ada
     const existingAcademicYear = await AcademicYear.findOne({ where: { year } });
-
     if (existingAcademicYear) {
       return res.status(400).json({ message: 'Tahun ajaran sudah ada.' });
     }
 
-    // Kalau belum ada, lanjut: nonaktifkan semua tahun ajaran aktif
-    await AcademicYear.update(
-      { is_active: false },
-      { where: { is_active: true } }
-    );
+    // Jika tahun ajaran baru akan diaktifkan, nonaktifkan semua tahun ajaran aktif dan semester-nya
+    if (is_active) {
+      const activeAcademicYears = await AcademicYear.findAll({ where: { is_active: true } });
+      for (const ay of activeAcademicYears) {
+        await ay.update({ is_active: false });
+        await Semester.update(
+          { is_active: false },
+          { where: { academic_year_id: ay.id } }
+        );
+      }
+    }
 
-    // Buat tahun ajaran baru (otomatis aktif)
-    const newAcademicYear = await AcademicYear.create({ year, is_active: true });
+    // Buat tahun ajaran baru
+    const newAcademicYear = await AcademicYear.create({ year, is_active });
+
+    // Jika tahun ajaran baru tidak aktif, nonaktifkan semester-nya (setelah hook afterCreate berjalan)
+    if (!is_active) {
+      await Semester.update(
+        { is_active: false },
+        { where: { academic_year_id: newAcademicYear.id } }
+      );
+    }
 
     res.status(201).json({
-      message: 'Tahun ajaran berhasil ditambahkan dan diaktifkan.',
+      message: `Tahun ajaran berhasil ditambahkan${is_active ? ' dan diaktifkan' : ''}.`,
       data: newAcademicYear
     });
 
@@ -82,9 +94,15 @@ router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res)
     }
 
     // Update field satu-satu
-    if (typeof year !== 'undefined') {
+    if (typeof year !== 'undefined' && academicYear.year !== year) {
+      // Cek apakah year sudah dipakai entri lain
+      const existing = await AcademicYear.findOne({ where: { year } });
+      if (existing && existing.id !== id) {
+        return res.status(400).json({ message: `Tahun ajaran '${year}' sudah ada.` });
+      }
       academicYear.year = year;
     }
+
     if (typeof is_active !== 'undefined') {
       academicYear.is_active = is_active;
     }

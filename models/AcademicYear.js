@@ -29,12 +29,11 @@ module.exports = (sequelize, DataTypes) => {
   AcademicYear.addHook('afterCreate', async (academicYear, options) => {
     const Semester = sequelize.models.Semester;
   
-    // Tambahkan 2 semester saat tahun ajaran baru dibuat
     await Semester.bulkCreate([
       {
         name: 'Ganjil',
         academic_year_id: academicYear.id,
-        is_active: true // Default Ganjil aktif saat create
+        is_active: academicYear.is_active // aktif hanya kalau tahun ajaran aktif
       },
       {
         name: 'Genap',
@@ -42,7 +41,15 @@ module.exports = (sequelize, DataTypes) => {
         is_active: false
       }
     ]);
-  });
+  
+    // Jika tahun ajaran tidak aktif, pastikan semua semester juga nonaktif
+    if (!academicYear.is_active) {
+      await Semester.update(
+        { is_active: false },
+        { where: { academic_year_id: academicYear.id } }
+      );
+    }
+  });  
   
   AcademicYear.addHook('beforeUpdate', async (academicYear, options) => {
     if (academicYear.changed('is_active')) {
