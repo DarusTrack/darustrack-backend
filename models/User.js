@@ -35,15 +35,7 @@ module.exports = (sequelize, DataTypes) => {
         role: {
             type: DataTypes.ENUM('orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'),
             allowNull: false
-        },
-        resetPasswordToken: {
-            type: DataTypes.STRING,
-            allowNull: true
-        },
-        resetPasswordExpires: {
-            type: DataTypes.DATE,
-            allowNull: true
-        }        
+        }
     }, {
         tableName: 'users',
     });
@@ -56,6 +48,7 @@ module.exports = (sequelize, DataTypes) => {
     User.associate = (models) => {
         User.hasMany(models.Student, { foreignKey: 'parent_id', as: 'student' });
         User.hasOne(models.Class, { foreignKey: 'teacher_id', as: 'class' });
+        User.hasMany(models.PasswordReset, { foreignKey: 'user_id' });
     };
 
     return User;

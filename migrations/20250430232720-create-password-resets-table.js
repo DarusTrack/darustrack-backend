@@ -2,32 +2,29 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('users', {
+    await queryInterface.createTable('password_resets', {
       id: {
-        type: Sequelize.STRING(5),
+        type: Sequelize.INTEGER,
+        autoIncrement: true,
         primaryKey: true,
         allowNull: false
       },
-      name: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      nip: {
-        type: Sequelize.STRING,
+      user_id: {
+        type: Sequelize.STRING(5),
         allowNull: true,
-        unique: true
+        references: {
+          model: 'users',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
       },
-      email: {
-        type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
-      },
-      password: {
+      token: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      role: {
-        type: Sequelize.ENUM('orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'),
+      expires_at: {
+        type: Sequelize.DATE,
         allowNull: false
       },
       createdAt: {
@@ -42,6 +39,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('users');
+    await queryInterface.dropTable('password_resets');
   }
 };

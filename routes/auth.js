@@ -2,7 +2,7 @@ var express = require("express");
 var router = express.Router();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const { User } = require("../models");
+const { User, PasswordReset } = require("../models");
 const accessValidation = require("../middlewares/accessValidation");
 const Validator = require("fastest-validator");
 const v = new Validator();
@@ -82,62 +82,43 @@ router.post("/refresh-token", async (req, res) => {
     }
 });
 
-router.post('/forgot-password', async (req, res) => {
+// forgot password
+router.post("/request-reset", async (req, res) => {
     const { email } = req.body;
-  
-    try {
-      const user = await User.findOne({ where: { email } });
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-  
-      const token = crypto.randomBytes(20).toString('hex');
-      const expires = Date.now() + 3600000; // 1 jam
-  
-      user.resetPasswordToken = token;
-      user.resetPasswordExpires = expires;
-      await user.save();
-  
-      await sendResetPasswordEmail(email, token); // ✉️ Kirim email
-  
-      res.json({ message: "Link reset password telah dikirim ke email Anda" });
-    } catch (error) {
-      console.error("Forgot Password Error:", error);
-      res.status(500).json({ message: "Server error", error: error.message });
-    }
-});  
+    const user = await User.findOne({ where: { email } });
 
-router.post('/reset-password', async (req, res) => {
+    if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 menit
+
+    await PasswordReset.create({
+        user_id: user.id,
+        token,
+        expires_at: expiresAt,
+    });
+
+    res.json({ message: "Gunakan link berikut untuk reset password", link: `https://darustrack.vercel.app'/reset-password?token=${token}` });
+});
+
+// reset password
+router.post("/reset-password", async (req, res) => {
     const { token, newPassword } = req.body;
-  
-    if (!token || !newPassword) {
-      return res.status(400).json({ message: "Token dan password baru harus diisi" });
+
+    const resetRequest = await PasswordReset.findOne({ where: { token } });
+    if (!resetRequest || new Date(resetRequest.expires_at) < new Date()) {
+        return res.status(400).json({ message: "Token tidak valid atau sudah kedaluwarsa" });
     }
-  
-    try {
-      // Cari user berdasarkan token dan validasi waktu kadaluwarsa
-      const user = await User.findOne({
-        where: {
-          resetPasswordToken: token,
-          resetPasswordExpires: { [Op.gt]: Date.now() }, // Token masih berlaku
-        },
-      });
-  
-      if (!user) {
-        return res.status(400).json({ message: "Token tidak valid atau sudah kadaluarsa" });
-      }
-  
-      // Update password dan hapus token
-      user.password = await bcrypt.hash(newPassword, 10);
-      user.resetPasswordToken = null;
-      user.resetPasswordExpires = null;
-      await user.save();
-  
-      res.json({ message: "Password berhasil direset, silakan login dengan password baru" });
-    } catch (error) {
-      console.error("Reset Password Error:", error);
-      res.status(500).json({ message: "Server error", error: error.message });
-    }
+
+    const user = await User.findByPk(resetRequest.user_id);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    // Hapus token setelah digunakan
+    await PasswordReset.destroy({ where: { token } });
+
+    res.json({ message: "Password berhasil direset. Silakan login kembali dengan password baru!" });
 });
 
 // Get Profile (Hanya bisa dilakukan oleh user yang login)
