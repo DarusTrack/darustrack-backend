@@ -50,7 +50,7 @@ router.get('/', accessValidation, roleValidation(['admin']), async (req, res) =>
       });
   
       // Menambahkan grade_level ke setiap kelas berdasarkan angka pertama dari nama kelas
-      const classesWithGradeLevel = classes.map(cls => {
+      const classesWithGradeLevel = class.map(cls => {
         const gradeLevel = parseInt(cls.name.charAt(0)); // Ambil angka pertama dari nama kelas
         return {
           ...cls.toJSON(),

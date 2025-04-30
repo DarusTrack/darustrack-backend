@@ -307,7 +307,7 @@ router.get('/:academicYearId/classes/:classId/students', accessValidation, roleV
     }
 
     // Menyusun response untuk daftar siswa
-    const students = classData.student_classes ? classData.student_classes.map(sc => sc.student) : [];
+    const students = classData.student_class ? classData.student_class.map(sc => sc.student) : [];
 
     // Kirim response
     res.json({

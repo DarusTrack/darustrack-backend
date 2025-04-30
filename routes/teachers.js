@@ -346,12 +346,12 @@ router.get('/semesters', accessValidation, roleValidation(["wali_kelas"]), async
     try {
       const activeYear = await AcademicYear.findOne({
         where: { is_active: true },
-        include: [{ model: Semester }]
+        include: [{ model: Semester, as: 'semester' }]
       });
   
       if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
   
-      res.json({ semesters: activeYear.Semesters });
+      res.json({ semesters: activeYear.Semester });
     } catch (error) {
       res.status(500).json({ message: 'Gagal mengambil semester', error });
     }

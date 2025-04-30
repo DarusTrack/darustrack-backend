@@ -75,26 +75,26 @@ router.get('/classes', accessValidation, roleValidation(["kepala_sekolah"]), asy
             const grade_level = grade_level_match ? parseInt(grade_level_match[0]) : null; // Ubah ke number
 
             // Hitung total siswa
-            const total_students = classItem.student_classes.length;
+            const total_students = classItem.student_class.length;
 
             // Hitung rata-rata nilai
-            const totalScore = classItem.student_classes.reduce((acc, studentClass) => {
-                const scores = studentClass.student_grades.map(grade => grade.score || 0);
+            const totalScore = classItem.student_class.reduce((acc, studentClass) => {
+                const scores = studentClass.student_grade.map(grade => grade.score || 0);
                 return acc + scores.reduce((sum, score) => sum + score, 0);
             }, 0);
             
-            const totalGrades = classItem.student_classes.reduce((acc, studentClass) => {
-                return acc + studentClass.student_grades.length;
+            const totalGrades = classItem.student_class.reduce((acc, studentClass) => {
+                return acc + studentClass.student_grade.length;
             }, 0);
             
             const average_score = totalGrades ? (totalScore / totalGrades) : 0;
 
             // Hitung persentase kehadiran
-            const totalAttendance = classItem.student_classes.reduce((acc, studentClass) => {
-                return acc + studentClass.attendances.length;
+            const totalAttendance = classItem.student_class.reduce((acc, studentClass) => {
+                return acc + studentClass.attendance.length;
             }, 0);
-            const presentAttendance = classItem.student_classes.reduce((acc, studentClass) => {
-                return acc + studentClass.attendances.filter(att => att.status === 'Hadir').length;
+            const presentAttendance = classItem.student_class.reduce((acc, studentClass) => {
+                return acc + studentClass.attendance.filter(att => att.status === 'Hadir').length;
             }, 0);
             const attendance_percentage = (totalAttendance === 0) ? '0%' : `${(presentAttendance / totalAttendance) * 100}%`;
 
@@ -183,17 +183,17 @@ router.get('/classes/:classId', accessValidation, roleValidation(['kepala_sekola
         if (!classData) return res.status(404).json({ message: 'Class not found or not in active academic year.' });
 
         // Hitung total siswa
-        const total_students = classData.student_classes.length;
+        const total_students = classData.student_class.length;
 
         const subjectScores = {};
         let totalScore = 0, totalGradeCount = 0;
         let presentCount = 0, totalAttendanceCount = 0;
         const studentRankings = [];
 
-        for (const studentClass of classData.student_classes) {
+        for (const studentClass of classData.student_class) {
             const student = studentClass.student;
-            const grades = studentClass.student_grades;
-            const attendances = studentClass.attendances;
+            const grades = studentClass.student_grade;
+            const attendances = studentClass.attendance;
 
             let studentScoreSum = 0, studentGradeCount = 0;
 
