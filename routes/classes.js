@@ -44,17 +44,17 @@ router.get('/', accessValidation, roleValidation(['admin']), async (req, res) =>
       }
   
       // Ambil kelas yang terkait dengan semester aktif dan filter berdasarkan grade_level (jika ada)
-      const classes = await Class.findAll({
+      const foundClasses = await Class.findAll({
         where: whereConditions,
         attributes: ['id', 'name', 'academic_year_id', 'teacher_id'],
-      });
+      });      
   
       // Menambahkan grade_level ke setiap kelas berdasarkan angka pertama dari nama kelas
-      const classesWithGradeLevel = class.map(cls => {
-        const gradeLevel = parseInt(cls.name.charAt(0)); // Ambil angka pertama dari nama kelas
+      const classesWithGradeLevel = foundClasses.map(cls => {
+        const gradeLevel = parseInt(cls.name.charAt(0));
         return {
           ...cls.toJSON(),
-          grade_level: isNaN(gradeLevel) ? null : gradeLevel // Jika angka pertama tidak valid, set null
+          grade_level: isNaN(gradeLevel) ? null : gradeLevel
         };
       });
   
