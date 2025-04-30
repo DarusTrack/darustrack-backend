@@ -168,7 +168,7 @@ router.get('/:id/classes', accessValidation, roleValidation(["admin"]), async (r
       return res.status(404).json({ message: 'Tahun ajaran tidak ditemukan' });
     }
 
-    const classList = academicYear.classes.map(cls => {
+    const classList = academicYear.class.map(cls => {
       const gradeLevel = parseInt(cls.name.charAt(0));
       return {
         id: cls.id,
