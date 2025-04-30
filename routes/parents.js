@@ -64,7 +64,7 @@ router.get('/schedule', async (req, res) => {
             where: { parent_id: parentId },
             include: [{
                 model: StudentClass,
-                as: 'student_class', // <- Alias yang digunakan
+                as: 'student_class',
                 attributes: ['class_id'],
                 include: [{
                     model: Class,
@@ -73,7 +73,7 @@ router.get('/schedule', async (req, res) => {
                     include: [{
                         model: AcademicYear,
                         as: 'academic_year',
-                        where: { is_active: true }, // hanya tahun ajaran aktif
+                        where: { is_active: true },
                         attributes: ['id']
                     }]
                 }]
@@ -145,6 +145,7 @@ router.get('/semesters', async (req, res) => {
         const semesters = await Semester.findAll({
             include: {
                 model: AcademicYear,
+                as: 'academic_year',
                 where: { is_active: true }
             }
         });

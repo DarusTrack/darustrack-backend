@@ -22,8 +22,8 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   AcademicYear.associate = (models) => {
-    AcademicYear.hasMany(models.Semester, { foreignKey: 'academic_year_id' });
-    AcademicYear.hasMany(models.Class, { foreignKey: 'academic_year_id' });
+    AcademicYear.hasMany(models.Semester, { foreignKey: 'academic_year_id', as: 'semester' });
+    AcademicYear.hasMany(models.Class, { foreignKey: 'academic_year_id', as: 'class' });
   };
 
   AcademicYear.addHook('afterCreate', async (academicYear, options) => {

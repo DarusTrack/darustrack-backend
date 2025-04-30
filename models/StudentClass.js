@@ -22,11 +22,11 @@ module.exports = (sequelize, DataTypes) => {
   
     StudentClass.associate = (models) => {
         StudentClass.belongsTo(models.Student, { foreignKey: 'student_id', as: 'student' });
-        StudentClass.belongsTo(models.Class, { foreignKey: 'class_id' });
+        StudentClass.belongsTo(models.Class, { foreignKey: 'class_id', as: 'class' });
     
-        StudentClass.hasMany(models.StudentGrade, { foreignKey: 'student_class_id', as: 'student_grades' });
-        StudentClass.hasMany(models.StudentEvaluation, { foreignKey: 'student_class_id', as: 'evaluations' });
-        StudentClass.hasMany(models.Attendance, { foreignKey: 'student_class_id', as: 'attendances' });
+        StudentClass.hasMany(models.StudentGrade, { foreignKey: 'student_class_id', as: 'student_grade' });
+        StudentClass.hasMany(models.StudentEvaluation, { foreignKey: 'student_class_id', as: 'student_evaluation' });
+        StudentClass.hasMany(models.Attendance, { foreignKey: 'student_class_id', as: 'attendance' });
     };
     
     return StudentClass;

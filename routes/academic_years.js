@@ -15,6 +15,7 @@ router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) =>
           include: [
             {
               model: Semester,
+              as: 'semester',
               attributes: ['id', 'name', 'is_active']
             }
           ],
@@ -66,7 +67,7 @@ router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res)
     const { year, is_active } = req.body;
 
     const academicYear = await AcademicYear.findByPk(id, {
-      include: [{ model: Semester }]
+      include: [{ model: Semester, as: 'semester' }]
     });
 
     if (!academicYear) {
@@ -157,7 +158,7 @@ router.get('/:id/classes', accessValidation, roleValidation(["admin"]), async (r
       include: [
         {
           model: Class,
-          as: 'classes',
+          as: 'class',
           attributes: ['id', 'name']
         }
       ]
@@ -288,12 +289,12 @@ router.get('/:academicYearId/classes/:classId/students', accessValidation, roleV
       },
       include: [
         {
-          model: StudentClass, // Sertakan StudentClass sebagai penghubung
-          as: 'student_classes', // Alias sesuai dengan relasi di model Class
+          model: StudentClass,
+          as: 'student_class',
           include: [
             {
-              model: Student, // Sertakan model Student
-              as: 'student', // Alias sesuai dengan relasi di model StudentClass
+              model: Student,
+              as: 'student',
               attributes: ['id', 'name', 'nisn', 'birth_date', 'parent_id']
             }
           ]

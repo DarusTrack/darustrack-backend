@@ -34,18 +34,18 @@ router.get('/classes', accessValidation, roleValidation(["kepala_sekolah"]), asy
             include: [
                 {
                     model: StudentClass,
-                    as: 'student_classes',
+                    as: 'student_class',
                     include: [
                         {
                             model: Attendance,
-                            as: 'attendances',
+                            as: 'attendance',
                             where: { semester_id: semester.id },
                             required: false, // ← Supaya tidak error kalau tidak ada data
                             attributes: ['status']
                         },
                         {
                             model: StudentGrade,
-                            as: 'student_grades',
+                            as: 'student_grade',
                             attributes: ['score'],
                             include: [
                                 {
@@ -143,7 +143,7 @@ router.get('/classes/:classId', accessValidation, roleValidation(['kepala_sekola
             where: { id: classId, academic_year_id: academicYear.id },
             include: [{
                 model: StudentClass,
-                as: 'student_classes',
+                as: 'student_class',
                 include: [
                     {
                         model: Student,
@@ -151,14 +151,14 @@ router.get('/classes/:classId', accessValidation, roleValidation(['kepala_sekola
                     },
                     {
                         model: Attendance,
-                        as: 'attendances',
+                        as: 'attendance',
                         where: { semester_id: semester.id },
                         required: false,
                         attributes: ['status']
                     },
                     {
                         model: StudentGrade,
-                        as: 'student_grades',
+                        as: 'student_grade',
                         required: false,
                         include: [{
                             model: GradeDetail,

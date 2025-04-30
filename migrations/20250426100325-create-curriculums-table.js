@@ -28,16 +28,6 @@ module.exports = {
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       }
     });
-
-    // Menambahkan data awal
-    await queryInterface.bulkInsert('curriculums', [
-      {
-        name: 'Kurikulum Merdeka',
-        description: 'Kurikulum terbaru yang lebih fleksibel dalam memberikan pembelajaran sesuai kebutuhan siswa.',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ]);
   },
 
   down: async (queryInterface, Sequelize) => {

@@ -54,8 +54,8 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     User.associate = (models) => {
-        User.hasMany(models.Student, { foreignKey: 'parent_id', as: 'students' });
-        User.hasOne(models.Class, { foreignKey: 'teacher_id', as: 'class' }); // ✅ Wali kelas untuk satu kelas
+        User.hasMany(models.Student, { foreignKey: 'parent_id', as: 'student' });
+        User.hasOne(models.Class, { foreignKey: 'teacher_id', as: 'class' });
     };
 
     return User;

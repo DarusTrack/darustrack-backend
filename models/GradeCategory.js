@@ -43,7 +43,7 @@ module.exports = (sequelize, DataTypes) => {
 
         GradeCategory.hasMany(models.GradeDetail, {
             foreignKey: 'grade_category_id',
-            as: 'grade_details'
+            as: 'grade_detail'
         });
     };
 

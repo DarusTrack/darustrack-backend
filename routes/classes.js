@@ -15,6 +15,7 @@ router.get('/', accessValidation, roleValidation(['admin']), async (req, res) =>
         include: [
           {
             model: AcademicYear,
+            as: 'academic_year',
             required: true, // Hanya ambil semester yang memiliki academic_year
             where: {
               is_active: true // Pastikan tahun ajaran yang aktif

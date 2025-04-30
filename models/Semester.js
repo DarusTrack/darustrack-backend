@@ -25,10 +25,10 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     Semester.associate = (models) => {
-        Semester.belongsTo(models.AcademicYear, { foreignKey: 'academic_year_id'});
-        Semester.hasMany(models.Attendance, { foreignKey: 'semester_id'});
-        Semester.hasMany(models.Evaluation, { foreignKey: 'semester_id'});
-        Semester.hasMany(models.GradeCategory, { foreignKey: 'semester_id'});
+        Semester.belongsTo(models.AcademicYear, { foreignKey: 'academic_year_id', as: 'academic_year' });
+        Semester.hasMany(models.Attendance, { foreignKey: 'semester_id', as: 'attendance' });
+        Semester.hasMany(models.Evaluation, { foreignKey: 'semester_id', as: 'evaluation' });
+        Semester.hasMany(models.GradeCategory, { foreignKey: 'semester_id', as: 'grade_category' });
     };
 
     return Semester;

@@ -16,8 +16,8 @@ module.exports = {
         id: academicYearId,
         year: '2024/2025',
         is_active: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: now,
+        updatedAt: now
       }
     ]);
 
@@ -28,16 +28,16 @@ module.exports = {
         name: 'Ganjil',
         academic_year_id: academicYearId,
         is_active: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: now,
+        updatedAt: now
       },
       {
         id: semesterGenapId,
         name: 'Genap',
         academic_year_id: academicYearId,
         is_active: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: now,
+        updatedAt: now
       }
     ]);
 
@@ -48,16 +48,16 @@ module.exports = {
         name: '6D',
         teacher_id: 'U0003',
         academic_year_id: academicYearId,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: now,
+        updatedAt: now
       },
       {
         id: nanoid(),
         name: '6E',
         teacher_id: 'U0004',
         academic_year_id: academicYearId,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: now,
+        updatedAt: now
       },
     ]);
   },

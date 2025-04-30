@@ -396,6 +396,7 @@ router.post('/semesters/:semester_id/evaluations', accessValidation, roleValidat
             where: { id: semester_id },
             include: {
                 model: AcademicYear,
+                as: 'academic_year',
                 where: { is_active: true }
             }
         });
