@@ -11,7 +11,7 @@ module.exports = {
         name: 'Atthar',
         nisn: '3438478',
         birth_date: '2013-05-12',
-        parent_id: 'U0004',
+        parent_id: 'U0005',
         createdAt: new Date(),
         updatedAt: new Date()
       },

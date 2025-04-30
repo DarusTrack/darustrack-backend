@@ -219,6 +219,18 @@ router.post('/:id/classes', accessValidation, roleValidation(["admin"]), async (
       return res.status(404).json({ message: 'Tahun ajaran tidak ditemukan' });
     }
 
+    // Cek apakah kelas dengan nama yang sama sudah ada di tahun ajaran yang sama
+    const existingClass = await Class.findOne({
+      where: {
+        name,
+        academic_year_id: id
+      }
+    });
+
+    if (existingClass) {
+      return res.status(400).json({ message: 'Kelas dengan nama yang sama sudah ada di tahun ajaran ini' });
+    }
+
     const newClass = await Class.create({
       name,
       teacher_id,
@@ -343,15 +355,13 @@ router.get('/:academicYearId/classes/:classId/students', accessValidation, roleV
 router.post('/:academicYearId/classes/:classId/students', accessValidation, roleValidation(["admin"]), async (req, res) => {
   try {
     const { academicYearId, classId } = req.params;
-    
-    // Cek jika academicYearId dan classId ada
+    const { studentIds } = req.body;
+
+    // Validasi ID
     if (!academicYearId || !classId) {
       return res.status(400).json({ message: 'Academic Year ID atau Class ID tidak ditemukan' });
     }
 
-    const { studentIds } = req.body; // Mengambil daftar ID siswa yang ingin ditambahkan
-
-    // Cek validitas studentIds
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
       return res.status(400).json({ message: 'Harap sertakan ID siswa yang valid dalam format array.' });
     }
@@ -374,48 +384,47 @@ router.post('/:academicYearId/classes/:classId/students', accessValidation, role
       return res.status(404).json({ message: 'Kelas tidak ditemukan di tahun ajaran ini' });
     }
 
-    // Validasi apakah semua siswa ada
-    const students = await Student.findAll({
-      where: {
-        id: studentIds
-      },
-      include: [{
-        model: StudentClass,
-        as: 'student_class',
-        attributes: ['class_id']
-      }]
-    });
-
-    // Cek apakah jumlah siswa yang ditemukan sesuai dengan yang dikirim
+    // Validasi siswa ada
+    const students = await Student.findAll({ where: { id: studentIds } });
     if (students.length !== studentIds.length) {
       return res.status(400).json({ message: 'Beberapa siswa tidak ditemukan' });
     }
 
-    // Menambahkan siswa ke kelas melalui StudentClass
+    // Ambil semua entri StudentClass untuk tahun ajaran ini
+    const classesInYear = await Class.findAll({
+      where: { academic_year_id: academicYearId },
+      attributes: ['id']
+    });
+    const classIdsInYear = classesInYear.map(c => c.id);
+
+    // Cek apakah ada siswa yang sudah terdaftar di kelas lain dalam tahun ajaran yang sama
+    const existingStudentAssignments = await StudentClass.findAll({
+      where: {
+        student_id: studentIds,
+        class_id: classIdsInYear
+      }
+    });
+
+    if (existingStudentAssignments.length > 0) {
+      const alreadyAssignedIds = existingStudentAssignments.map(entry => entry.student_id);
+      return res.status(400).json({
+        message: 'Tidak dapat menambahkan siswa dikarenakan terdapat siswa yang sudah terdaftar di kelas lain dalam tahun ajaran ini.',
+        student_ids: alreadyAssignedIds
+      });
+    }
+
+    // Buat entri StudentClass baru
     const studentClasses = studentIds.map(studentId => ({
       student_id: studentId,
       class_id: classId
     }));
 
-    // Memastikan tidak ada duplikat sebelum menambahkan
-    const existingEntries = await StudentClass.findAll({
-      where: {
-        class_id: classId,
-        student_id: studentIds
-      }
-    });
-
-    if (existingEntries.length > 0) {
-      return res.status(400).json({ message: 'Beberapa siswa sudah terdaftar di kelas ini.' });
-    }
-
-    // Bulk create untuk menambahkan siswa ke kelas
     await StudentClass.bulkCreate(studentClasses);
 
-    res.status(201).json({ message: 'Siswa berhasil ditambahkan ke kelas' });
+    res.status(201).json({ message: 'Siswa berhasil ditambahkan ke kelas.' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Terjadi kesalahan pada server', error });
+    res.status(500).json({ message: 'Terjadi kesalahan pada server', error: error.message });
   }
 });
 

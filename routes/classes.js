@@ -88,7 +88,7 @@ router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), a
                 {
                     model: Class,
                     as: 'class',
-                    attributes: ['academic_year_id'],
+                    attributes: ['id', 'name', 'academic_year_id'],
                     where: {
                         academic_year_id: activeYear.id  // Filter berdasarkan tahun ajaran aktif pada tabel Class
                     }

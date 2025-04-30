@@ -10,7 +10,7 @@ const accessValidation = require('../middlewares/accessValidation');
 router.use(accessValidation, roleValidation(['orang_tua']));
 
 // Profile Anak
-router.get('/profile', async (req, res) => {
+router.get('/student', async (req, res) => {
     try {
         const parentId = req.user.id;
         const student = await Student.findOne({
@@ -36,18 +36,6 @@ router.get('/profile', async (req, res) => {
         if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
 
         res.json(student);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// Data Kurikulum
-router.get('/curriculum', async (req, res) => {
-    try {
-        const curriculum = await Curriculum.findOne({
-            attributes: ['name', 'description']
-        });
-        res.json(curriculum);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -139,22 +127,6 @@ router.get('/academic-calendar', async (req, res) => {
     }
 });
 
-// Daftar semester tahun ajaran aktif (kehadiran dan evaluasi)
-router.get('/semesters', async (req, res) => {
-    try {
-        const semesters = await Semester.findAll({
-            include: {
-                model: AcademicYear,
-                as: 'academic_year',
-                where: { is_active: true }
-            }
-        });
-        res.json(semesters);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-  
 // Kehadiran anak per semester
 router.get('/attendances/:semesterId', async (req, res) => {
     try {
@@ -172,13 +144,26 @@ router.get('/attendances/:semesterId', async (req, res) => {
                     as: 'student_class',
                     include: {
                         model: Student,
+                        as: 'student',
                         attributes: ['id', 'name'],
                     }
                 }
-            ]
-        });        
+            ],
+            order: [['date', 'DESC']] // Urutkan berdasarkan date dari yang terbaru
+        });
 
-        res.json(attendances);
+        // Format response to include date, day (generated from date), and status
+        const formattedAttendances = attendances.map(attendance => {
+            const date = attendance.date;
+            const day = new Date(date).toLocaleString('id-ID', { weekday: 'long' }); // Generate day from date
+            return {
+                date: date,
+                day: day,
+                status: attendance.status
+            };
+        });
+
+        res.json(formattedAttendances);
     } catch (error) {
         console.error(error); // untuk debugging
         res.status(500).json({ message: error.message });
@@ -196,30 +181,54 @@ router.get('/evaluations/:semesterId', async (req, res) => {
             include: {
                 model: Evaluation,
                 as: 'evaluation',
-                where: { semester_id: req.params.semesterId }
+                where: { semester_id: req.params.semesterId },
+                attributes: ['id', 'title'], // Hanya mengambil id dan title
             }
         });
 
-        res.json(evaluations);
+        const formattedEvaluations = evaluations.map(evaluation => {
+            return {
+                id: evaluation.evaluation.id,
+                title: evaluation.evaluation.title,
+            };
+        });
+
+        res.json(formattedEvaluations);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
 // Deskripsi evaluasi per semester
-router.get('/evaluations/detail/:studentEvaluationId', async (req, res) => {
+router.get('/evaluations/:semesterId/:evaluationId', async (req, res) => {
     try {
-        const evaluationDetail = await StudentEvaluation.findOne({
-            where: {
-                id: req.params.studentEvaluationId
+        const student = await Student.findOne({ where: { parent_id: req.user.id } });
+        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
+
+        const studentEvaluation = await StudentEvaluation.findOne({
+            where: { 
+                student_class_id: studentClass.id,
+                evaluation_id: req.params.evaluationId 
             },
             include: {
                 model: Evaluation,
-                as: 'evaluation'
+                as: 'evaluation',
+                where: { semester_id: req.params.semesterId },
+                attributes: ['id', 'title'],
             }
         });
 
-        res.json(evaluationDetail);
+        if (!studentEvaluation) {
+            return res.status(404).json({ message: 'Evaluasi tidak ditemukan untuk siswa pada semester ini.' });
+        }
+
+        const formattedEvaluation = {
+            id: studentEvaluation.evaluation.id,
+            title: studentEvaluation.evaluation.title,
+            description: studentEvaluation.description // Deskripsi evaluasi siswa
+        };
+
+        res.json(formattedEvaluation);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -263,7 +272,7 @@ router.get('/grades/subjects', async (req, res) => {
 });
 
 // Daftar kategori mapel
-router.get('/grades/subjects/:subjectId/semesters/:semesterId/categories', async (req, res) => {
+router.get('/grades/:subjectId/:semesterId/categories', async (req, res) => {
     try {
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
@@ -299,7 +308,7 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
         });
 
         const result = gradeDetails.map(detail => ({
-            name: detail.name,
+            title: detail.name,
             date: detail.date,
             day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
             score: detail.student_grade.length > 0 ? detail.student_grade[0].score : null

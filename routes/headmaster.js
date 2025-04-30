@@ -218,8 +218,8 @@ router.get('/classes/:classId', accessValidation, roleValidation(['kepala_sekola
             if (studentGradeCount > 0) {
                 const avgScore = studentScoreSum / studentGradeCount;
                 studentRankings.push({
-                    student_id: student.id,
-                    student_name: student.name,
+                    id: student.id,
+                    name: student.name,
                     average_score: parseFloat(avgScore.toFixed(2))
                 });
                 totalScore += studentScoreSum;

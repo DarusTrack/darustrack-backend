@@ -9,6 +9,7 @@ const cors = require('cors');
 const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
 const academicYearsRouter = require('./routes/academic_years');
+const semestersRouter = require('./routes/semesters')
 const usersRouter = require('./routes/users');
 const teachersRouter = require('./routes/teachers');
 const parentsRouter = require('./routes/parents');
@@ -52,6 +53,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Routing
 app.use('/', indexRouter);
 app.use('/academic-years', academicYearsRouter);
+app.use('/semesters', semestersRouter);
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);
 app.use('/teachers', teachersRouter);

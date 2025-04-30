@@ -53,6 +53,14 @@ router.post('/', accessValidation, roleValidation(['admin']), async (req, res) =
         return res.status(400).json(validate);
     }
 
+    // Cek apakah subject dengan nama tersebut sudah ada
+    const existingSubject = await Subject.findOne({ where: { name: req.body.name } });
+
+    if (existingSubject) {
+        return res.status(409).json({ message: `Subject dengan nama '${req.body.name}' sudah ada.` });
+    }
+
+    // Jika tidak ada, baru buat subject
     const subject = await Subject.create(req.body);
     res.json(subject);
 });
@@ -75,6 +83,19 @@ router.put('/:id', async (req, res) => {
         const validate = v.validate(req.body, schema);
         if (validate.length) {
             return res.status(400).json(validate);
+        }
+
+        // Cek jika ingin mengubah nama, dan nama baru sudah digunakan subject lain
+        if (req.body.name && req.body.name !== subject.name) {
+            const existingSubject = await Subject.findOne({
+                where: {
+                    name: req.body.name
+                }
+            });
+
+            if (existingSubject && existingSubject.id !== id) {
+                return res.status(409).json({ message: `Nama subject '${req.body.name}' sudah digunakan.` });
+            }
         }
 
         subject = await subject.update(req.body);

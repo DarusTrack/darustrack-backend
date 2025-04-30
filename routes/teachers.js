@@ -35,57 +35,57 @@ router.get('/my-class', accessValidation, roleValidation(["wali_kelas"]), async 
 // Mendapatkan jadwal kelas yang dikelola oleh wali kelas pada tahun ajaran aktif
 router.get('/schedules', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
-        const userId = req.user.id; // Mendapatkan ID wali kelas dari user yang sedang login
-    
-         // 1. Cari tahun ajaran aktif
-        const activeYear = await AcademicYear.findOne({
-            where: { is_active: true }
-        });
+        const userId = req.user.id; // ID wali kelas dari user yang login
+        const { day } = req.query;  // Ambil filter hari dari query parameter (misal: /schedules?day=Senin)
+
+        // 1. Cari tahun ajaran aktif
+        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
         if (!activeYear) {
-            return res
-            .status(404)
-            .json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+            return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
         }
 
-        // 2. Cari kelas yang diampu wali kelas pada tahun ajaran aktif
+        // 2. Cari kelas yang diampu wali kelas
         const myClass = await Class.findOne({
             where: {
-            teacher_id: userId,
-            academic_year_id: activeYear.id
+                teacher_id: userId,
+                academic_year_id: activeYear.id
             }
         });
         if (!myClass) {
-            return res.status(404).json({
-            message:
-                'Anda tidak mengampu kelas apapun di tahun ajaran aktif ini'
-            });
+            return res.status(404).json({ message: 'Anda tidak mengampu kelas apapun di tahun ajaran aktif ini' });
         }
 
-        // 3. Ambil jadwal untuk kelas tersebut
+        // 3. Siapkan kondisi filter
+        const whereCondition = { class_id: myClass.id };
+        if (day) {
+            whereCondition.day = day; // Tambahkan filter day jika diberikan
+        }
+
+        // 4. Ambil jadwal dengan filter
         const schedules = await Schedule.findAll({
-            where: { class_id: myClass.id },
+            where: whereCondition,
             include: [
-            {
-                model: Subject,
-                as: 'subject',
-                attributes: ['id', 'name']
-            }
+                {
+                    model: Subject,
+                    as: 'subject',
+                    attributes: ['id', 'name']
+                }
             ],
             order: [
-            ['day', 'ASC'],
-            ['start_time', 'ASC']
+                ['day', 'ASC'],
+                ['start_time', 'ASC']
             ]
         });
 
-        // 4. Format output
+        // 5. Format output
         const output = schedules.map(s => ({
-            classId: myClass.id,
-            className: myClass.name,
-            subjectId: s.subject_id,
-            subjectName: s.subject.name,
+            class_id: myClass.id,
+            class_name: myClass.name,
+            subject_id: s.subject_id,
+            subject_name: s.subject.name,
             day: s.day,
-            startTime: s.start_time,
-            endTime: s.end_time
+            start_time: s.start_time,
+            end_time: s.end_time
         }));
 
         res.json(output);
@@ -344,18 +344,25 @@ router.delete('/attendances/:date', accessValidation, roleValidation(['wali_kela
 // academic year aktif
 router.get('/semesters', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
     try {
-      const activeYear = await AcademicYear.findOne({
-        where: { is_active: true },
-        include: [{ model: Semester, as: 'semester' }]
-      });
-  
-      if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
-  
-      res.json({ semesters: activeYear.Semester });
+        const activeYear = await AcademicYear.findOne({
+            where: { is_active: true },
+            include: [
+                {
+                    model: Semester,
+                    as: 'semester'
+                }
+            ]
+        });
+
+        if (!activeYear) {
+            return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+        }
+
+        res.json({ semesters: activeYear.semester }); // sesuai dengan alias relasi
     } catch (error) {
-      res.status(500).json({ message: 'Gagal mengambil semester', error });
+        res.status(500).json({ message: 'Gagal mengambil semester', error: error.message });
     }
-});  
+});
 
 // title evaluasi semester
 router.get('/semesters/:semester_id/evaluations', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
@@ -560,7 +567,7 @@ router.get('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]),
                 include: {
                     model: Student,
                     as: 'student',
-                    attributes: ['id', 'name', 'nisn', 'birth_date']
+                    attributes: ['name', 'nisn']
                 }
             }
         });
@@ -569,10 +576,10 @@ router.get('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]),
             const studentData = se.student_class?.student;
             return {
                 student_evaluation_id: se.id,
-                student_id: studentData?.id || null,
+                // student_id: studentData?.id || null,
                 name: studentData?.name || null,
                 nisn: studentData?.nisn || null,
-                birth_date: studentData?.birth_date || null,
+                // birth_date: studentData?.birth_date || null,
                 description: se.description
             };
         });        
@@ -615,7 +622,7 @@ router.put('/student-evaluations/:id', accessValidation, roleValidation(["wali_k
         studentEvaluation.description = description;
         await studentEvaluation.save();
 
-        res.json({ message: "Deskripsi evaluasi berhasil diperbarui", studentEvaluation });
+        res.json({ message: "Deskripsi evaluasi berhasil diperbarui" });
     } catch (error) {
         console.error('Error updating evaluation description:', error);
         res.status(500).json({ message: 'Gagal memperbarui deskripsi evaluasi', error: error.message });
@@ -952,7 +959,7 @@ router.put('/grades/details/:detail_id', accessValidation, roleValidation(['wali
             date: date || gradeDetail.date
         });
 
-        res.json({ message: 'Detail updated', updated: gradeDetail });
+        res.json({ message: 'Detail category updated' });
     } catch (e) {
         console.error(e); // Debug
         res.status(500).json({ message: 'Server error', error: e.message });
@@ -978,7 +985,7 @@ router.delete('/grades/details/:detail_id', accessValidation, roleValidation(['w
         await StudentGrade.destroy({ where: { grade_detail_id: detail_id } });
         await GradeDetail.destroy({ where: { id: detail_id } });
 
-        res.json({ message: 'Detail deleted' });
+        res.json({ message: 'Detail category deleted' });
     } catch (e) {
         res.status(500).json({ message: 'Server error', error: e.message });
     }
@@ -1083,7 +1090,7 @@ router.patch('/grades/students/:student_grade_id', accessValidation, roleValidat
         studentGrade.score = score;
         await studentGrade.save();
 
-        return res.json({ message: 'Score updated successfully', studentGrade });
+        return res.json({ message: 'Score updated successfully' });
     } catch (e) {
         console.error(e);
         return res.status(500).json({ message: 'Server error', error: e.message });
