@@ -7,7 +7,6 @@ const accessValidation = require("../middlewares/accessValidation");
 const Validator = require("fastest-validator");
 const v = new Validator();
 const { Op } = require('sequelize');
-const sendResetPasswordEmail = require('../utils/mailer');
 const crypto = require("crypto");
 require("dotenv").config();
 
