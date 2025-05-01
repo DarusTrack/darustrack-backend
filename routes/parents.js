@@ -245,7 +245,7 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
         if (!studentClass) return res.status(404).json({ message: 'Student class not found' });
 
-        // Sertakan relasi academic year
+        // Ambil semester beserta tahun ajaran
         const semester = await Semester.findByPk(semesterId, {
             include: {
                 model: AcademicYear,
@@ -255,6 +255,7 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
         });
         if (!semester) return res.status(404).json({ message: 'Semester not found' });
 
+        // Ambil semua mapel dari jadwal kelas anak
         const schedules = await Schedule.findAll({
             where: {
                 class_id: studentClass.class_id
@@ -266,24 +267,24 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
             }
         });
 
+        // Filter mapel unik, dan tambahkan data semester ke setiap subject
         const uniqueSubjectsMap = {};
         schedules.forEach(sch => {
             if (sch.subject && !uniqueSubjectsMap[sch.subject.id]) {
-                uniqueSubjectsMap[sch.subject.id] = sch.subject;
+                uniqueSubjectsMap[sch.subject.id] = {
+                    ...sch.subject.toJSON(),
+                    semester_id: semester.id,
+                    semester_name: semester.name,
+                    academic_year_id: semester.academic_year?.id,
+                    academic_year_name: semester.academic_year?.year,
+                    is_academic_year_active: semester.academic_year?.is_active
+                };
             }
         });
 
         const uniqueSubjects = Object.values(uniqueSubjectsMap);
 
-        // Gabungkan data semester dan subjects dalam satu response object
-        res.json({
-            semester_id: semester.id,
-            semester_name: semester.name,
-            academic_year_id: semester.academic_year?.id,
-            academic_year_name: semester.academic_year?.year,
-            is_academic_year_active: semester.academic_year?.is_active,
-            subjects: uniqueSubjects
-        });
+        res.json(uniqueSubjects);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: error.message });
