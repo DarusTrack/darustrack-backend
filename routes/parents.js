@@ -237,11 +237,16 @@ router.get('/evaluations/:semesterId/:evaluationId', async (req, res) => {
 // Daftar Mata Pelajaran Anak
 router.get('/grades/:semesterId/subjects', async (req, res) => {
     try {
+        const { semesterId } = req.params;
+
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
         if (!student) return res.status(404).json({ message: 'Student not found' });
 
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
         if (!studentClass) return res.status(404).json({ message: 'Student class not found' });
+
+        const semester = await Semester.findByPk(semesterId);
+        if (!semester) return res.status(404).json({ message: 'Semester not found' });
 
         // Ambil semua mapel dari jadwal kelas anak
         const schedules = await Schedule.findAll({
@@ -265,7 +270,14 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
 
         const uniqueSubjects = Object.values(uniqueSubjectsMap);
 
-        res.json(uniqueSubjects);
+        res.json({
+            semester: {
+                id: semester.id,
+                name: semester.name,
+                academic_year: semester.academic_year
+            },
+            subjects: uniqueSubjects
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: error.message });
