@@ -245,10 +245,16 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
         if (!studentClass) return res.status(404).json({ message: 'Student class not found' });
 
-        const semester = await Semester.findByPk(semesterId);
+        // Sertakan relasi academic year
+        const semester = await Semester.findByPk(semesterId, {
+            include: {
+                model: AcademicYear,
+                as: 'academic_year',
+                attributes: ['id', 'year', 'is_active']
+            }
+        });
         if (!semester) return res.status(404).json({ message: 'Semester not found' });
 
-        // Ambil semua mapel dari jadwal kelas anak
         const schedules = await Schedule.findAll({
             where: {
                 class_id: studentClass.class_id
@@ -260,7 +266,6 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
             }
         });
 
-        // Hilangkan duplikat mapel
         const uniqueSubjectsMap = {};
         schedules.forEach(sch => {
             if (sch.subject && !uniqueSubjectsMap[sch.subject.id]) {
@@ -270,12 +275,13 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
 
         const uniqueSubjects = Object.values(uniqueSubjectsMap);
 
+        // Gabungkan data semester dan subjects dalam satu response object
         res.json({
-            semester: {
-                id: semester.id,
-                name: semester.name,
-                academic_year: semester.academic_year
-            },
+            semester_id: semester.id,
+            semester_name: semester.name,
+            academic_year_id: semester.academic_year?.id,
+            academic_year_name: semester.academic_year?.year,
+            is_academic_year_active: semester.academic_year?.is_active,
             subjects: uniqueSubjects
         });
     } catch (error) {
