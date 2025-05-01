@@ -1,15 +1,33 @@
 require('dotenv').config();
 
+const {
+  DB_USERNAME,
+  DB_PASSWORD,
+  DB_HOSTNAME,
+  DB_NAME,
+  DB_DIALECT
+} = process.env
+
 module.exports = {
-  development: {
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD || null,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    dialect: process.env.DB_DIALECT
+  "development": {
+    "username": DB_USERNAME,
+    "password": DB_PASSWORD,
+    "database": DB_NAME,
+    "host": DB_HOSTNAME,
+    "dialect": DB_DIALECT
   },
-  production: {
-    use_env_variable: "MYSQL_PUBLIC_URL",
-    dialect: "mysql"
+  "test": {
+    "username": DB_USERNAME,
+    "password": DB_PASSWORD,
+    "database": DB_NAME,
+    "host": DB_HOSTNAME,
+    "dialect": DB_DIALECT
+  },
+  "production": {
+    "username": DB_USERNAME,
+    "password": DB_PASSWORD,
+    "database": DB_NAME,
+    "host": DB_HOSTNAME,
+    "dialect": DB_DIALECT
   }
-};
+}
