@@ -235,7 +235,7 @@ router.get('/evaluations/:semesterId/:evaluationId', async (req, res) => {
 });
 
 // Daftar Mata Pelajaran Anak
-router.get('/grades/subjects', async (req, res) => {
+router.get('/grades/:semesterId/subjects', async (req, res) => {
     try {
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
         if (!student) return res.status(404).json({ message: 'Student not found' });
@@ -243,6 +243,7 @@ router.get('/grades/subjects', async (req, res) => {
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
         if (!studentClass) return res.status(404).json({ message: 'Student class not found' });
 
+        // Ambil semua mapel dari jadwal kelas anak
         const schedules = await Schedule.findAll({
             where: {
                 class_id: studentClass.class_id
@@ -254,10 +255,10 @@ router.get('/grades/subjects', async (req, res) => {
             }
         });
 
-        // Hilangkan duplikat subject
+        // Hilangkan duplikat mapel
         const uniqueSubjectsMap = {};
         schedules.forEach(sch => {
-            if (!uniqueSubjectsMap[sch.subject.id]) {
+            if (sch.subject && !uniqueSubjectsMap[sch.subject.id]) {
                 uniqueSubjectsMap[sch.subject.id] = sch.subject;
             }
         });
@@ -266,13 +267,13 @@ router.get('/grades/subjects', async (req, res) => {
 
         res.json(uniqueSubjects);
     } catch (error) {
-        console.error(error); // log detail untuk debugging
+        console.error(error);
         res.status(500).json({ message: error.message });
     }
 });
 
 // Daftar kategori mapel
-router.get('/grades/:subjectId/:semesterId/categories', async (req, res) => {
+router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
     try {
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
