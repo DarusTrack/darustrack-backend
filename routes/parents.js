@@ -173,16 +173,26 @@ router.get('/attendances/:semesterId', async (req, res) => {
 // Daftar title evaluasi per semester
 router.get('/evaluations/:semesterId', async (req, res) => {
     try {
+        const { semesterId } = req.params;
+
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
+        if (!student) return res.status(404).json({ message: 'Student not found' });
+
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
+        if (!studentClass) return res.status(404).json({ message: 'Student class not found' });
 
         const evaluations = await StudentEvaluation.findAll({
             where: { student_class_id: studentClass.id },
             include: {
                 model: Evaluation,
                 as: 'evaluation',
-                where: { semester_id: req.params.semesterId },
-                attributes: ['id', 'title'], // Hanya mengambil id dan title
+                where: { semester_id: semesterId },
+                attributes: ['id', 'title'],
+                include: {
+                    model: Semester,
+                    as: 'semester',
+                    attributes: ['id', 'name']
+                }
             }
         });
 
@@ -190,11 +200,14 @@ router.get('/evaluations/:semesterId', async (req, res) => {
             return {
                 id: evaluation.evaluation.id,
                 title: evaluation.evaluation.title,
+                semester_id: evaluation.evaluation.semester.id,
+                semester_name: evaluation.evaluation.semester.name
             };
-        });
+        });        
 
         res.json(formattedEvaluations);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: error.message });
     }
 });
