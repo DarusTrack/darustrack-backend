@@ -1,12 +1,11 @@
-const { customAlphabet } = require('nanoid');
-const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 6);
-
 module.exports = (sequelize, DataTypes) => {
   const AcademicYear = sequelize.define('AcademicYear', {
     id: {
-      type: DataTypes.STRING(5),
+      type: Sequelize.INTEGER,
+      // defaultValue: Sequelize.UUIDV4,
+      autoIncrement: true,
       primaryKey: true,
-      defaultValue: () => nanoid()
+      allowNull: false
     },
     year: {
       type: DataTypes.STRING(9),

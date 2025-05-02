@@ -136,34 +136,41 @@ router.delete('/:id', accessValidation, async (req, res) => {
 });
 
 // * SEMESTER *
-// PUT update semester aktif di tahun ajaran aktif
-router.put('/semester/:id/activate', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    try {
-      const semesterToActivate = await Semester.findByPk(req.params.id);
-  
-      if (!semesterToActivate) {
-        return res.status(404).json({ message: 'Semester tidak ditemukan' });
-      }
-  
-      // Pastikan semester ini milik tahun ajaran yang aktif
-      const academicYear = await AcademicYear.findByPk(semesterToActivate.academic_year_id);
-      if (!academicYear || !academicYear.is_active) {
-        return res.status(400).json({ message: 'Semester ini tidak berasal dari tahun ajaran aktif' });
-      }
-  
-      // Nonaktifkan semester lain dalam tahun ajaran ini
+// perbarui status semester di tahun ajaran aktif
+router.put('/semester/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
+  try {
+    const { is_active } = req.body;
+
+    if (typeof is_active !== 'boolean') {
+      return res.status(400).json({ message: 'is_active harus berupa boolean' });
+    }
+
+    const semesterToUpdate = await Semester.findByPk(req.params.id);
+
+    if (!semesterToUpdate) {
+      return res.status(404).json({ message: 'Semester tidak ditemukan' });
+    }
+
+    const academicYear = await AcademicYear.findByPk(semesterToUpdate.academic_year_id);
+    if (!academicYear || !academicYear.is_active) {
+      return res.status(400).json({ message: 'Semester ini tidak berasal dari tahun ajaran aktif' });
+    }
+
+    if (is_active) {
+      // Jika ingin mengaktifkan semester ini, nonaktifkan semua semester lain terlebih dahulu
       await Semester.update({ is_active: false }, {
         where: { academic_year_id: academicYear.id }
       });
-  
-      // Aktifkan semester yang dipilih
-      semesterToActivate.is_active = true;
-      await semesterToActivate.save();
-  
-      res.json({ message: 'Semester berhasil diaktifkan' });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
     }
+
+    // Ubah status aktif semester sesuai permintaan
+    semesterToUpdate.is_active = is_active;
+    await semesterToUpdate.save();
+
+    res.json({ message: `Semester berhasil ${is_active ? 'diaktifkan' : 'dinonaktifkan'}` });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 // * KELAS *

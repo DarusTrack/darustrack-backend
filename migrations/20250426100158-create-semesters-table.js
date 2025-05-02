@@ -14,7 +14,7 @@ module.exports = {
         allowNull: false
       },
       academic_year_id: {
-        type: Sequelize.STRING(5),
+        type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: 'academic_years',

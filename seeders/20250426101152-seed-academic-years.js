@@ -8,7 +8,7 @@ module.exports = {
     const now = new Date();
     
     // Step 1: Generate ID
-    const academicYearId = 'AY01';
+    const academicYearId = 1;
     const semesterGanjilId = nanoid();
     const semesterGenapId = nanoid();
 

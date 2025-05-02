@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         academic_year_id: {
-            type: DataTypes.STRING(5),
+            type: DataTypes.INTEGER,
             allowNull: false
         },
         is_active: {

@@ -9,7 +9,7 @@ module.exports = {
 
     // Ambil semester Ganjil tahun ajaran 2024/2025
     const semester = await queryInterface.sequelize.query(
-      `SELECT id FROM semesters WHERE name = 'Ganjil' AND academic_year_id = 'AY01' LIMIT 1;`,
+      `SELECT id FROM semesters WHERE name = 'Ganjil' AND academic_year_id = 1 LIMIT 1;`,
       { type: Sequelize.QueryTypes.SELECT }
     );
     const semesterId = semester[0]?.id;

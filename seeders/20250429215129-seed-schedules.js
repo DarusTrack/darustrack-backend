@@ -9,7 +9,7 @@ module.exports = {
 
     // Ambil kelas 6E
     const classResult = await queryInterface.sequelize.query(
-      `SELECT id FROM classes WHERE name = '6E' AND academic_year_id = 'AY01' LIMIT 1;`,
+      `SELECT id FROM classes WHERE name = '6E' AND academic_year_id = 1 LIMIT 1;`,
       { type: Sequelize.QueryTypes.SELECT }
     );
     const classId = classResult[0]?.id;
