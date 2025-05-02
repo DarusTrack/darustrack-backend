@@ -1,7 +1,7 @@
 module.exports = (sequelize, DataTypes) => {
   const AcademicYear = sequelize.define('AcademicYear', {
     id: {
-      type: Sequelize.INTEGER,
+      type: DataTypes.INTEGER,
       // defaultValue: Sequelize.UUIDV4,
       autoIncrement: true,
       primaryKey: true,
