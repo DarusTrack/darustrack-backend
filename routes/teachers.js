@@ -297,7 +297,7 @@ router.put('/attendances', accessValidation, roleValidation(['wali_kelas']), asy
 
         if (notFound.length === attendanceUpdates.length) {
             return res.status(400).json({ 
-                message: 'Semua data kehadiran yang ingin diperbarui belum ditambahkan sebelumnya',
+                message: 'Tanggal kehadiran belum ditambahkan',
                 notFoundStudentClassIds: notFound
             });
         }
