@@ -96,10 +96,14 @@ router.get('/schedules', accessValidation, roleValidation(["wali_kelas"]), async
 });
 
 // Mendapatkan daftar kehadiran berdasarkan tanggal
-router.get('/attendances/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.get('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const userId = req.user.id;
-        const { date } = req.params;
+        const { date } = req.query;
+
+        if (!date) {
+            return res.status(400).json({ message: 'Tanggal (date) wajib diisi sebagai query parameter' });
+        }
 
         // Cek semester aktif
         const activeSemester = await Semester.findOne({ where: { is_active: true } });
@@ -120,13 +124,13 @@ router.get('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
         const attendances = await Attendance.findAll({
             where: {
                 semester_id: activeSemester.id,
-                date: date,
+                date: date, // filter tanggal dari query
             },
             include: [
                 {
                     model: StudentClass,
                     as: 'student_class',
-                    where: { class_id: classData.id }, // Filter hanya untuk kelas ini
+                    where: { class_id: classData.id },
                     include: [
                         {
                             model: Student,
@@ -143,7 +147,6 @@ router.get('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
             return res.status(404).json({ message: 'Tidak ada data kehadiran untuk tanggal tersebut' });
         }
 
-        // Format responsenya
         const attendanceData = attendances.map(att => ({
             studentName: att.student_class.student.name,
             status: att.status,
@@ -218,23 +221,25 @@ router.post('/attendances', accessValidation, roleValidation(["wali_kelas"]), as
 });
 
 // Perbarui status
-router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.put('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const userId = req.user.id;
-        const { date } = req.params; // Format diharapkan: 'YYYY-MM-DD'
+        const { date } = req.query;
         const { attendanceUpdates } = req.body; // Array of { student_class_id, status }
+
+        if (!date) {
+            return res.status(400).json({ message: 'Parameter query "date" wajib diisi' });
+        }
 
         if (!Array.isArray(attendanceUpdates) || attendanceUpdates.length === 0) {
             return res.status(400).json({ message: 'Data update kehadiran tidak valid' });
         }
 
-        // Cek semester aktif
         const activeSemester = await Semester.findOne({ where: { is_active: true } });
         if (!activeSemester) {
             return res.status(404).json({ message: 'Semester aktif tidak ditemukan' });
         }
 
-        // Cek kelas wali kelas
         const classData = await Class.findOne({
             where: { teacher_id: userId, academic_year_id: activeSemester.academic_year_id },
         });
@@ -243,7 +248,6 @@ router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
             return res.status(404).json({ message: 'Wali kelas tidak mengelola kelas di semester aktif' });
         }
 
-        // Ambil student_class_id yang valid untuk wali kelas tersebut
         const studentClasses = await StudentClass.findAll({
             where: { class_id: classData.id },
             attributes: ['id'],
@@ -251,7 +255,6 @@ router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
 
         const validStudentClassIds = studentClasses.map(sc => sc.id);
 
-        // Validasi apakah semua student_class_id dalam update berada dalam kelas ini
         const invalidUpdates = attendanceUpdates.filter(update => !validStudentClassIds.includes(update.student_class_id));
         if (invalidUpdates.length > 0) {
             return res.status(400).json({ message: 'Beberapa student_class_id tidak terdaftar di kelas ini', invalidUpdates });
@@ -264,8 +267,7 @@ router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
                     student_class_id: update.student_class_id,
                     semester_id: activeSemester.id,
                     date: date,
-                },
-                attributes: ['id', 'student_class_id', 'semester_id', 'date', 'status'],
+                }
             });
 
             if (existingAttendance) {
@@ -292,18 +294,20 @@ router.put('/attendances/:date', accessValidation, roleValidation(['wali_kelas']
 });
 
 // DELETE /teachers/attendances/:date
-router.delete('/attendances/:date', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.delete('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const userId = req.user.id;
-        const { date } = req.params; // Format diharapkan: 'YYYY-MM-DD'
+        const { date } = req.query;
 
-        // Cari semester aktif
+        if (!date) {
+            return res.status(400).json({ message: 'Parameter query "date" wajib diisi' });
+        }
+
         const activeSemester = await Semester.findOne({ where: { is_active: true } });
         if (!activeSemester) {
             return res.status(404).json({ message: 'Semester aktif tidak ditemukan' });
         }
 
-        // Cari kelas yang dikelola wali kelas
         const classData = await Class.findOne({
             where: { teacher_id: userId, academic_year_id: activeSemester.academic_year_id },
         });
@@ -312,7 +316,6 @@ router.delete('/attendances/:date', accessValidation, roleValidation(['wali_kela
             return res.status(404).json({ message: 'Wali kelas tidak mengelola kelas di semester aktif' });
         }
 
-        // Ambil semua StudentClass id di kelas tersebut
         const studentClasses = await StudentClass.findAll({
             where: { class_id: classData.id },
             attributes: ['id'],
@@ -320,7 +323,6 @@ router.delete('/attendances/:date', accessValidation, roleValidation(['wali_kela
 
         const studentClassIds = studentClasses.map(sc => sc.id);
 
-        // Hapus kehadiran yang sesuai studentClassId, semesterId, dan tanggal
         const deletedCount = await Attendance.destroy({
             where: {
                 student_class_id: studentClassIds,
