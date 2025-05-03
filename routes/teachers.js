@@ -225,10 +225,24 @@ router.put('/attendances', accessValidation, roleValidation(['wali_kelas']), asy
     try {
         const userId = req.user.id;
         const { date } = req.query;
-        const { attendanceUpdates } = req.body; // Array of { student_class_id, status }
+        const { attendanceUpdates } = req.body;
 
+        // Validasi keberadaan dan format tanggal
         if (!date) {
             return res.status(400).json({ message: 'Parameter query "date" wajib diisi' });
+        }
+
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(date) || isNaN(Date.parse(date))) {
+            return res.status(400).json({ message: 'Format parameter "date" tidak valid. Gunakan format YYYY-MM-DD' });
+        }
+
+        const inputDate = new Date(date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (inputDate > today) {
+            return res.status(400).json({ message: 'Tanggal kehadiran tidak boleh melebihi tanggal hari ini' });
         }
 
         if (!Array.isArray(attendanceUpdates) || attendanceUpdates.length === 0) {
@@ -261,6 +275,8 @@ router.put('/attendances', accessValidation, roleValidation(['wali_kelas']), asy
         }
 
         const updatedAttendances = [];
+        const notFound = [];
+
         for (const update of attendanceUpdates) {
             const existingAttendance = await Attendance.findOne({
                 where: {
@@ -275,14 +291,23 @@ router.put('/attendances', accessValidation, roleValidation(['wali_kelas']), asy
                 await existingAttendance.save();
                 updatedAttendances.push(existingAttendance);
             } else {
-                const newAttendance = await Attendance.create({
-                    student_class_id: update.student_class_id,
-                    semester_id: activeSemester.id,
-                    date: date,
-                    status: update.status,
-                });
-                updatedAttendances.push(newAttendance);
+                notFound.push(update.student_class_id);
             }
+        }
+
+        if (notFound.length === attendanceUpdates.length) {
+            return res.status(400).json({ 
+                message: 'Semua data kehadiran yang ingin diperbarui belum ditambahkan sebelumnya',
+                notFoundStudentClassIds: notFound
+            });
+        }
+
+        if (notFound.length > 0) {
+            return res.status(206).json({ 
+                message: `${updatedAttendances.length} data berhasil diperbarui. Beberapa data tidak ditemukan karena belum ditambahkan.`,
+                updatedAttendances,
+                notFoundStudentClassIds: notFound
+            });
         }
 
         res.json({ message: `${updatedAttendances.length} data kehadiran berhasil diperbarui`, updatedAttendances });
