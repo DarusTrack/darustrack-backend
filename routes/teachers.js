@@ -148,6 +148,7 @@ router.get('/attendances', accessValidation, roleValidation(['wali_kelas']), asy
         }
 
         const attendanceData = attendances.map(att => ({
+            student_class_id: att.student_class_id,
             studentName: att.student_class.student.name,
             status: att.status,
             date: att.date
