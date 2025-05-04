@@ -1,4 +1,4 @@
-const { AcademicYear, Class, Semester, Evaluation, StudentClass, StudentEvaluation, Student } = require('../../models');
+const { AcademicYear, Class, Semester, Evaluation, StudentClass, StudentEvaluation, Student } = require('../models');
 const { Op } = require('sequelize');
 
 exports.getEvaluationsBySemester = async (req, res) => {

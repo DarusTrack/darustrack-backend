@@ -1,7 +1,7 @@
 const {
     AcademicYear, Class, Schedule, Subject, GradeCategory, GradeDetail,
     StudentClass, StudentGrade
-  } = require('../../models');
+  } = require('../models');
   const { Op } = require('sequelize');
   
   exports.getSubjectsByTeacherClass = async (req, res) => {

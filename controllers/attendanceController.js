@@ -1,6 +1,6 @@
 const {
     Semester, AcademicYear, Class, StudentClass, Attendance
-  } = require('../../models');
+  } = require('../models');
   const { Op } = require('sequelize');
   
   // GET: Kehadiran siswa berdasarkan tanggal
