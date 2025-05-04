@@ -13,7 +13,7 @@ const semestersRouter = require('./routes/semesters')
 const usersRouter = require('./routes/users');
 const teachersRouter = require('./routes/teachers');
 const parentsRouter = require('./routes/parents');
-const headMasterRouter = require('./routes/class_summary');
+const headmasterRouter = require('./routes/headmaster');
 const classesRouter = require('./routes/classes');
 const studentsRouter = require('./routes/students');
 const curriculumsRouter = require('./routes/curriculums');
@@ -58,7 +58,7 @@ app.use('/auth', authRouter);
 app.use('/users', usersRouter);
 app.use('/teachers', teachersRouter);
 app.use('/parents', parentsRouter);
-app.use('/headmaster', headMasterRouter);
+app.use('/headmaster', headmasterRouter);
 app.use('/classes', classesRouter);
 app.use('/students', studentsRouter);
 app.use('/curriculums', curriculumsRouter);
