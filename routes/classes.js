@@ -108,8 +108,23 @@ router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), a
 
 // Tambah jadwal pelajaran baru dalam kelas
 router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    const { subject_id, day, start_time, end_time } = req.body;
+    const convertDayToIndonesian = (dayEnglish) => {
+        const dayMap = {
+            Monday: "Senin",
+            Tuesday: "Selasa",
+            Wednesday: "Rabu",
+            Thursday: "Kamis",
+            Friday: "Jumat",
+            Saturday: "Sabtu",
+            Sunday: "Minggu"
+        };
+        return dayMap[dayEnglish] || dayEnglish;
+    };
+
+    let { subject_id, day, start_time, end_time } = req.body;
     const { class_id } = req.params;
+
+    day = convertDayToIndonesian(day); // konversi ke format ENUM yang diterima DB
 
     try {
         const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
@@ -124,12 +139,8 @@ router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), 
                 class_id: class_id,
                 day: day,
                 [Op.or]: [
-                    {
-                        start_time: { [Op.between]: [start_time, end_time] }
-                    },
-                    {
-                        end_time: { [Op.between]: [start_time, end_time] }
-                    },
+                    { start_time: { [Op.between]: [start_time, end_time] } },
+                    { end_time: { [Op.between]: [start_time, end_time] } },
                     {
                         [Op.and]: [
                             { start_time: { [Op.lte]: start_time } },
