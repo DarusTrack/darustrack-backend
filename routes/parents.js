@@ -192,7 +192,8 @@ router.get('/evaluations/:semesterId', async (req, res) => {
                     model: Semester,
                     as: 'semester',
                     attributes: ['id', 'name']
-                }
+                },
+                order: [['title', 'ASC']]  // Mengurutkan berdasarkan judul evaluasi
             }
         });
 
@@ -203,7 +204,7 @@ router.get('/evaluations/:semesterId', async (req, res) => {
                 semester_id: evaluation.evaluation.semester.id,
                 semester_name: evaluation.evaluation.semester.name
             };
-        });        
+        });
 
         res.json(formattedEvaluations);
     } catch (error) {
@@ -297,6 +298,9 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
 
         const uniqueSubjects = Object.values(uniqueSubjectsMap);
 
+        // Urutkan berdasarkan nama mata pelajaran (title) secara abjad
+        uniqueSubjects.sort((a, b) => a.name.localeCompare(b.name));
+
         res.json(uniqueSubjects);
     } catch (error) {
         console.error(error);
@@ -317,6 +321,9 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
                 class_id: studentClass.class_id
             }
         });
+
+        // Urutkan kategori berdasarkan nama secara abjad
+        gradeCategories.sort((a, b) => a.name.localeCompare(b.name));
 
         res.json(gradeCategories);
     } catch (error) {
@@ -346,6 +353,9 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
             day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
             score: detail.student_grade.length > 0 ? detail.student_grade[0].score : null
         }));
+
+        // Urutkan berdasarkan tanggal terbaru
+        result.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         res.json(result);
     } catch (error) {

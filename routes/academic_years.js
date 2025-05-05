@@ -201,6 +201,9 @@ router.get('/:id/classes', accessValidation, roleValidation(["admin"]), async (r
       };
     });
 
+    // Urutkan kelas berdasarkan nama kelas (alphabetical)
+    classList.sort((a, b) => a.name.localeCompare(b.name)); // Urutkan berdasarkan nama kelas
+
     res.json({
       id: academicYear.id,
       year: academicYear.year,
@@ -343,7 +346,10 @@ router.get('/:academicYearId/classes/:classId/students', accessValidation, roleV
     }
 
     // Menyusun response untuk daftar siswa
-    const students = classData.student_class ? classData.student_class.map(sc => sc.student) : [];
+    let students = classData.student_class ? classData.student_class.map(sc => sc.student) : [];
+
+    // Urutkan daftar siswa berdasarkan nama
+    students = students.sort((a, b) => a.name.localeCompare(b.name)); // Urutkan berdasarkan nama siswa
 
     // Kirim response
     res.json({

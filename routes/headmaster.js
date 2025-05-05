@@ -109,12 +109,8 @@ router.get('/classes', accessValidation, roleValidation(["kepala_sekolah"]), asy
             };
         });
 
-        formattedClasses.sort((a, b) => {
-            if (a.grade_level !== b.grade_level) {
-                return a.grade_level - b.grade_level; // Urutkan berdasarkan grade_level dulu
-            }
-            return a.name.localeCompare(b.name); // Jika grade_level sama, urutkan berdasarkan nama
-        });
+        // Urutkan berdasarkan nama kelas (alphabetical)
+        formattedClasses.sort((a, b) => a.name.localeCompare(b.name)); 
         
         // Kirim data dalam bentuk JSON
         return res.json(formattedClasses);

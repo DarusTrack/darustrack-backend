@@ -5,65 +5,69 @@ const { Sequelize, Op } = require('sequelize');
 const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 
+// class tahun ajaran aktif
 router.get('/', accessValidation, roleValidation(['admin']), async (req, res) => {
     try {
-      // Cari semester aktif
-      const activeSemester = await Semester.findOne({
-        where: {
-          is_active: true
-        },
-        include: [
-          {
-            model: AcademicYear,
-            as: 'academic_year',
-            required: true, // Hanya ambil semester yang memiliki academic_year
+        // Cari semester aktif
+        const activeSemester = await Semester.findOne({
             where: {
-              is_active: true // Pastikan tahun ajaran yang aktif
-            }
-          }
-        ]
-      });
-  
-      if (!activeSemester) {
-        return res.status(404).json({ message: 'Tidak ada semester aktif ditemukan' });
-      }
-  
-      // Ambil parameter grade_level dari query string (jika ada)
-      const { grade_level } = req.query;
-  
-      // Filter berdasarkan grade_level jika parameter tersedia
-      const whereConditions = {
-        academic_year_id: activeSemester.academic_year_id // Filter berdasarkan tahun ajaran yang aktif
-      };
-  
-      // Jika ada grade_level, tambahkan filter berdasarkan grade_level
-      if (grade_level) {
-        whereConditions.name = {
-          [Sequelize.Op.like]: `${grade_level}%` // Filter berdasarkan angka pertama pada nama kelas
+                is_active: true
+            },
+            include: [
+                {
+                    model: AcademicYear,
+                    as: 'academic_year',
+                    required: true, // Hanya ambil semester yang memiliki academic_year
+                    where: {
+                        is_active: true // Pastikan tahun ajaran yang aktif
+                    }
+                }
+            ]
+        });
+
+        if (!activeSemester) {
+            return res.status(404).json({ message: 'Tidak ada semester aktif ditemukan' });
+        }
+
+        // Ambil parameter grade_level dari query string (jika ada)
+        const { grade_level } = req.query;
+
+        // Filter berdasarkan grade_level jika parameter tersedia
+        const whereConditions = {
+            academic_year_id: activeSemester.academic_year_id // Filter berdasarkan tahun ajaran yang aktif
         };
-      }
-  
-      // Ambil kelas yang terkait dengan semester aktif dan filter berdasarkan grade_level (jika ada)
-      const foundClasses = await Class.findAll({
-        where: whereConditions,
-        attributes: ['id', 'name', 'academic_year_id', 'teacher_id'],
-      });      
-  
-      // Menambahkan grade_level ke setiap kelas berdasarkan angka pertama dari nama kelas
-      const classesWithGradeLevel = foundClasses.map(cls => {
-        const gradeLevel = parseInt(cls.name.charAt(0));
-        return {
-          ...cls.toJSON(),
-          grade_level: isNaN(gradeLevel) ? null : gradeLevel
-        };
-      });
-  
-      res.json(classesWithGradeLevel);
+
+        // Jika ada grade_level, tambahkan filter berdasarkan grade_level
+        if (grade_level) {
+            whereConditions.name = {
+                [Sequelize.Op.like]: `${grade_level}%` // Filter berdasarkan angka pertama pada nama kelas
+            };
+        }
+
+        // Ambil kelas yang terkait dengan semester aktif dan filter berdasarkan grade_level (jika ada)
+        const foundClasses = await Class.findAll({
+            where: whereConditions,
+            attributes: ['id', 'name', 'academic_year_id', 'teacher_id'],
+        });
+
+        // Menambahkan grade_level ke setiap kelas berdasarkan angka pertama dari nama kelas
+        const classesWithGradeLevel = foundClasses.map(cls => {
+            const gradeLevel = parseInt(cls.name.charAt(0));
+            return {
+                ...cls.toJSON(),
+                grade_level: isNaN(gradeLevel) ? null : gradeLevel
+            };
+        });
+
+        // Urutkan kelas berdasarkan nama kelas (alphabetical)
+        classesWithGradeLevel.sort((a, b) => a.name.localeCompare(b.name)); // Urutkan berdasarkan nama kelas
+
+        res.json(classesWithGradeLevel);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Gagal mengambil data kelas', error });
+        console.error(error);
+        res.status(500).json({ message: 'Gagal mengambil data kelas', error });
     }
-});  
+});
 
 // Get daftar jadwal pelajaran dari kelas tertentu (filter perhari)
 router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {

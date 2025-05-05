@@ -124,7 +124,7 @@ router.get('/attendances', accessValidation, roleValidation(['wali_kelas']), asy
         const attendances = await Attendance.findAll({
             where: {
                 semester_id: activeSemester.id,
-                date: date, // filter tanggal dari query
+                date: date,
             },
             include: [
                 {
@@ -147,12 +147,15 @@ router.get('/attendances', accessValidation, roleValidation(['wali_kelas']), asy
             return res.status(404).json({ message: 'Tidak ada data kehadiran untuk tanggal tersebut' });
         }
 
-        const attendanceData = attendances.map(att => ({
-            student_class_id: att.student_class_id,
-            studentName: att.student_class.student.name,
-            status: att.status,
-            date: att.date
-        }));
+        // Ubah dan urutkan data berdasarkan nama siswa
+        const attendanceData = attendances
+            .map(att => ({
+                student_class_id: att.student_class_id,
+                studentName: att.student_class.student.name,
+                status: att.status,
+                date: att.date
+            }))
+            .sort((a, b) => a.studentName.localeCompare(b.studentName)); // Urut A-Z
 
         res.json(attendanceData);
 
@@ -386,7 +389,15 @@ router.get('/semesters', accessValidation, roleValidation(["wali_kelas"]), async
             return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
         }
 
-        res.json({ semesters: activeYear.semester }); // sesuai dengan alias relasi
+        // Urutkan semester: Ganjil dulu baru Genap
+        const sortedSemesters = activeYear.semester.sort((a, b) => {
+            if (a.type === 'Ganjil' && b.type === 'Genap') return -1;
+            if (a.type === 'Genap' && b.type === 'Ganjil') return 1;
+            return 0;
+        });
+
+        res.json({ semesters: sortedSemesters });
+
     } catch (error) {
         res.status(500).json({ message: 'Gagal mengambil semester', error: error.message });
     }
@@ -407,14 +418,15 @@ router.get('/semesters/:semester_id/evaluations', accessValidation, roleValidati
         where: {
           class_id: myClass.id,
           semester_id: semesterId
-        }
+        },
+        order: [['title', 'ASC']] // Urut berdasarkan abjad judul evaluasi
       });
   
       res.json({ evaluations });
     } catch (error) {
-      res.status(500).json({ message: 'Gagal mengambil evaluasi', error });
+      res.status(500).json({ message: 'Gagal mengambil evaluasi', error: error.message });
     }
-});
+});  
 
 // Tambah title evaluasi per semester
 router.post('/semesters/:semester_id/evaluations', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
@@ -604,13 +616,14 @@ router.get('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]),
             const studentData = se.student_class?.student;
             return {
                 student_evaluation_id: se.id,
-                // student_id: studentData?.id || null,
                 name: studentData?.name || null,
                 nisn: studentData?.nisn || null,
-                // birth_date: studentData?.birth_date || null,
                 description: se.description
             };
-        });        
+        });
+
+        // Urutkan berdasarkan nama siswa (secara alfabetis)
+        result.sort((a, b) => a.name.localeCompare(b.name));
 
         res.json(result);
     } catch (error) {
@@ -707,6 +720,9 @@ router.get('/grades/subjects', accessValidation, roleValidation(['wali_kelas']),
             }
         });
 
+        // 5. Urutkan berdasarkan nama mata pelajaran
+        uniqueSubjects.sort((a, b) => a.subject_name.localeCompare(b.subject_name));
+
         res.json(uniqueSubjects);
     } catch (error) {
         console.error("Error fetching subjects for academic grades:", error);
@@ -716,35 +732,35 @@ router.get('/grades/subjects', accessValidation, roleValidation(['wali_kelas']),
 
 // kategori penilaian setiap mapel
 router.get('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
-      try {
+    try {
         const { subject_id, semester_id } = req.params;
-  
+
         // Ambil class_id dari wali kelas yang login
         const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
-  
+
         if (!teacherClass) {
-          return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+            return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
         }
-  
+
         const classId = teacherClass.id;
-  
-        // Ambil kategori penilaian yang cocok
+
+        // Ambil kategori penilaian yang cocok dan urutkan berdasarkan nama (A-Z)
         const categories = await GradeCategory.findAll({
-          where: {
-            class_id: classId,
-            subject_id,
-            semester_id
-          },
-          attributes: ['id', 'name']
+            where: {
+                class_id: classId,
+                subject_id,
+                semester_id
+            },
+            attributes: ['id', 'name'],
+            order: [['name', 'ASC']]  // Urutkan berdasarkan nama secara alfabet
         });
-  
+
         res.json(categories);
-      } catch (error) {
+    } catch (error) {
         console.error('Error fetching grade categories:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
-      }
     }
-);  
+});
 
 // tambah kategori
 router.post('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
@@ -878,7 +894,11 @@ router.get('/grades/categories/:category_id/details', accessValidation, roleVali
         if (!teacherClass || category.class_id !== teacherClass.id)
             return res.status(403).json({ message: 'Access denied to this category' });
 
-        const details = await GradeDetail.findAll({ where: { grade_category_id: category_id } });
+        const details = await GradeDetail.findAll({
+            where: { grade_category_id: category_id },
+            order: [['title', 'ASC']] // Gantilah 'title' jika kolom nama berbeda
+        });
+
         res.json(details);
     } catch (e) {
         res.status(500).json({ message: 'Server error', error: e.message });
@@ -1045,7 +1065,7 @@ router.get('/grades/details/:detail_id/students', accessValidation, roleValidati
             return res.status(403).json({ message: 'Access denied' });
         }
 
-        // 3. Ambil semua siswa dan skor (null jika belum dinilai)
+        // 3. Ambil semua siswa dan skor (null jika belum dinilai), urut berdasarkan nama siswa
         const studentGrades = await StudentGrade.findAll({
             where: { grade_detail_id: detail_id },
             include: [
@@ -1059,7 +1079,7 @@ router.get('/grades/details/:detail_id/students', accessValidation, roleValidati
                     }
                 }
             ],
-            order: [['id', 'ASC']]
+            order: [[{ model: StudentClass, as: 'student_class' }, { model: Student, as: 'student' }, 'name', 'ASC']]
         });
 
         const result = studentGrades.map(entry => ({

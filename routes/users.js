@@ -11,15 +11,18 @@ const accessValidation = require('../middlewares/accessValidation');
 router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const { role } = req.query;
 
-    // Objek filter berdasarkan parameter yang diberikan
     let whereClause = {};
     if (role) whereClause.role = role;
 
     try {
         const users = await User.findAll({
             where: whereClause,
-            attributes: { exclude: ["password", "createdAt", "updatedAt", "resetPasswordToken", "resetPasswordExpires"] } // Mengecualikan password, createdAt, updatedAt dari hasil query
+            attributes: {
+                exclude: ["password", "createdAt", "updatedAt", "resetPasswordToken", "resetPasswordExpires"]
+            },
+            order: [['name', 'ASC']] // Urutkan berdasarkan nama secara abjad
         });
+
         return res.json(users);
     } catch (error) {
         return res.status(500).json({ message: 'Error retrieving users', error });

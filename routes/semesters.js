@@ -15,7 +15,12 @@ router.get('/', accessValidation, async (req, res) => {
                 as: 'academic_year',
                 attributes: ['id', 'year', 'is_active'],  // Menambahkan attributes untuk AcademicYear
                 where: { is_active: true }
-            }
+            },
+            order: [
+                // Mengurutkan berdasarkan nama semester (ganjil terlebih dahulu)
+                [sequelize.literal('CASE WHEN "name" LIKE "Ganjil%" THEN 1 ELSE 2 END'), 'ASC'],
+                ['name', 'ASC']  // Untuk memastikan pengurutan berdasarkan nama semester setelah urutan ganjil-genap
+            ]
         });
         res.json(semesters);
     } catch (error) {
