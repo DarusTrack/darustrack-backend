@@ -20,26 +20,31 @@ router.get('/', accessValidation, async (req, res) => {
 
 router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
-    
-    let curriculums = await Curriculum.findByPk(id);
 
+    if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid ID' });
+    }
+
+    let curriculums = await Curriculum.findByPk(id);
     if (!curriculums) {
         return res.status(404).json({ message: 'Curriculum not found' });
     }
-    
+
     const schema = {
-        name: 'string|optional',
-        description: 'string|optional'
+        name: { type: "string", optional: true, empty: false },
+        description: { type: "string", optional: true, empty: false }
     };
 
     const validate = v.validate(req.body, schema);
-
     if (validate.length) {
         return res.status(400).json(validate);
     }
 
     await curriculums.update(req.body);
-    res.json(curriculums);
+    return res.status(200).json({ 
+        message: 'Curriculum updated successfully',
+        data: curriculums
+    });
 });
 
 module.exports = router;
