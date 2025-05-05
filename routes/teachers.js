@@ -389,15 +389,7 @@ router.get('/semesters', accessValidation, roleValidation(["wali_kelas"]), async
             return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
         }
 
-        // Urutkan semester: Ganjil dulu baru Genap
-        const sortedSemesters = activeYear.semester.sort((a, b) => {
-            if (a.type === 'Ganjil' && b.type === 'Genap') return -1;
-            if (a.type === 'Genap' && b.type === 'Ganjil') return 1;
-            return 0;
-        });
-
-        res.json({ semesters: sortedSemesters });
-
+        res.json({ semesters: activeYear.semester }); // sesuai dengan alias relasi
     } catch (error) {
         res.status(500).json({ message: 'Gagal mengambil semester', error: error.message });
     }
