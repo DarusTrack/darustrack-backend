@@ -6,12 +6,14 @@ const roleValidation = require('../middlewares/roleValidation');
 const { Op } = require('sequelize');
 
 router.get('/', accessValidation, roleValidation(['admin']), async (req, res) => {
-    try {
-      const students = await Student.findAll();
-      res.json(students);
-    } catch (error) {
-      res.status(500).json({ message: 'Gagal mengambil data siswa', error });
-    }
+  try {
+    const students = await Student.findAll({
+      order: [['name', 'ASC']]
+    });
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data siswa', error });
+  }
 });
 
 router.post('/', accessValidation, roleValidation(['admin']), async (req, res) => {

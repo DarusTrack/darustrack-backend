@@ -124,7 +124,7 @@ router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), 
     let { subject_id, day, start_time, end_time } = req.body;
     const { class_id } = req.params;
 
-    day = convertDayToIndonesian(day); // konversi ke format ENUM yang diterima DB
+    day = convertDayToIndonesian(day);
 
     try {
         const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
