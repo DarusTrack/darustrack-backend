@@ -31,6 +31,7 @@ module.exports = {
 
     // Tambahkan data pertama
     await queryInterface.bulkInsert('curriculums', [{
+      id: 1,
       name: 'Kurikulum Merdeka',
       description: 'Kurikulum yang menekankan pada pembelajaran berbasis proyek dan fleksibilitas.',
       createdAt: new Date(),
