@@ -17,18 +17,6 @@ module.exports = (sequelize, DataTypes) => {
     }, {
         tableName: 'curriculums',
     });
-
-    // Tambahkan data pertama setelah sync
-    Curriculum.afterSync(async () => {
-        const count = await Curriculum.count();
-        if (count === 0) {
-        await Curriculum.create({
-            id: 1,
-            name: 'Kurikulum Merdeka',
-            description: 'Kurikulum yang mendukung kebebasan belajar.'
-        });
-        }
-    });
     
     return Curriculum;
 }
