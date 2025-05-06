@@ -24,7 +24,7 @@ const app = express();
 
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://darustrackweb.vercel.app'
+  'https://darustrack.vercel.app'
 ];
 
 const corsOptions = {
