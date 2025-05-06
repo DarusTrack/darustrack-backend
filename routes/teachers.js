@@ -888,7 +888,7 @@ router.get('/grades/categories/:category_id/details', accessValidation, roleVali
 
         const details = await GradeDetail.findAll({
             where: { grade_category_id: category_id },
-            order: [['title', 'ASC']] // Gantilah 'title' jika kolom nama berbeda
+            order: [['name', 'ASC']]
         });
 
         res.json(details);
