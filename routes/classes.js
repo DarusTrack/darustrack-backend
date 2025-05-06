@@ -73,28 +73,37 @@ router.get('/', accessValidation, roleValidation(['admin']), async (req, res) =>
 router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {
     const { day } = req.query;
     const whereClause = { class_id: req.params.class_id };
-
     if (day) whereClause.day = day;
 
     try {
-        // Cari tahun ajaran aktif
         const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
         if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
 
-        // Hapus jadwal untuk kelas yang tidak sesuai dengan tahun ajaran aktif
-        await Schedule.destroy({
+        // Temukan jadwal yang class-nya tidak sesuai dengan tahun ajaran aktif
+        const schedulesToDelete = await Schedule.findAll({
             where: {
                 class_id: req.params.class_id,
-                '$class.academic_year_id$': { [Op.ne]: activeYear.id }
             },
             include: [
                 {
                     model: Class,
                     as: 'class',
-                    attributes: []
+                    where: {
+                        academic_year_id: { [Op.ne]: activeYear.id }
+                    }
                 }
             ]
         });
+
+        // Hapus data yang ditemukan
+        const idsToDelete = schedulesToDelete.map(s => s.id);
+        if (idsToDelete.length > 0) {
+            await Schedule.destroy({
+                where: {
+                    id: idsToDelete
+                }
+            });
+        }
 
         // Ambil jadwal yang sesuai dengan tahun ajaran aktif
         const schedule = await Schedule.findAll({
@@ -110,7 +119,7 @@ router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), a
                     as: 'class',
                     attributes: ['id', 'name', 'academic_year_id'],
                     where: {
-                        academic_year_id: activeYear.id  // Filter berdasarkan tahun ajaran aktif
+                        academic_year_id: activeYear.id
                     }
                 }
             ],
