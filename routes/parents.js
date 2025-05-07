@@ -47,43 +47,38 @@ router.get('/schedule', async (req, res) => {
         const parentId = req.user.id;
         console.log(`Parent ID: ${parentId}`);
 
-        // Cari siswa berdasarkan parent_id
         const student = await Student.findOne({
             where: { parent_id: parentId },
             include: [{
                 model: StudentClass,
                 as: 'student_class',
-                attributes: ['class_id'],
                 include: [{
                     model: Class,
                     as: 'class',
-                    attributes: ['id', 'academic_year_id'],
                     include: [{
                         model: AcademicYear,
                         as: 'academic_year',
-                        where: { is_active: true },
+                        where: { is_active: true }, // Hanya tahun ajaran aktif
                         attributes: ['id']
-                    }]
-                }]
+                    }],
+                    attributes: ['id', 'academic_year_id']
+                }],
+                attributes: ['class_id']
             }]
         });
 
-        if (!student) {
-            return res.status(404).json({ message: 'Data anak tidak ditemukan' });
+        if (!student || !student.student_class?.length) {
+            return res.status(404).json({ message: 'Data anak tidak ditemukan atau tidak memiliki kelas di tahun ajaran aktif' });
         }
 
-        console.log('Student Data:', student);
+        // Cari student_class yang memiliki class & academic_year aktif
+        const activeStudentClass = student.student_class.find(sc => sc.class && sc.class.academic_year);
 
-        // Ambil data student_class (pastikan alias sama dengan include)
-        const studentClass = student.student_class?.[0]; // <- PERBAIKAN: student_class, bukan student_classes
-        console.log('Student Class:', studentClass);
-
-        const classId = studentClass?.class_id;
-        const academicYearId = studentClass?.class?.academic_year_id;
-
-        if (!classId || !academicYearId) {
-            return res.status(404).json({ message: 'Class ID atau tahun ajaran tidak ditemukan' });
+        if (!activeStudentClass) {
+            return res.status(404).json({ message: 'Kelas anak tidak berada di tahun ajaran aktif' });
         }
+
+        const classId = activeStudentClass.class.id;
 
         // Ambil parameter "day" dari query
         const { day } = req.query;
@@ -93,7 +88,7 @@ router.get('/schedule', async (req, res) => {
             whereCondition.day = { [Op.eq]: day };
         }
 
-        // Cari jadwal sesuai class_id
+        // Ambil jadwal
         const schedules = await Schedule.findAll({
             where: whereCondition,
             attributes: ['day', 'start_time', 'end_time'],
