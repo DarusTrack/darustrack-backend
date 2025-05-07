@@ -155,27 +155,37 @@ router.get('/attendances/:semesterId', async (req, res) => {
         const parentId = req.user.id;
         const semesterId = req.params.semesterId;
 
+        // Validasi semester harus berada di tahun ajaran aktif
+        const semester = await Semester.findOne({
+            where: { id: semesterId },
+            include: {
+                model: AcademicYear,
+                as: 'academic_year',
+                where: { is_active: true },
+                attributes: []
+            }
+        });
+
+        if (!semester) {
+            return res.status(404).json({ message: 'Semester tidak ditemukan atau tidak berada di tahun ajaran aktif' });
+        }
+
         // Cari data siswa
         const student = await Student.findOne({ where: { parent_id: parentId } });
         if (!student) return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
 
-        // Cari student_class milik siswa di tahun ajaran aktif
+        // Cari student_class milik siswa yang berada di tahun ajaran semester ini
         const studentClass = await StudentClass.findOne({
             where: { student_id: student.id },
             include: {
                 model: Class,
                 as: 'class',
-                include: {
-                    model: AcademicYear,
-                    as: 'academic_year',
-                    where: { is_active: true }, // hanya tahun ajaran aktif
-                    attributes: [] // jangan tampilkan
-                }
+                where: { academic_year_id: semester.academic_year_id }
             }
         });
 
         if (!studentClass) {
-            return res.status(404).json({ message: 'Kelas siswa di tahun ajaran aktif tidak ditemukan' });
+            return res.status(404).json({ message: 'Kelas siswa di tahun ajaran semester ini tidak ditemukan' });
         }
 
         // Ambil data kehadiran berdasarkan semester dan student_class
@@ -184,19 +194,12 @@ router.get('/attendances/:semesterId', async (req, res) => {
                 student_class_id: studentClass.id,
                 semester_id: semesterId
             },
-            include: [
-                {
-                    model: StudentClass,
-                    as: 'student_class',
-                    include: {
-                        model: Student,
-                        as: 'student',
-                        attributes: ['id', 'name']
-                    }
-                }
-            ],
             order: [['date', 'DESC']]
         });
+
+        if (attendances.length === 0) {
+            return res.status(404).json({ message: 'Data kehadiran tidak ditemukan untuk semester ini' });
+        }
 
         // Format hasil
         const formattedAttendances = attendances.map(attendance => {
