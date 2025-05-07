@@ -500,7 +500,14 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
 router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
     try {
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
+        if (!studentClass) {
+            return res.status(404).json({ message: 'Student class not found' });
+        }
 
         const gradeDetails = await GradeDetail.findAll({
             where: { grade_category_id: req.params.gradeCategoryId },
@@ -508,7 +515,7 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
                 model: StudentGrade,
                 as: 'student_grade',
                 where: { student_class_id: studentClass.id },
-                required: false
+                required: false // This allows grade details to be returned even if there are no grades
             }
         });
 
@@ -516,14 +523,15 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
             title: detail.name,
             date: detail.date,
             day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
-            score: detail.student_grade.length > 0 ? detail.student_grade[0].score : null
+            score: detail.student_grade.length > 0 ? detail.student_grade[0].score : null // Get the score if it exists
         }));
 
-        // Urutkan berdasarkan tanggal terbaru
+        // Sort by the latest date
         result.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         res.json(result);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: error.message });
     }
 });
