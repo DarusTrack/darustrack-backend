@@ -224,31 +224,43 @@ router.get('/evaluations/:semesterId', async (req, res) => {
     try {
         const { semesterId } = req.params;
 
+        // Cek semester dan pastikan berada di tahun ajaran aktif
+        const semester = await Semester.findOne({
+            where: { id: semesterId },
+            include: {
+                model: AcademicYear,
+                as: 'academic_year',
+                where: { is_active: true }
+            }
+        });
+
+        if (!semester) {
+            return res.status(404).json({ message: 'Semester tidak ditemukan atau tidak aktif' });
+        }
+
         // Cari siswa berdasarkan orang tua
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
         if (!student) return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
 
-        // Cari kelas siswa di semester tersebut
+        // Cari kelas siswa di tahun ajaran aktif
         const studentClass = await StudentClass.findOne({
             where: { student_id: student.id },
             include: {
                 model: Class,
                 as: 'class',
-                include: {
-                    model: AcademicYear,
-                    as: 'academic_year',
-                    where: { is_active: true }
-                }
+                where: { academic_year_id: semester.academic_year_id }
             }
         });
 
-        if (!studentClass) return res.status(404).json({ message: 'Kelas siswa tidak ditemukan di tahun ajaran aktif' });
+        if (!studentClass) {
+            return res.status(404).json({ message: 'Kelas siswa di tahun ajaran aktif tidak ditemukan' });
+        }
 
-        // Ambil semua evaluasi dari kelas siswa dan semester
+        // Ambil semua evaluasi yang terkait dengan kelas siswa dan semester
         const evaluations = await Evaluation.findAll({
             where: {
                 class_id: studentClass.class_id,
-                semester_id: semesterId
+                semester_id: semester.id
             },
             include: {
                 model: Semester,
@@ -258,7 +270,11 @@ router.get('/evaluations/:semesterId', async (req, res) => {
             order: [['title', 'ASC']]
         });
 
-        // Ambil nilai evaluasi siswa untuk evaluasi yang ditemukan
+        if (evaluations.length === 0) {
+            return res.status(404).json({ message: 'Belum ada evaluasi untuk semester ini' });
+        }
+
+        // Ambil nilai evaluasi siswa
         const studentEvaluations = await StudentEvaluation.findAll({
             where: {
                 student_class_id: studentClass.id,
@@ -266,14 +282,15 @@ router.get('/evaluations/:semesterId', async (req, res) => {
             }
         });
 
-        // Gabungkan data evaluasi dan nilai
+        // Gabungkan hasil evaluasi dengan nilai siswa (jika ada)
         const result = evaluations.map(evaluation => {
             const studentEval = studentEvaluations.find(se => se.evaluation_id === evaluation.id);
             return {
                 id: evaluation.id,
                 title: evaluation.title,
                 semester_id: evaluation.semester.id,
-                semester_name: evaluation.semester.name
+                semester_name: evaluation.semester.name,
+                score: studentEval ? studentEval.score : null
             };
         });
 
