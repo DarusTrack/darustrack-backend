@@ -499,32 +499,28 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
 // Detail Kategori (nilai dari jenis kategori)
 router.get('/grades/categories/:gradeCategoryId/details', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
     try {
-        // Cari siswa yang terkait dengan parent login
+        // Ambil siswa berdasarkan parent login
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
-        if (!student) {
-            return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
-        }
+        if (!student) return res.status(404).json({ message: 'Siswa tidak ditemukan' });
 
-        // Cari kelas dari siswa tersebut
+        // Ambil studentClass
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
-        if (!studentClass) {
-            return res.status(404).json({ message: 'Data kelas siswa tidak ditemukan' });
-        }
+        if (!studentClass) return res.status(404).json({ message: 'Kelas siswa tidak ditemukan' });
 
-        // Ambil detail penilaian dan nilai untuk siswa tersebut
+        // Ambil semua detail nilai untuk kategori ini, beserta semua StudentGrade (tanpa filter WHERE)
         const gradeDetails = await GradeDetail.findAll({
             where: { grade_category_id: req.params.gradeCategoryId },
             include: [{
                 model: StudentGrade,
                 as: 'student_grade',
-                where: { student_class_id: studentClass.id },
-                required: false // Tetap tampil meski belum ada nilai
+                required: false // Tetap ambil meski belum ada nilai
             }],
             order: [['date', 'DESC']]
         });
 
+        // Filter hanya nilai milik studentClass yang cocok
         const result = gradeDetails.map(detail => {
-            const studentGrade = detail.student_grade[0]; // Ambil nilai siswa (jika ada)
+            const studentGrade = detail.student_grade.find(sg => sg.student_class_id === studentClass.id);
             return {
                 title: detail.name,
                 date: detail.date,
@@ -535,8 +531,8 @@ router.get('/grades/categories/:gradeCategoryId/details', accessValidation, role
 
         res.json(result);
     } catch (error) {
-        console.error('Error fetching grade detail:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error('Error:', error);
+        res.status(500).json({ message: error.message });
     }
 });
 
