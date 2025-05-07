@@ -440,61 +440,36 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
 });
 
 // Daftar kategori mapel
-router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
+router.get('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
-        const { semesterId, subjectId } = req.params;
+      const { subject_id, semester_id } = req.params;
 
-        // 1. Validasi semester dan tahun ajaran aktif
-        const semester = await Semester.findOne({
-            where: { id: semesterId },
-            include: {
-                model: AcademicYear,
-                as: 'academic_year',
-                where: { is_active: true },
-                attributes: ['id', 'year']
-            }
-        });
+      // Ambil class_id dari wali kelas yang login
+      const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
 
-        if (!semester) {
-            return res.status(404).json({ message: 'Semester tidak ditemukan atau tidak berada di tahun ajaran aktif.' });
-        }
+      if (!teacherClass) {
+        return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
+      }
 
-        // 2. Ambil siswa dan kelasnya berdasarkan tahun ajaran aktif
-        const student = await Student.findOne({ where: { parent_id: req.user.id } });
-        if (!student) {
-            return res.status(404).json({ message: 'Data siswa tidak ditemukan.' });
-        }
+      const classId = teacherClass.id;
 
-        const studentClass = await StudentClass.findOne({
-            where: { student_id: student.id },
-            include: {
-                model: Class,
-                as: 'class',
-                where: { academic_year_id: semester.academic_year.id }
-            }
-        });
+      // Ambil kategori penilaian yang cocok
+      const categories = await GradeCategory.findAll({
+        where: {
+          class_id: classId,
+          subject_id,
+          semester_id
+        },
+        attributes: ['id', 'name']
+      });
 
-        if (!studentClass) {
-            return res.status(404).json({ message: 'Kelas siswa di tahun ajaran aktif tidak ditemukan.' });
-        }
-
-        // 3. Ambil kategori penilaian
-        const gradeCategories = await GradeCategory.findAll({
-            where: {
-                subject_id: subjectId,
-                semester_id: semesterId,
-                class_id: studentClass.class_id
-            },
-            order: [['name', 'ASC']],
-            attributes: ['id', 'name']
-        });
-
-        res.json(gradeCategories);
+      res.json(categories);
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ message: error.message });
+      console.error('Error fetching grade categories:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
     }
-});
+  }
+);  
 
 // Detail Kategori (nilai dari jenis kategori)
 router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
