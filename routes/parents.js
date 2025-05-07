@@ -289,8 +289,7 @@ router.get('/evaluations/:semesterId', async (req, res) => {
                 id: evaluation.id,
                 title: evaluation.title,
                 semester_id: evaluation.semester.id,
-                semester_name: evaluation.semester.name,
-                score: studentEval ? studentEval.score : null
+                semester_name: evaluation.semester.name
             };
         });
 
