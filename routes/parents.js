@@ -440,7 +440,7 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
 });
 
 // Daftar kategori mapel
-router.get('/grades/:subject_id/:semester_id/categories', async (req, res) => {
+router.get('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
     try {
       const { subject_id, semester_id } = req.params;
   
@@ -476,7 +476,7 @@ router.get('/grades/:subject_id/:semester_id/categories', async (req, res) => {
       console.error('Error fetching grade categories:', error);
       res.status(500).json({ message: 'Terjadi kesalahan di server', error: error.message });
     }
-});  
+});
 
 // Detail Kategori (nilai dari jenis kategori)
 router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
