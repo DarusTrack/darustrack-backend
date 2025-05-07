@@ -303,19 +303,51 @@ router.get('/evaluations/:semesterId', async (req, res) => {
 // Deskripsi evaluasi per semester
 router.get('/evaluations/:semesterId/:evaluationId', async (req, res) => {
     try {
-        const student = await Student.findOne({ where: { parent_id: req.user.id } });
-        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
+        const { semesterId, evaluationId } = req.params;
 
+        // Validasi semester dan pastikan semester berada di tahun ajaran aktif
+        const semester = await Semester.findOne({
+            where: { id: semesterId },
+            include: {
+                model: AcademicYear,
+                as: 'academic_year',
+                where: { is_active: true }
+            }
+        });
+
+        if (!semester) {
+            return res.status(404).json({ message: 'Semester tidak valid atau tidak aktif' });
+        }
+
+        // Cari siswa berdasarkan parent_id
+        const student = await Student.findOne({ where: { parent_id: req.user.id } });
+        if (!student) return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
+
+        // Cari kelas siswa pada tahun ajaran aktif
+        const studentClass = await StudentClass.findOne({
+            where: { student_id: student.id },
+            include: {
+                model: Class,
+                as: 'class',
+                where: { academic_year_id: semester.academic_year_id }
+            }
+        });
+
+        if (!studentClass) {
+            return res.status(404).json({ message: 'Kelas siswa pada tahun ajaran aktif tidak ditemukan' });
+        }
+
+        // Ambil data evaluasi siswa
         const studentEvaluation = await StudentEvaluation.findOne({
-            where: { 
+            where: {
                 student_class_id: studentClass.id,
-                evaluation_id: req.params.evaluationId 
+                evaluation_id: evaluationId
             },
             include: {
                 model: Evaluation,
                 as: 'evaluation',
-                where: { semester_id: req.params.semesterId },
-                attributes: ['id', 'title'],
+                where: { semester_id: semesterId },
+                attributes: ['id', 'title']
             }
         });
 
@@ -326,12 +358,13 @@ router.get('/evaluations/:semesterId/:evaluationId', async (req, res) => {
         const formattedEvaluation = {
             id: studentEvaluation.evaluation.id,
             title: studentEvaluation.evaluation.title,
-            description: studentEvaluation.description // Deskripsi evaluasi siswa
+            description: studentEvaluation.description // deskripsi penilaian dari StudentEvaluation
         };
 
         res.json(formattedEvaluation);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Error fetching evaluation detail:', error);
+        res.status(500).json({ message: 'Terjadi kesalahan saat mengambil detail evaluasi', error: error.message });
     }
 });
 
