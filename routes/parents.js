@@ -514,27 +514,30 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
         // Ambil semua detail penilaian dalam kategori tertentu
         const gradeDetails = await GradeDetail.findAll({
             where: { grade_category_id: req.params.gradeCategoryId },
-            include: {
-                model: StudentGrade,
-                as: 'student_grade',
-                where: { student_class_id: studentClass.id },
-                required: false
-            },
             order: [['date', 'DESC']]
         });
 
-        // Format hasil
-        const result = gradeDetails.map(detail => ({
-            title: detail.name,
-            date: detail.date,
-            day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
-            score: detail.student_grade ? detail.student_grade.score : null
+        // Ambil skor tiap detail penilaian untuk studentClass.id
+        const result = await Promise.all(gradeDetails.map(async (detail) => {
+            const studentGrade = await StudentGrade.findOne({
+                where: {
+                    grade_detail_id: detail.id,
+                    student_class_id: studentClass.id
+                }
+            });
+
+            return {
+                title: detail.name,
+                date: detail.date,
+                day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
+                score: studentGrade ? studentGrade.score : null
+            };
         }));
 
         res.json(result);
     } catch (error) {
         console.error('Error fetching grade detail:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
