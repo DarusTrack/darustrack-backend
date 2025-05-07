@@ -499,9 +499,19 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
 // Detail Kategori (nilai dari jenis kategori)
 router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
     try {
+        // Cari siswa berdasarkan parent yang login
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
-        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
+        if (!student) {
+            return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
+        }
 
+        // Cari StudentClass siswa (aktif di tahun ajaran berjalan)
+        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
+        if (!studentClass) {
+            return res.status(404).json({ message: 'Data kelas siswa tidak ditemukan' });
+        }
+
+        // Ambil semua detail penilaian dalam kategori tertentu
         const gradeDetails = await GradeDetail.findAll({
             where: { grade_category_id: req.params.gradeCategoryId },
             include: {
@@ -509,21 +519,21 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
                 as: 'student_grade',
                 where: { student_class_id: studentClass.id },
                 required: false
-            }
+            },
+            order: [['date', 'DESC']]
         });
 
+        // Format hasil
         const result = gradeDetails.map(detail => ({
             title: detail.name,
             date: detail.date,
             day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
-            score: detail.student_grade.length > 0 ? detail.student_grade[0].score : null
+            score: detail.student_grade ? detail.student_grade.score : null
         }));
-
-        // Urutkan berdasarkan tanggal terbaru
-        result.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         res.json(result);
     } catch (error) {
+        console.error('Error fetching grade detail:', error);
         res.status(500).json({ message: error.message });
     }
 });
