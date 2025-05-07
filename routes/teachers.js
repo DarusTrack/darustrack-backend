@@ -1088,7 +1088,7 @@ router.get('/grades/details/:detail_id/students', accessValidation, roleValidati
 router.patch('/grades/students/:student_grade_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { student_grade_id } = req.params;
-        const { score } = req.body;
+        const { score, student_id } = req.body;
 
         // 1. Validasi nilai yang dikirim
         if (score === undefined || score === null || isNaN(score)) {
@@ -1122,7 +1122,27 @@ router.patch('/grades/students/:student_grade_id', accessValidation, roleValidat
             return res.status(403).json({ message: 'Access denied' });
         }
 
-        // 4. Update nilai
+        // 4. Jika student_class_id kosong, cari dan isi berdasarkan student_id
+        if (!studentGrade.student_class_id) {
+            if (!student_id) {
+                return res.status(400).json({ message: 'student_id dibutuhkan untuk menyimpan student_class_id' });
+            }
+
+            const studentClass = await StudentClass.findOne({
+                where: {
+                    class_id: teacherClass.id,
+                    student_id: student_id
+                }
+            });
+
+            if (!studentClass) {
+                return res.status(400).json({ message: 'StudentClass tidak ditemukan untuk siswa tersebut di kelas ini' });
+            }
+
+            studentGrade.student_class_id = studentClass.id;
+        }
+
+        // 5. Simpan nilai
         studentGrade.score = score;
         await studentGrade.save();
 
