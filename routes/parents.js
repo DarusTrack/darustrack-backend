@@ -443,30 +443,38 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
 router.get('/grades/:subject_id/:semester_id/categories', async (req, res) => {
     try {
       const { subject_id, semester_id } = req.params;
-
-      // Ambil class_id dari wali kelas yang login
-      const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
-
+  
+      // Pastikan user sudah login dan memiliki ID
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: 'Unauthorized: user ID tidak ditemukan' });
+      }
+  
+      // Cari kelas yang diajar oleh wali kelas yang login
+      const teacherClass = await Class.findOne({
+        where: { teacher_id: req.user.id }
+      });
+  
       if (!teacherClass) {
         return res.status(403).json({ message: 'Anda tidak memiliki kelas yang diajar' });
       }
-
+  
       const classId = teacherClass.id;
-
-      // Ambil kategori penilaian yang cocok
+  
+      // Ambil kategori penilaian yang sesuai dengan kelas, mata pelajaran, dan semester
       const categories = await GradeCategory.findAll({
         where: {
           class_id: classId,
-          subject_id,
-          semester_id
+          subject_id: subject_id,
+          semester_id: semester_id
         },
-        attributes: ['id', 'name']
+        attributes: ['id', 'name'],
+        order: [['id', 'ASC']] // Optional: untuk hasil yang konsisten
       });
-
-      res.json(categories);
+  
+      res.status(200).json(categories);
     } catch (error) {
       console.error('Error fetching grade categories:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
+      res.status(500).json({ message: 'Terjadi kesalahan di server', error: error.message });
     }
 });  
 
