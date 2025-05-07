@@ -497,7 +497,7 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
 });
 
 // Detail Kategori (nilai dari jenis kategori)
-router.get('/grades/categories/:gradeCategoryId/details', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
+router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
     try {
         // Ambil siswa berdasarkan parent login
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
