@@ -29,8 +29,9 @@ router.get('/student', async (req, res) => {
                         {
                             model: AcademicYear,
                             as: 'academic_year',
-                            where: { is_active: true }, // filter tahun ajaran aktif
-                            attributes: ['id']
+                            where: { is_active: true },
+                            required: true,         // Hanya untuk filter, tidak ditampilkan
+                            attributes: []          // Jangan tampilkan di response
                         },
                         {
                             model: User,
@@ -46,10 +47,10 @@ router.get('/student', async (req, res) => {
             return res.status(404).json({ message: 'Data anak tidak ditemukan atau tidak ada kelas di tahun ajaran aktif' });
         }
 
-        // Hanya ambil kelas yang punya academic_year aktif
-        const activeStudentClass = student.student_class.find(sc => sc.class?.academic_year);
+        // Ambil hanya student_class yang berisi class dari academic_year aktif
+        const activeStudentClass = student.student_class.filter(sc => sc.class?.name);
 
-        if (!activeStudentClass) {
+        if (!activeStudentClass.length) {
             return res.status(404).json({ message: 'Kelas anak tidak berada di tahun ajaran aktif' });
         }
 
