@@ -499,35 +499,35 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
 // Detail Kategori (nilai dari jenis kategori)
 router.get('/grades/categories/:gradeCategoryId/details', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
     try {
-        // Ambil siswa berdasarkan parent login
+        // Cari siswa berdasarkan parent yang login
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
         if (!student) return res.status(404).json({ message: 'Siswa tidak ditemukan' });
 
-        // Ambil studentClass
+        // Cari StudentClass anak tersebut
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
         if (!studentClass) return res.status(404).json({ message: 'Kelas siswa tidak ditemukan' });
 
-        // Ambil semua detail nilai untuk kategori ini, beserta semua StudentGrade (tanpa filter WHERE)
+        // Ambil detail nilai (beserta semua nilai siswa lain)
         const gradeDetails = await GradeDetail.findAll({
             where: { grade_category_id: req.params.gradeCategoryId },
             include: [{
                 model: StudentGrade,
                 as: 'student_grade',
-                required: false // Tetap ambil meski belum ada nilai
+                where: { student_class_id: studentClass.id },
+                required: false
             }],
             order: [['date', 'DESC']]
         });
 
-        // Filter hanya nilai milik studentClass yang cocok
-        const result = gradeDetails.map(detail => {
-            const studentGrade = detail.student_grade.find(sg => sg.student_class_id === studentClass.id);
-            return {
-                title: detail.name,
-                date: detail.date,
-                day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
-                score: studentGrade ? studentGrade.score : null
-            };
-        });
+        // Format hasil, pastikan nilai hanya untuk anak sendiri
+        const result = gradeDetails.map(detail => ({
+            title: detail.name,
+            date: detail.date,
+            day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
+            score: detail.student_grade && detail.student_grade.length > 0
+                ? detail.student_grade[0].score
+                : null
+        }));
 
         res.json(result);
     } catch (error) {
