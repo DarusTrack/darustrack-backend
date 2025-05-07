@@ -519,6 +519,8 @@ router.get('/grades/categories/:gradeCategoryId/details', accessValidation, role
             order: [['date', 'DESC']]
         });
 
+        console.log(studentClass.id, detail.student_grade.map(sg => sg.student_class_id));
+
         // Format hasil, pastikan nilai hanya untuk anak sendiri
         const result = gradeDetails.map(detail => ({
             title: detail.name,
