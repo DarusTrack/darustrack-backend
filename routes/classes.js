@@ -8,49 +8,29 @@ const roleValidation = require('../middlewares/roleValidation');
 // class tahun ajaran aktif
 router.get('/', accessValidation, roleValidation(['admin']), async (req, res) => {
     try {
-        // Cari semester aktif
-        const activeSemester = await Semester.findOne({
-            where: {
-                is_active: true
-            },
-            include: [
-                {
-                    model: AcademicYear,
-                    as: 'academic_year',
-                    required: true, // Hanya ambil semester yang memiliki academic_year
-                    where: {
-                        is_active: true // Pastikan tahun ajaran yang aktif
-                    }
-                }
-            ]
-        });
-
-        if (!activeSemester) {
-            return res.status(404).json({ message: 'Tidak ada semester aktif ditemukan' });
-        }
-
         // Ambil parameter grade_level dari query string (jika ada)
         const { grade_level } = req.query;
 
-        // Filter berdasarkan grade_level jika parameter tersedia
-        const whereConditions = {
-            academic_year_id: activeSemester.academic_year_id // Filter berdasarkan tahun ajaran yang aktif
-        };
-
-        // Jika ada grade_level, tambahkan filter berdasarkan grade_level
-        if (grade_level) {
-            whereConditions.name = {
-                [Sequelize.Op.like]: `${grade_level}%` // Filter berdasarkan angka pertama pada nama kelas
-            };
-        }
-
-        // Ambil kelas yang terkait dengan semester aktif dan filter berdasarkan grade_level (jika ada)
+        // Cari kelas yang terkait dengan tahun ajaran aktif
         const foundClasses = await Class.findAll({
-            where: whereConditions,
-            attributes: ['id', 'name', 'academic_year_id', 'teacher_id'],
+            include: [
+                {
+                    model: AcademicYear,
+                    where: { is_active: true },
+                    attributes: ['id', 'year', 'is_active']
+                }
+            ],
+            where: grade_level
+                ? {
+                    name: {
+                        [Op.like]: `${grade_level}%`
+                    }
+                }
+                : {},
+            attributes: ['id', 'name', 'academic_year_id', 'teacher_id']
         });
 
-        // Menambahkan grade_level ke setiap kelas berdasarkan angka pertama dari nama kelas
+        // Tambahkan grade_level ke setiap kelas berdasarkan angka pertama dari nama kelas
         const classesWithGradeLevel = foundClasses.map(cls => {
             const gradeLevel = parseInt(cls.name.charAt(0));
             return {
@@ -59,13 +39,13 @@ router.get('/', accessValidation, roleValidation(['admin']), async (req, res) =>
             };
         });
 
-        // Urutkan kelas berdasarkan nama kelas (alphabetical)
-        classesWithGradeLevel.sort((a, b) => a.name.localeCompare(b.name)); // Urutkan berdasarkan nama kelas
+        // Urutkan berdasarkan nama kelas
+        classesWithGradeLevel.sort((a, b) => a.name.localeCompare(b.name));
 
         res.json(classesWithGradeLevel);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Gagal mengambil data kelas', error });
+        res.status(500).json({ message: 'Gagal mengambil data kelas', error: error.message });
     }
 });
 
