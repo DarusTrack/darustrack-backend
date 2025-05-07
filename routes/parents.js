@@ -373,23 +373,34 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
     try {
         const { semesterId } = req.params;
 
-        const student = await Student.findOne({ where: { parent_id: req.user.id } });
-        if (!student) return res.status(404).json({ message: 'Student not found' });
-
-        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
-        if (!studentClass) return res.status(404).json({ message: 'Student class not found' });
-
-        // Ambil semester beserta tahun ajaran
-        const semester = await Semester.findByPk(semesterId, {
+        // Ambil semester & pastikan relasi ke tahun ajaran aktif
+        const semester = await Semester.findOne({
+            where: { id: semesterId },
             include: {
                 model: AcademicYear,
                 as: 'academic_year',
+                where: { is_active: true },
                 attributes: ['id', 'year', 'is_active']
             }
         });
-        if (!semester) return res.status(404).json({ message: 'Semester not found' });
+        if (!semester) return res.status(404).json({ message: 'Semester tidak ditemukan atau tidak berada di tahun ajaran aktif' });
 
-        // Ambil semua mapel dari jadwal kelas anak
+        // Ambil data siswa berdasarkan user parent
+        const student = await Student.findOne({ where: { parent_id: req.user.id } });
+        if (!student) return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
+
+        // Cari studentClass berdasarkan tahun ajaran aktif
+        const studentClass = await StudentClass.findOne({
+            where: { student_id: student.id },
+            include: {
+                model: Class,
+                as: 'class',
+                where: { academic_year_id: semester.academic_year_id }
+            }
+        });
+        if (!studentClass) return res.status(404).json({ message: 'Kelas siswa untuk tahun ajaran aktif tidak ditemukan' });
+
+        // Ambil semua jadwal kelas berdasarkan class_id
         const schedules = await Schedule.findAll({
             where: {
                 class_id: studentClass.class_id
@@ -401,30 +412,30 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
             }
         });
 
-        // Filter mapel unik, dan tambahkan data semester ke setiap subject
+        // Buat list mata pelajaran unik dari jadwal
         const uniqueSubjectsMap = {};
-        schedules.forEach(sch => {
-            if (sch.subject && !uniqueSubjectsMap[sch.subject.id]) {
-                uniqueSubjectsMap[sch.subject.id] = {
-                    ...sch.subject.toJSON(),
+        schedules.forEach(schedule => {
+            const subj = schedule.subject;
+            if (subj && !uniqueSubjectsMap[subj.id]) {
+                uniqueSubjectsMap[subj.id] = {
+                    ...subj.toJSON(),
                     semester_id: semester.id,
                     semester_name: semester.name,
-                    academic_year_id: semester.academic_year?.id,
-                    academic_year_name: semester.academic_year?.year,
-                    is_academic_year_active: semester.academic_year?.is_active
+                    academic_year_id: semester.academic_year.id,
+                    academic_year_name: semester.academic_year.year,
+                    is_academic_year_active: semester.academic_year.is_active
                 };
             }
         });
 
+        // Konversi ke array dan urutkan berdasarkan nama
         const uniqueSubjects = Object.values(uniqueSubjectsMap);
-
-        // Urutkan berdasarkan nama mata pelajaran (title) secara abjad
         uniqueSubjects.sort((a, b) => a.name.localeCompare(b.name));
 
         res.json(uniqueSubjects);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: error.message });
+        console.error('Error fetching subjects:', error);
+        res.status(500).json({ message: 'Terjadi kesalahan saat mengambil data mata pelajaran', error: error.message });
     }
 });
 
