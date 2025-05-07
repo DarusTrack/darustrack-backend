@@ -733,12 +733,11 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
             include: {
                 model: AcademicYear,
                 as: 'academic_year',
-                where: { is_active: true },
                 attributes: ['id', 'year', 'is_active']
             }
         });
 
-        if (!semester) {
+        if (!semester || !semester.academic_year || !semester.academic_year.is_active) {
             return res.status(404).json({ message: 'Semester tidak ditemukan atau tidak berada di tahun ajaran aktif' });
         }
 
