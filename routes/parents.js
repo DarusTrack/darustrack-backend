@@ -497,37 +497,34 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
 });
 
 // Detail Kategori (nilai dari jenis kategori)
-router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
+router.get('/grades/categories/:gradeCategoryId/details', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
     try {
-        // Ambil data siswa berdasarkan parent login
+        // Cari siswa yang terkait dengan parent login
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
         if (!student) {
             return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
         }
 
-        // Cari data StudentClass
+        // Cari kelas dari siswa tersebut
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
         if (!studentClass) {
             return res.status(404).json({ message: 'Data kelas siswa tidak ditemukan' });
         }
-        console.log('StudentClass ID:', studentClass?.id);
 
-        // Ambil GradeDetail dan langsung sertakan StudentGrade yang cocok dengan studentClass.id
+        // Ambil detail penilaian dan nilai untuk siswa tersebut
         const gradeDetails = await GradeDetail.findAll({
             where: { grade_category_id: req.params.gradeCategoryId },
             include: [{
                 model: StudentGrade,
                 as: 'student_grade',
                 where: { student_class_id: studentClass.id },
-                required: false // supaya tetap muncul meski belum ada nilai
+                required: false // Tetap tampil meski belum ada nilai
             }],
             order: [['date', 'DESC']]
         });
 
-        console.log('Grade details fetched:', gradeDetails.length);
-        // Format hasil
         const result = gradeDetails.map(detail => {
-            const studentGrade = detail.student_grade[0]; // karena hasMany
+            const studentGrade = detail.student_grade[0]; // Ambil nilai siswa (jika ada)
             return {
                 title: detail.name,
                 date: detail.date,
