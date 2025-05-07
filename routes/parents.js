@@ -499,39 +499,47 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
 // Detail Kategori (nilai dari jenis kategori)
 router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
     try {
+        // 1. Dapatkan student berdasarkan parent
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
-        if (!student) {
-            return res.status(404).json({ message: 'Student not found' });
-        }
+        if (!student) return res.status(404).json({ message: 'Siswa tidak ditemukan' });
 
-        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
-        if (!studentClass) {
-            return res.status(404).json({ message: 'Student class not found' });
-        }
+        // 2. Dapatkan grade category untuk validasi class
+        const gradeCategory = await GradeCategory.findByPk(req.params.gradeCategoryId);
+        if (!gradeCategory) return res.status(404).json({ message: 'Kategori nilai tidak ditemukan' });
 
+        // 3. Cari student class yang sesuai dengan class di grade category
+        const studentClass = await StudentClass.findOne({
+            where: {
+                student_id: student.id,
+                class_id: gradeCategory.class_id // Pastikan class sesuai dengan grade category
+            }
+        });
+        if (!studentClass) return res.status(404).json({ message: 'Siswa tidak terdaftar di kelas ini' });
+
+        // 4. Query grade details dengan student grade yang sesuai
         const gradeDetails = await GradeDetail.findAll({
             where: { grade_category_id: req.params.gradeCategoryId },
             include: {
                 model: StudentGrade,
                 as: 'student_grade',
                 where: { student_class_id: studentClass.id },
-                required: false // This allows grade details to be returned even if there are no grades
+                required: false // Tetap tampilkan detail meski belum ada nilai
             }
         });
 
+        // 5. Transformasi data
         const result = gradeDetails.map(detail => ({
             title: detail.name,
             date: detail.date,
             day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
-            score: detail.student_grade.length > 0 ? detail.student_grade[0].score : null // Get the score if it exists
+            score: detail.student_grade.length > 0 ? detail.student_grade[0].score : null
         }));
 
-        // Sort by the latest date
+        // 6. Urutkan berdasarkan tanggal
         result.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         res.json(result);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: error.message });
     }
 });
