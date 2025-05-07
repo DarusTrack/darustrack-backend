@@ -499,40 +499,40 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
 // Detail Kategori (nilai dari jenis kategori)
 router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
     try {
-        // Cari siswa berdasarkan parent yang login
+        // Ambil data siswa berdasarkan parent login
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
         if (!student) {
             return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
         }
 
-        // Cari StudentClass siswa (aktif di tahun ajaran berjalan)
+        // Cari data StudentClass
         const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
         if (!studentClass) {
             return res.status(404).json({ message: 'Data kelas siswa tidak ditemukan' });
         }
 
-        // Ambil semua detail penilaian dalam kategori tertentu
+        // Ambil GradeDetail dan langsung sertakan StudentGrade yang cocok dengan studentClass.id
         const gradeDetails = await GradeDetail.findAll({
             where: { grade_category_id: req.params.gradeCategoryId },
+            include: [{
+                model: StudentGrade,
+                as: 'student_grade',
+                where: { student_class_id: studentClass.id },
+                required: false // supaya tetap muncul meski belum ada nilai
+            }],
             order: [['date', 'DESC']]
         });
 
-        // Ambil skor tiap detail penilaian untuk studentClass.id
-        const result = await Promise.all(gradeDetails.map(async (detail) => {
-            const studentGrade = await StudentGrade.findOne({
-                where: {
-                    grade_detail_id: detail.id,
-                    student_class_id: studentClass.id
-                }
-            });
-
+        // Format hasil
+        const result = gradeDetails.map(detail => {
+            const studentGrade = detail.student_grade[0]; // karena hasMany
             return {
                 title: detail.name,
                 date: detail.date,
                 day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
                 score: studentGrade ? studentGrade.score : null
             };
-        }));
+        });
 
         res.json(result);
     } catch (error) {
@@ -540,5 +540,6 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
+
 
 module.exports = router;
