@@ -13,38 +13,27 @@ router.use(accessValidation, roleValidation(['orang_tua']));
 router.get('/student', async (req, res) => {
     try {
         const parentId = req.user.id;
-
         const student = await Student.findOne({
             where: { parent_id: parentId },
             attributes: ['name', 'nisn', 'birth_date'],
-            include: [{
-                model: StudentClass,
-                as: "student_class",
+            include: [{ 
+                model: StudentClass,  
+                as: "student_class", 
                 attributes: ['id'],
                 include: [{
                     model: Class,
                     as: 'class',
                     attributes: ['name'],
-                    include: [
-                        {
-                            model: User,
-                            as: 'teacher',
-                            attributes: ['name']
-                        },
-                        {
-                            model: AcademicYear,
-                            as: 'academic_year',
-                            where: { is_active: true }, // Hanya tahun ajaran aktif
-                            attributes: ['id', 'name']
-                        }
-                    ]
-                }]
+                    include: [{
+                        model: User,
+                        as: 'teacher',
+                        attributes: ['name']
+                    }] 
+                }] 
             }]
         });
 
-        if (!student || !student.student_class?.length) {
-            return res.status(404).json({ message: 'Data anak atau kelas tidak ditemukan' });
-        }
+        if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
 
         res.json(student);
     } catch (error) {
@@ -58,39 +47,43 @@ router.get('/schedule', async (req, res) => {
         const parentId = req.user.id;
         console.log(`Parent ID: ${parentId}`);
 
-        // Cari siswa beserta kelasnya di tahun ajaran aktif
+        // Cari siswa berdasarkan parent_id
         const student = await Student.findOne({
             where: { parent_id: parentId },
             include: [{
                 model: StudentClass,
                 as: 'student_class',
+                attributes: ['class_id'],
                 include: [{
                     model: Class,
                     as: 'class',
+                    attributes: ['id', 'academic_year_id'],
                     include: [{
                         model: AcademicYear,
                         as: 'academic_year',
-                        where: { is_active: true }, // Hanya tahun ajaran aktif
+                        where: { is_active: true },
                         attributes: ['id']
-                    }],
-                    attributes: ['id', 'academic_year_id']
-                }],
-                attributes: ['class_id']
+                    }]
+                }]
             }]
         });
 
-        if (!student || !student.student_class?.length) {
-            return res.status(404).json({ message: 'Data anak atau kelas tidak ditemukan' });
+        if (!student) {
+            return res.status(404).json({ message: 'Data anak tidak ditemukan' });
         }
 
-        const studentClass = student.student_class[0];
-        const classData = studentClass.class;
+        console.log('Student Data:', student);
 
-        if (!classData || !classData.academic_year) {
-            return res.status(404).json({ message: 'Kelas anak tidak berada di tahun ajaran aktif' });
+        // Ambil data student_class (pastikan alias sama dengan include)
+        const studentClass = student.student_class?.[0]; // <- PERBAIKAN: student_class, bukan student_classes
+        console.log('Student Class:', studentClass);
+
+        const classId = studentClass?.class_id;
+        const academicYearId = studentClass?.class?.academic_year_id;
+
+        if (!classId || !academicYearId) {
+            return res.status(404).json({ message: 'Class ID atau tahun ajaran tidak ditemukan' });
         }
-
-        const classId = classData.id;
 
         // Ambil parameter "day" dari query
         const { day } = req.query;
@@ -100,7 +93,7 @@ router.get('/schedule', async (req, res) => {
             whereCondition.day = { [Op.eq]: day };
         }
 
-        // Ambil jadwal kelas untuk class_id tersebut
+        // Cari jadwal sesuai class_id
         const schedules = await Schedule.findAll({
             where: whereCondition,
             attributes: ['day', 'start_time', 'end_time'],
