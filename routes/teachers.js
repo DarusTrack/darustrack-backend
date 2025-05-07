@@ -737,36 +737,43 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
             }
         });
 
+        // Validasi semester dan tahun ajaran
         if (!semester || !semester.academic_year || !semester.academic_year.is_active) {
             return res.status(404).json({ message: 'Semester tidak ditemukan atau tidak berada di tahun ajaran aktif' });
         }
 
-        // Ambil data siswa berdasarkan user parent
+        // Ambil data siswa berdasarkan parent login
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
         if (!student) {
             return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
         }
 
-        // Ambil StudentClass berdasarkan tahun ajaran aktif
+        // Ambil StudentClass berdasarkan student_id dan academic_year_id
         const studentClass = await StudentClass.findOne({
-            where: { student_id: student.id },
+            where: {
+                student_id: student.id
+            },
             include: {
                 model: Class,
                 as: 'class',
-                where: { academic_year_id: semester.academic_year.id }
+                required: true,
+                where: {
+                    academic_year_id: semester.academic_year.id
+                },
+                attributes: ['id', 'name', 'academic_year_id']
             }
         });
 
-        if (!studentClass) {
+        if (!studentClass || !studentClass.class) {
             return res.status(404).json({ message: 'Data kelas siswa di tahun ajaran aktif tidak ditemukan' });
         }
 
-        // Ambil kategori penilaian berdasarkan subject, semester, dan kelas
+        // Ambil kategori penilaian berdasarkan semester, subject, dan class_id
         const gradeCategories = await GradeCategory.findAll({
             where: {
                 subject_id: subjectId,
                 semester_id: semester.id,
-                class_id: studentClass.class_id
+                class_id: studentClass.class.id
             },
             attributes: ['id', 'name'],
             order: [['name', 'ASC']]
