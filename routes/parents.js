@@ -13,30 +13,56 @@ router.use(accessValidation, roleValidation(['orang_tua']));
 router.get('/student', async (req, res) => {
     try {
         const parentId = req.user.id;
+
         const student = await Student.findOne({
             where: { parent_id: parentId },
             attributes: ['name', 'nisn', 'birth_date'],
-            include: [{ 
-                model: StudentClass,  
-                as: "student_class", 
+            include: [{
+                model: StudentClass,
+                as: 'student_class',
                 attributes: ['id'],
                 include: [{
                     model: Class,
                     as: 'class',
                     attributes: ['name'],
-                    include: [{
-                        model: User,
-                        as: 'teacher',
-                        attributes: ['name']
-                    }] 
-                }] 
+                    include: [
+                        {
+                            model: AcademicYear,
+                            as: 'academic_year',
+                            where: { is_active: true }, // filter tahun ajaran aktif
+                            attributes: ['id']
+                        },
+                        {
+                            model: User,
+                            as: 'teacher',
+                            attributes: ['name']
+                        }
+                    ]
+                }]
             }]
         });
 
-        if (!student) return res.status(404).json({ message: 'Data anak tidak ditemukan' });
+        if (!student || !student.student_class?.length) {
+            return res.status(404).json({ message: 'Data anak tidak ditemukan atau tidak ada kelas di tahun ajaran aktif' });
+        }
 
-        res.json(student);
+        // Hanya ambil kelas yang punya academic_year aktif
+        const activeStudentClass = student.student_class.find(sc => sc.class?.academic_year);
+
+        if (!activeStudentClass) {
+            return res.status(404).json({ message: 'Kelas anak tidak berada di tahun ajaran aktif' });
+        }
+
+        const result = {
+            name: student.name,
+            nisn: student.nisn,
+            birth_date: student.birth_date,
+            student_class: activeStudentClass
+        };
+
+        res.json(result);
     } catch (error) {
+        console.error('Server Error:', error.message);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
