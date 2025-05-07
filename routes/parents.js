@@ -152,13 +152,37 @@ router.get('/academic-calendar', async (req, res) => {
 // Kehadiran anak per semester
 router.get('/attendances/:semesterId', async (req, res) => {
     try {
-        const student = await Student.findOne({ where: { parent_id: req.user.id } });
-        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
+        const parentId = req.user.id;
+        const semesterId = req.params.semesterId;
 
+        // Cari data siswa
+        const student = await Student.findOne({ where: { parent_id: parentId } });
+        if (!student) return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
+
+        // Cari student_class milik siswa di tahun ajaran aktif
+        const studentClass = await StudentClass.findOne({
+            where: { student_id: student.id },
+            include: {
+                model: Class,
+                as: 'class',
+                include: {
+                    model: AcademicYear,
+                    as: 'academic_year',
+                    where: { is_active: true }, // hanya tahun ajaran aktif
+                    attributes: [] // jangan tampilkan
+                }
+            }
+        });
+
+        if (!studentClass) {
+            return res.status(404).json({ message: 'Kelas siswa di tahun ajaran aktif tidak ditemukan' });
+        }
+
+        // Ambil data kehadiran berdasarkan semester dan student_class
         const attendances = await Attendance.findAll({
             where: {
                 student_class_id: studentClass.id,
-                semester_id: req.params.semesterId
+                semester_id: semesterId
             },
             include: [
                 {
@@ -167,29 +191,29 @@ router.get('/attendances/:semesterId', async (req, res) => {
                     include: {
                         model: Student,
                         as: 'student',
-                        attributes: ['id', 'name'],
+                        attributes: ['id', 'name']
                     }
                 }
             ],
-            order: [['date', 'DESC']] // Urutkan berdasarkan date dari yang terbaru
+            order: [['date', 'DESC']]
         });
 
-        // Format response to include date, day (generated from date), and status
+        // Format hasil
         const formattedAttendances = attendances.map(attendance => {
             const date = attendance.date;
-            const day = new Date(date).toLocaleString('id-ID', { weekday: 'long' }); // Generate day from date
+            const day = new Date(date).toLocaleString('id-ID', { weekday: 'long' });
             return {
-                date: date,
-                day: day,
+                date,
+                day,
                 status: attendance.status
             };
         });
 
         res.json(formattedAttendances);
     } catch (error) {
-        console.error(error); // untuk debugging
-        res.status(500).json({ message: error.message });
-    }    
+        console.error('Server Error:', error);
+        res.status(500).json({ message: 'Terjadi kesalahan server', error: error.message });
+    }
 });
 
 // Daftar title evaluasi per semester
