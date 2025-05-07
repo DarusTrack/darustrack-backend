@@ -723,11 +723,7 @@ router.get('/grades/subjects', accessValidation, roleValidation(['wali_kelas']),
 });
 
 // kategori penilaian setiap mapel
-router.get(
-    '/grades/:subject_id/:semester_id/categories',
-    accessValidation,
-    roleValidation(['wali_kelas']),
-    async (req, res) => {
+router.get('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
       try {
         const { subject_id, semester_id } = req.params;
   

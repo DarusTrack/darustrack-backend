@@ -474,9 +474,18 @@ router.get('/grades/:subject_id/:semester_id/categories', accessValidation, role
 // Detail Kategori (nilai dari jenis kategori)
 router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
     try {
+        // Ambil data siswa berdasarkan parent login
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
-        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
+        if (!student) {
+            return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
+        }
 
+        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
+        if (!studentClass) {
+            return res.status(404).json({ message: 'Kelas siswa tidak ditemukan' });
+        }
+
+        // Ambil detail penilaian
         const gradeDetails = await GradeDetail.findAll({
             where: { grade_category_id: req.params.gradeCategoryId },
             include: {
@@ -491,7 +500,7 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
             title: detail.name,
             date: detail.date,
             day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
-            score: detail.student_grade.length > 0 ? detail.student_grade[0].score : null
+            score: detail.student_grade ? detail.student_grade.score : null
         }));
 
         // Urutkan berdasarkan tanggal terbaru
@@ -499,6 +508,7 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
 
         res.json(result);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: error.message });
     }
 });
