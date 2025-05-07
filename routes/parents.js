@@ -224,41 +224,63 @@ router.get('/evaluations/:semesterId', async (req, res) => {
     try {
         const { semesterId } = req.params;
 
+        // Cari siswa berdasarkan orang tua
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
-        if (!student) return res.status(404).json({ message: 'Student not found' });
+        if (!student) return res.status(404).json({ message: 'Data siswa tidak ditemukan' });
 
-        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
-        if (!studentClass) return res.status(404).json({ message: 'Student class not found' });
-
-        const evaluations = await StudentEvaluation.findAll({
-            where: { student_class_id: studentClass.id },
+        // Cari kelas siswa di semester tersebut
+        const studentClass = await StudentClass.findOne({
+            where: { student_id: student.id },
             include: {
-                model: Evaluation,
-                as: 'evaluation',
-                where: { semester_id: semesterId },
-                attributes: ['id', 'title'],
+                model: Class,
+                as: 'class',
                 include: {
-                    model: Semester,
-                    as: 'semester',
-                    attributes: ['id', 'name']
-                },
-                order: [['title', 'ASC']]  // Mengurutkan berdasarkan judul evaluasi
+                    model: AcademicYear,
+                    as: 'academic_year',
+                    where: { is_active: true }
+                }
             }
         });
 
-        const formattedEvaluations = evaluations.map(evaluation => {
+        if (!studentClass) return res.status(404).json({ message: 'Kelas siswa tidak ditemukan di tahun ajaran aktif' });
+
+        // Ambil semua evaluasi dari kelas siswa dan semester
+        const evaluations = await Evaluation.findAll({
+            where: {
+                class_id: studentClass.class_id,
+                semester_id: semesterId
+            },
+            include: {
+                model: Semester,
+                as: 'semester',
+                attributes: ['id', 'name']
+            },
+            order: [['title', 'ASC']]
+        });
+
+        // Ambil nilai evaluasi siswa untuk evaluasi yang ditemukan
+        const studentEvaluations = await StudentEvaluation.findAll({
+            where: {
+                student_class_id: studentClass.id,
+                evaluation_id: evaluations.map(e => e.id)
+            }
+        });
+
+        // Gabungkan data evaluasi dan nilai
+        const result = evaluations.map(evaluation => {
+            const studentEval = studentEvaluations.find(se => se.evaluation_id === evaluation.id);
             return {
-                id: evaluation.evaluation.id,
-                title: evaluation.evaluation.title,
-                semester_id: evaluation.evaluation.semester.id,
-                semester_name: evaluation.evaluation.semester.name
+                id: evaluation.id,
+                title: evaluation.title,
+                semester_id: evaluation.semester.id,
+                semester_name: evaluation.semester.name
             };
         });
 
-        res.json(formattedEvaluations);
+        res.json(result);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: error.message });
+        console.error('Error fetching evaluations for parent:', error);
+        res.status(500).json({ message: 'Terjadi kesalahan saat mengambil data evaluasi', error: error.message });
     }
 });
 
