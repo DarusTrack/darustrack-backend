@@ -525,7 +525,7 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
                 title: detail.name,
                 date: detail.date,
                 day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
-                score: studentGrade ? studentGrade.score : null
+                score: studentGrade.score
             };
         });
 
