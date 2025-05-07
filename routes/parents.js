@@ -442,22 +442,56 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
 // Daftar kategori mapel
 router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
     try {
-        const student = await Student.findOne({ where: { parent_id: req.user.id } });
-        const studentClass = await StudentClass.findOne({ where: { student_id: student.id } });
+        const { semesterId, subjectId } = req.params;
 
-        const gradeCategories = await GradeCategory.findAll({
-            where: {
-                subject_id: req.params.subjectId,
-                semester_id: req.params.semesterId,
-                class_id: studentClass.class_id
+        // 1. Validasi semester dan tahun ajaran aktif
+        const semester = await Semester.findOne({
+            where: { id: semesterId },
+            include: {
+                model: AcademicYear,
+                as: 'academic_year',
+                where: { is_active: true },
+                attributes: ['id', 'year']
             }
         });
 
-        // Urutkan kategori berdasarkan nama secara abjad
-        gradeCategories.sort((a, b) => a.name.localeCompare(b.name));
+        if (!semester) {
+            return res.status(404).json({ message: 'Semester tidak ditemukan atau tidak berada di tahun ajaran aktif.' });
+        }
+
+        // 2. Ambil siswa dan kelasnya berdasarkan tahun ajaran aktif
+        const student = await Student.findOne({ where: { parent_id: req.user.id } });
+        if (!student) {
+            return res.status(404).json({ message: 'Data siswa tidak ditemukan.' });
+        }
+
+        const studentClass = await StudentClass.findOne({
+            where: { student_id: student.id },
+            include: {
+                model: Class,
+                as: 'class',
+                where: { academic_year_id: semester.academic_year.id }
+            }
+        });
+
+        if (!studentClass) {
+            return res.status(404).json({ message: 'Kelas siswa di tahun ajaran aktif tidak ditemukan.' });
+        }
+
+        // 3. Ambil kategori penilaian
+        const gradeCategories = await GradeCategory.findAll({
+            where: {
+                subject_id: subjectId,
+                semester_id: semesterId,
+                class_id: studentClass.class_id
+            },
+            order: [['name', 'ASC']],
+            attributes: ['id', 'name']
+        });
 
         res.json(gradeCategories);
     } catch (error) {
+        console.error('Error:', error);
         res.status(500).json({ message: error.message });
     }
 });
