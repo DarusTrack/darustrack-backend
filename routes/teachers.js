@@ -750,20 +750,17 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
 
         // Ambil StudentClass berdasarkan student_id dan academic_year_id
         const studentClass = await StudentClass.findOne({
-            where: {
-                student_id: student.id
-            },
+            where: { student_id: student.id },
             include: {
                 model: Class,
                 as: 'class',
                 required: true,
-                where: {
-                    academic_year_id: semester.academic_year.id
-                },
+                where: { academic_year_id: semester.academic_year.id },
                 attributes: ['id', 'name', 'academic_year_id']
             }
         });
 
+        // Cek apakah studentClass dan class ada
         if (!studentClass || !studentClass.class) {
             return res.status(404).json({ message: 'Data kelas siswa di tahun ajaran aktif tidak ditemukan' });
         }
@@ -779,6 +776,12 @@ router.get('/grades/:semesterId/:subjectId/categories', async (req, res) => {
             order: [['name', 'ASC']]
         });
 
+        // Jika tidak ada kategori penilaian ditemukan
+        if (!gradeCategories || gradeCategories.length === 0) {
+            return res.status(404).json({ message: 'Kategori penilaian tidak ditemukan' });
+        }
+
+        // Mengembalikan hasil kategori penilaian
         res.json(gradeCategories);
     } catch (error) {
         console.error('Error fetching grade categories for parent:', error);
