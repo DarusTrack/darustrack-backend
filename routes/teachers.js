@@ -1088,47 +1088,71 @@ router.get('/grades/details/:detail_id/students', accessValidation, roleValidati
 router.patch('/grades/students/:student_grade_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
         const { student_grade_id } = req.params;
-        const { score, student_id } = req.body;
+        const { score } = req.body;
 
+        // Validasi skor
         if (score === undefined || score === null || isNaN(score)) {
             return res.status(400).json({ message: 'Invalid score' });
         }
 
+        // Ambil data StudentGrade beserta GradeDetail dan Class
         const studentGrade = await StudentGrade.findOne({
             where: { id: student_grade_id },
-            include: {
-                model: GradeDetail,
-                as: 'grade_detail',
-                include: {
-                    model: GradeCategory,
-                    as: 'grade_category',
+            include: [
+                {
+                    model: GradeDetail,
+                    as: 'grade_detail',
                     include: {
-                        model: Class,
-                        as: 'class'
+                        model: GradeCategory,
+                        as: 'grade_category',
+                        include: {
+                            model: Class,
+                            as: 'class'
+                        }
+                    }
+                },
+                {
+                    model: StudentClass,
+                    as: 'student_class',
+                    include: {
+                        model: Student,
+                        as: 'student'
                     }
                 }
-            }
+            ]
         });
 
         if (!studentGrade) {
             return res.status(404).json({ message: 'Student grade not found' });
         }
 
+        // Pastikan wali kelas hanya bisa mengubah nilai di kelasnya
         const teacherClass = await Class.findOne({ where: { teacher_id: req.user.id } });
         if (!teacherClass || studentGrade.grade_detail.grade_category.class.id !== teacherClass.id) {
             return res.status(403).json({ message: 'Access denied' });
         }
 
-        // Isi student_class_id jika belum ada
+        // Jika student_class_id belum ada, coba isi otomatis
         if (!studentGrade.student_class_id) {
-            if (!student_id) {
-                return res.status(400).json({ message: 'student_id dibutuhkan untuk menyimpan student_class_id' });
+            const gradeClassId = studentGrade.grade_detail.grade_category.class.id;
+
+            // Coba dapatkan student_id dari relasi StudentClass > Student
+            let studentId = studentGrade.student_class?.student?.id;
+
+            // Kalau tidak tersedia dari relasi, coba ambil dari DB langsung (opsional, jaga-jaga)
+            if (!studentId && studentGrade.student_class_id) {
+                const sc = await StudentClass.findByPk(studentGrade.student_class_id);
+                studentId = sc?.student_id;
+            }
+
+            if (!studentId) {
+                return res.status(400).json({ message: 'Tidak bisa menetapkan student_class_id karena student tidak ditemukan' });
             }
 
             const studentClass = await StudentClass.findOne({
                 where: {
-                    class_id: teacherClass.id,
-                    student_id: student_id
+                    class_id: gradeClassId,
+                    student_id: studentId
                 }
             });
 
@@ -1139,8 +1163,9 @@ router.patch('/grades/students/:student_grade_id', accessValidation, roleValidat
             studentGrade.student_class_id = studentClass.id;
         }
 
+        // Update skor
         studentGrade.score = score;
-        await studentGrade.save(); // Penting: menyimpan semua perubahan
+        await studentGrade.save();
 
         return res.json({ message: 'Score updated successfully' });
     } catch (e) {
