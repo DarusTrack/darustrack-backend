@@ -89,7 +89,7 @@ router.post("/request-reset", async (req, res) => {
     if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
 
     const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 menit
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 15 menit
 
     await PasswordReset.create({
         user_id: user.id,
