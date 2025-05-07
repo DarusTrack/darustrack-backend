@@ -440,7 +440,7 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
 });
 
 // Daftar kategori mapel
-router.get('/grades/:subject_id/:semester_id/categories', async (req, res) => {
+router.get('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
     try {
       const { subject_id, semester_id } = req.params;
 
@@ -472,7 +472,7 @@ router.get('/grades/:subject_id/:semester_id/categories', async (req, res) => {
 );  
 
 // Detail Kategori (nilai dari jenis kategori)
-router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
+router.get('/grades/categories/:gradeCategoryId/details', accessValidation, roleValidation["orang_tua"], async (req, res) => {
     try {
         // Ambil data siswa berdasarkan parent login
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
@@ -488,26 +488,22 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
         // Ambil detail penilaian
         const gradeDetails = await GradeDetail.findAll({
             where: { grade_category_id: req.params.gradeCategoryId },
-            include: [
-                {
-                    model: StudentGrade,
-                    as: 'student_grades', // pastikan ini sesuai dengan relasi di model
-                    where: { student_class_id: studentClass.id },
-                    required: false
-                }
-            ]
+            include: {
+                model: StudentGrade,
+                as: 'student_grade',
+                where: { student_class_id: studentClass.id },
+                required: false
+            }
         });
 
-        const result = gradeDetails.map(detail => {
-            const studentGrade = detail.student_grades?.[0]; // karena findAll bisa mengembalikan array
-            return {
-                title: detail.name,
-                date: detail.date,
-                day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
-                score: studentGrade ? studentGrade.score : null
-            };
-        });
+        const result = gradeDetails.map(detail => ({
+            title: detail.name,
+            date: detail.date,
+            day: new Date(detail.date).toLocaleString('id-ID', { weekday: 'long' }),
+            score: detail.student_grade ? detail.student_grade.score : null
+        }));
 
+        // Urutkan berdasarkan tanggal terbaru
         result.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         res.json(result);
