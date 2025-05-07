@@ -510,6 +510,7 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
         if (!studentClass) {
             return res.status(404).json({ message: 'Data kelas siswa tidak ditemukan' });
         }
+        console.log('StudentClass ID:', studentClass?.id);
 
         // Ambil GradeDetail dan langsung sertakan StudentGrade yang cocok dengan studentClass.id
         const gradeDetails = await GradeDetail.findAll({
@@ -523,6 +524,7 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
             order: [['date', 'DESC']]
         });
 
+        console.log('Grade details fetched:', gradeDetails.length);
         // Format hasil
         const result = gradeDetails.map(detail => {
             const studentGrade = detail.student_grade[0]; // karena hasMany
