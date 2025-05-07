@@ -440,7 +440,7 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
 });
 
 // Daftar kategori mapel
-router.get('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.get('/grades/:subject_id/:semester_id/categories', accessValidation, async (req, res) => {
     try {
       const { subject_id, semester_id } = req.params;
 
@@ -468,11 +468,10 @@ router.get('/grades/:subject_id/:semester_id/categories', accessValidation, role
       console.error('Error fetching grade categories:', error);
       res.status(500).json({ message: 'Server error', error: error.message });
     }
-  }
-);  
+});  
 
 // Detail Kategori (nilai dari jenis kategori)
-router.get('/grades/categories/:gradeCategoryId/details', accessValidation, roleValidation["orang_tua"], async (req, res) => {
+router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
     try {
         // Ambil data siswa berdasarkan parent login
         const student = await Student.findOne({ where: { parent_id: req.user.id } });
