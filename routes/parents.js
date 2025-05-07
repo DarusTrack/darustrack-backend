@@ -541,5 +541,4 @@ router.get('/grades/categories/:gradeCategoryId/details', async (req, res) => {
     }
 });
 
-
 module.exports = router;
