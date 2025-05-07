@@ -440,7 +440,7 @@ router.get('/grades/:semesterId/subjects', async (req, res) => {
 });
 
 // Daftar kategori mapel
-router.get('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['orang_tua']), async (req, res) => {
+router.get('/grades/:subject_id/:semester_id/categories', async (req, res) => {
     try {
       const { subject_id, semester_id } = req.params;
 
