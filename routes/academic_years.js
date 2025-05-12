@@ -77,24 +77,19 @@ router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res)
     const { id } = req.params;
     const { year, is_active } = req.body;
 
-    const academicYear = await AcademicYear.findByPk(id, {
-      include: [{ model: Semester, as: 'semester' }]
-    });
+    const academicYear = await AcademicYear.findByPk(id);
 
     if (!academicYear) {
       return res.status(404).json({ message: 'Tahun ajaran tidak ditemukan' });
     }
 
-    console.log('Academic Year found:', academicYear.toJSON());
-
-    // Kalau mau update is_active ke true, matikan semua dulu
-    if (typeof is_active !== 'undefined' && is_active) {
+    // Nonaktifkan semua tahun ajaran jika mengaktifkan ini
+    if (is_active) {
       await AcademicYear.update({ is_active: false }, { where: {} });
     }
 
-    // Update field satu-satu
-    if (typeof year !== 'undefined' && academicYear.year !== year) {
-      // Cek apakah year sudah dipakai entri lain
+    // Validasi tahun unik
+    if (year && academicYear.year !== year) {
       const existing = await AcademicYear.findOne({ where: { year } });
       if (existing && existing.id !== id) {
         return res.status(400).json({ message: `Tahun ajaran '${year}' sudah ada.` });
@@ -102,19 +97,13 @@ router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res)
       academicYear.year = year;
     }
 
+    // Update status aktif
     if (typeof is_active !== 'undefined') {
       academicYear.is_active = is_active;
     }
 
+    // Simpan perubahan - akan memicu hook beforeUpdate
     await academicYear.save();
-
-    // Kalau tahun ajaran dinonaktifkan, nonaktifkan semua semester-nya
-    if (typeof is_active !== 'undefined' && !is_active) {
-      await Semester.update(
-        { is_active: false },
-        { where: { academic_year_id: id } }
-      );
-    }
 
     res.json({ message: 'Tahun ajaran berhasil diperbarui' });
 

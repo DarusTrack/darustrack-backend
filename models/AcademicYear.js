@@ -52,15 +52,30 @@ module.exports = (sequelize, DataTypes) => {
   
   AcademicYear.addHook('beforeUpdate', async (academicYear, options) => {
     if (academicYear.changed('is_active')) {
+      const Semester = sequelize.models.Semester;
+      
+      // Jika dinonaktifkan, matikan semua semester
       if (!academicYear.is_active) {
-        const Semester = sequelize.models.Semester;
         await Semester.update(
           { is_active: false },
           { where: { academic_year_id: academicYear.id } }
         );
       }
+      
+      // Jika diaktifkan, aktifkan semester Ganjil (opsional)
+      else {
+        await Semester.update(
+          { is_active: true },
+          { 
+            where: { 
+              academic_year_id: academicYear.id,
+              name: 'Ganjil'
+            } 
+          }
+        );
+      }
     }
   });
-  
+    
   return AcademicYear;
 };
