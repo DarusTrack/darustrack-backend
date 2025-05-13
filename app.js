@@ -18,7 +18,6 @@ const classesRouter = require('./routes/classes');
 const studentsRouter = require('./routes/students');
 const curriculumsRouter = require('./routes/curriculums');
 const subjectsRouter = require('./routes/subjects');
-const academicCalendarRouter = require('./routes/academic_calendar');
 
 const app = express();
 
@@ -63,7 +62,6 @@ app.use('/classes', classesRouter);
 app.use('/students', studentsRouter);
 app.use('/curriculums', curriculumsRouter);
 app.use('/subjects', subjectsRouter);
-app.use('/academic-calendar', academicCalendarRouter);
 
 // Database connection
 const sequelize = require('./config/database');
