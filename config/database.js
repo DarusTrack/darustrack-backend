@@ -1,8 +1,7 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-const sequelize = new Sequelize(DB_NAME, USER, PASSWORD, {
-  host: HOST,
+const sequelize = new Sequelize(process.env.MYSQL_URL, {
   dialect: 'mysql',
   pool: {
     max: 10,
@@ -10,8 +9,7 @@ const sequelize = new Sequelize(DB_NAME, USER, PASSWORD, {
     acquire: 30000,
     idle: 10000
   },
-  logging: false
+  logging: false,
 });
-
 
 module.exports = sequelize;
