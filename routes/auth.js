@@ -8,6 +8,8 @@ const Validator = require("fastest-validator");
 const v = new Validator();
 const { Op } = require('sequelize');
 const crypto = require("crypto");
+const redis = require("../config/redisClient");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
 function generateAccessToken(user) {
@@ -26,6 +28,18 @@ function generateRefreshToken(user) {
     );
 }
 
+// Rate limiter: max 20 request per IP per 1 menit
+const loginLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 menit
+    max: 20,
+    message: {
+        status: 429,
+        message: "Terlalu banyak percobaan login. Coba lagi nanti.",
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // login
 router.post("/login", async (req, res) => {
     const { email, password } = req.body;
@@ -35,6 +49,12 @@ router.post("/login", async (req, res) => {
     }
 
     try {
+        // Cek apakah token sudah ada di cache
+        const cachedToken = await redis.get(`accessToken:${email}`);
+        if (cachedToken) {
+            return res.status(200).json({ message: "Login (cached)", accessToken: cachedToken });
+        }
+
         const user = await User.findOne({ where: { email } });
         if (!user) {
             return res.status(401).json({ message: "Email atau password tidak sesuai" });
@@ -48,7 +68,10 @@ router.post("/login", async (req, res) => {
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
 
-        // Simpan refreshToken di cookie (httpOnly)
+        // Simpan di cache selama 5 menit
+        await redis.set(`accessToken:${email}`, accessToken, 'EX', 300); // 300 detik = 5 menit
+
+        // Simpan refreshToken di cookie
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
             secure: true,
