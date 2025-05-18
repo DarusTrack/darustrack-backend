@@ -1,7 +1,22 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
+import { Counter, Trend } from 'k6/metrics';
 
-export let options = { /* ... (tetap sama) ... */ };
+// Custom metric
+export let errorCount = new Counter('errors');
+export let loginDuration = new Trend('login_duration');
+export let classesDuration = new Trend('classes_duration');
+
+export let options = {
+  vus: 10,
+  duration: '50s',
+  thresholds: {
+    errors: ['rate<0.01'], // Maks 1% error
+    http_req_duration: ['p(95)<800'], // 95% request harus <800ms
+    login_duration: ['p(95)<1000'], // Login maksimal 1 detik
+    classes_duration: ['p(95)<800'], // Endpoint classes juga <800ms
+  },
+};
 
 export default function () {
   // 1. Login
@@ -10,24 +25,23 @@ export default function () {
     JSON.stringify({ email: 'admin@gmail.com', password: 'password123' }),
     { headers: { 'Content-Type': 'application/json' } }
   );
+  loginDuration.add(loginRes.timings.duration);
 
-  // Cek login dan ambil token
-  check(loginRes, { 'login status is 200': (r) => r.status === 200 });
-  if (loginRes.status !== 200) return;
+  const loginCheck = check(loginRes, {
+    'Login status is 200': (r) => r.status === 200,
+    'Login returns token': (r) => !!r.json('accessToken'),
+  });
 
-  // Pastikan struktur response token benar (sesuai backend)
-  let token;
-  try {
-    const responseBody = loginRes.json();
-    token = responseBody.accessToken; // Sesuaikan dengan struktur response
-  } catch (e) {
-    console.log('Token error:', e);
-    return;
+  if (!loginCheck) {
+    errorCount.add(1);
+    return; // Skip jika login gagal
   }
 
-  // 2. Request ke endpoint protected
+  const token = loginRes.json('accessToken');
+
+  // 2. Akses endpoint /classes
   const apiRes = http.get(
-    'https://darustrack-backend-production.up.railway.app/curriculums',
+    'https://darustrack-backend-production.up.railway.app/classes',
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -35,19 +49,19 @@ export default function () {
       },
     }
   );
+  classesDuration.add(apiRes.timings.duration); 
 
-  // Perbaiki check data:
-  check(apiRes, {
-    'API status is 200': (r) => r.status === 200,
-    'Response has data': (r) => {
+  const apiCheck = check(apiRes, {
+    'Classes status is 200': (r) => r.status === 200,
+    'Response has array of data': (r) => {
       const data = r.json();
-      // Cek apakah ada properti yang diharapkan (objek)
-      return data.name && data.description; // Sesuaikan dengan response
-      
-      // Jika endpoint harus mengembalikan array:
-      // return Array.isArray(data) && data.length > 0;
+      return Array.isArray(data); // Tidak harus ada isi, bisa kosong tapi valid
     },
   });
 
-  sleep(1); // Bisa dikurangi menjadi 0.5-1 untuk beban lebih realistis
+  if (!apiCheck) {
+    errorCount.add(1);
+  }
+
+  sleep(1); // Simulasi jeda antar user
 }

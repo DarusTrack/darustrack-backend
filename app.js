@@ -5,6 +5,9 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const cors = require('cors');
+const compression = require('compression')
+const apicache = require('apicache');
+const cache = apicache.middleware;
 
 const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
@@ -48,6 +51,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(compression());
 
 // Middleware untuk log response time
 app.use((req, res, next) => {
@@ -68,7 +72,7 @@ app.use('/users', usersRouter);
 app.use('/teachers', teachersRouter);
 app.use('/parents', parentsRouter);
 app.use('/headmaster', headmasterRouter);
-app.use('/classes', classesRouter);
+app.use('/classes', cache('2 minutes'), classesRouter);
 app.use('/students', studentsRouter);
 app.use('/curriculums', curriculumsRouter);
 app.use('/subjects', subjectsRouter);

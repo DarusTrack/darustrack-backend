@@ -7,53 +7,46 @@ const roleValidation = require('../middlewares/roleValidation');
 
 // class tahun ajaran aktif
 router.get('/', accessValidation, roleValidation(['admin']), async (req, res) => {
-    try {
-        const { grade_level } = req.query;
+  try {
+    const { academic_year_id, limit = 50, offset = 0 } = req.query;
 
-        // Cari tahun ajaran yang aktif
-        const activeAcademicYear = await AcademicYear.findOne({
-            where: { is_active: true }
-        });
+    const whereConditions = {};
+    if (academic_year_id) whereConditions.academic_year_id = academic_year_id;
 
-        if (!activeAcademicYear) {
-            return res.status(404).json({ message: 'Tidak ada tahun ajaran aktif ditemukan' });
-        }
+    const { count, rows: foundClasses } = await Class.findAndCountAll({
+      where: whereConditions,
+      attributes: ['id', 'name', 'academic_year_id', 'teacher_id'],
+      order: [['name', 'ASC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
 
-        // Buat kondisi pencarian kelas berdasarkan tahun ajaran aktif
-        const whereConditions = {
-            academic_year_id: activeAcademicYear.id
-        };
+    const classesWithGradeLevel = foundClasses.map(cls => {
+      const gradeLevel = parseInt(cls.name.charAt(0));
+      return {
+        ...cls.toJSON(),
+        grade_level: isNaN(gradeLevel) ? null : gradeLevel
+      };
+    });
 
-        // Tambahkan filter grade_level jika ada
-        if (grade_level) {
-            whereConditions.name = {
-                [Op.like]: `${grade_level}%`
-            };
-        }
-
-        // Ambil kelas dengan tahun ajaran aktif
-        const foundClasses = await Class.findAll({
-            where: whereConditions,
-            attributes: ['id', 'name', 'academic_year_id', 'teacher_id'],
-            order: [['name', 'ASC']]
-        });
-
-        // Tambahkan informasi grade_level berdasarkan nama kelas
-        const classesWithGradeLevel = foundClasses.map(cls => {
-            const gradeLevel = parseInt(cls.name.charAt(0));
-            return {
-                ...cls.toJSON(),
-                grade_level: isNaN(gradeLevel) ? null : gradeLevel
-            };
-        });
-
-        res.json(classesWithGradeLevel);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Gagal mengambil data kelas', error: error.message });
-    }
+    res.status(200).json({
+      status: 'success',
+      message: 'Daftar kelas berhasil diambil',
+      data: {
+        total: count,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        classes: classesWithGradeLevel
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 'fail',
+      message: 'Terjadi kesalahan saat mengambil daftar kelas',
+    });
+  }
 });
-
 
 // Get daftar jadwal pelajaran dari kelas tertentu (filter perhari)
 router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {
