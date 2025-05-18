@@ -29,16 +29,7 @@ router.get('/', accessValidation, roleValidation(['admin']), async (req, res) =>
       };
     });
 
-    res.status(200).json({
-      status: 'success',
-      message: 'Daftar kelas berhasil diambil',
-      data: {
-        total: count,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        classes: classesWithGradeLevel
-      }
-    });
+    res.status(200).json({classesWithGradeLevel});
   } catch (error) {
     console.error(error);
     res.status(500).json({
