@@ -37,12 +37,12 @@ router.post("/login", async (req, res) => {
     try {
         const user = await User.findOne({ where: { email } });
         if (!user) {
-            return res.status(400).json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: "Email atau password tidak sesuai" });
         }
 
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
-            return res.status(400).json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: "Email atau password tidak sesuai" });
         }
 
         const accessToken = generateAccessToken(user);
@@ -56,7 +56,7 @@ router.post("/login", async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        res.status(200).json({ message: "Login successful", accessToken });
+        res.status(200).json({ message: "Login successful", accessToken, expiresIn });
     } catch (error) {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }

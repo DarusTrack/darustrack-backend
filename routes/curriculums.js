@@ -12,7 +12,7 @@ router.get('/', accessValidation, async (req, res) => {
         const curriculum = await Curriculum.findOne({
             attributes: ['name', 'description']
         });
-        res.json(curriculum || {});
+        res.json(curriculums);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching curriculum', error });
     }
