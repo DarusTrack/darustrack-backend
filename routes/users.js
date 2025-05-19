@@ -76,7 +76,7 @@ router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) =
         }
 
         const user = await User.create(req.body);
-        res.status(201).json({ message: 'User registered successfully', user });
+        res.json({ message: 'User registered successfully', user });
     } catch (error) {
         if (error.name === 'SequelizeUniqueConstraintError') {
             const field = error.errors[0]?.path;
