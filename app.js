@@ -5,6 +5,9 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const cors = require('cors');
+const compression = require('compression')
+const apicache = require('apicache');
+const cache = apicache.middleware;
 
 const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
@@ -18,7 +21,6 @@ const classesRouter = require('./routes/classes');
 const studentsRouter = require('./routes/students');
 const curriculumsRouter = require('./routes/curriculums');
 const subjectsRouter = require('./routes/subjects');
-const academicCalendarRouter = require('./routes/academic_calendar');
 
 const app = express();
 
@@ -49,21 +51,31 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(compression());
+
+// Middleware untuk log response time
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.originalUrl} - ${duration}ms`);
+  });
+  next();
+});
 
 // Routing
 app.use('/', indexRouter);
 app.use('/academic-years', academicYearsRouter);
 app.use('/semesters', semestersRouter);
-app.use('/auth', authRouter);
+app.use('/auth',  cache('30 seconds'), authRouter);
 app.use('/users', usersRouter);
 app.use('/teachers', teachersRouter);
 app.use('/parents', parentsRouter);
 app.use('/headmaster', headmasterRouter);
-app.use('/classes', classesRouter);
+app.use('/classes', cache('2 minutes'), classesRouter);
 app.use('/students', studentsRouter);
 app.use('/curriculums', curriculumsRouter);
 app.use('/subjects', subjectsRouter);
-app.use('/academic-calendar', academicCalendarRouter);
 
 // Database connection
 const sequelize = require('./config/database');
