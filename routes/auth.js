@@ -8,7 +8,7 @@ const Validator = require("fastest-validator");
 const v = new Validator();
 const { Op } = require('sequelize');
 const crypto = require("crypto");
-const loginLimiter = require('../middlewares/loginRateLimiter');
+const loginRateLimiter = require('../middlewares/loginRateLimiter');
 require("dotenv").config();
 
 function generateAccessToken(user) {
@@ -28,7 +28,7 @@ function generateRefreshToken(user) {
 }
 
 // login
-router.post("/login", loginLimiter, async (req, res) => {
+router.post("/login", loginRateLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
     return res.status(400).json({ message: "Email dan password harus diisi" });

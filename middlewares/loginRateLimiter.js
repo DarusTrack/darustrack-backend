@@ -1,13 +1,20 @@
 const rateLimit = require('express-rate-limit');
+const RedisStore = require('rate-limit-redis');
+const Redis = require('ioredis');
+
+const redisClient = new Redis(process.env.REDIS_URL);
 
 const loginRateLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 menit
-  max: 5, // Maksimal 5 percobaan login per menit per IP
+  store: new RedisStore({
+    sendCommand: (...args) => redisClient.call(...args),
+  }),
+  windowMs: 60 * 1000, // 1 menit
+  max: 5, // Maksimal 5 percobaan per IP per menit
   message: {
-    message: "Terlalu banyak percobaan login dari IP ini. Silakan coba lagi dalam 1 menit.",
+    message: 'Terlalu banyak percobaan login. Silakan coba lagi dalam 1 menit.',
   },
-  standardHeaders: true, // Mengaktifkan header RateLimit-*
-  legacyHeaders: false,  // Menonaktifkan X-RateLimit-* header (sudah deprecated)
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 module.exports = loginRateLimiter;
