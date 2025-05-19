@@ -4,6 +4,13 @@ const bcrypt = require('bcryptjs');
 const router = express.Router();
 const User = require('../models/User');
 const loginLimiter = require('../middlewares/rateLimiter');
+const accessValidation = require('../middlewares/accessValidation');
+const { User, PasswordReset } = require("../models");
+const Validator = require("fastest-validator");
+const v = new Validator();
+const { Op } = require('sequelize');
+const crypto = require("crypto");
+require("dotenv").config();
 
 function generateAccessToken(user) {
     return jwt.sign(
