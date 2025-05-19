@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
 const User = require('../models/User');
-const loginLimiter = require('../middleware/rateLimiter');
+const loginLimiter = require('../middlewares/rateLimiter');
 
 function generateAccessToken(user) {
     return jwt.sign(
