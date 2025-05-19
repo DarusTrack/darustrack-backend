@@ -67,7 +67,7 @@ app.use((req, res, next) => {
 app.use('/', indexRouter);
 app.use('/academic-years', academicYearsRouter);
 app.use('/semesters', semestersRouter);
-app.use('/auth',  cache('1 hours'), authRouter);
+app.use('/auth',  cache('30 seconds'), authRouter);
 app.use('/users', usersRouter);
 app.use('/teachers', teachersRouter);
 app.use('/parents', parentsRouter);
