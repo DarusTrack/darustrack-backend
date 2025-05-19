@@ -1,20 +1,22 @@
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
+const { User } = require("../models");
 
-function accessValidation(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer <token>"
+module.exports = async (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).json({ message: "Token tidak tersedia" });
+        }
 
-  if (!token) {
-    return res.status(401).json({ message: "Akses ditolak. Token tidak ditemukan." });
-  }
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findByPk(decoded.id);
 
-  try {
-    const verified = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = verified; // Simpan info user ke req.user
-    next();
-  } catch (err) {
-    return res.status(403).json({ message: "Token tidak valid atau kedaluwarsa." });
-  }
-}
+        if (!user) return res.status(401).json({ message: "User tidak ditemukan" });
 
-module.exports = accessValidation;
+        req.user = user;
+        next();
+    } catch (error) {
+        return res.status(401).json({ message: "Token tidak valid", error: error.message });
+    }
+};

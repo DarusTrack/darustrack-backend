@@ -1,17 +1,22 @@
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const express = require("express");
 const router = express.Router();
-const User = require('../models/User');
-const loginLimiter = require('../middlewares/rateLimiter');
-const accessValidation = require('../middlewares/accessValidation');
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const { User, PasswordReset } = require("../models");
 const Validator = require("fastest-validator");
-const v = new Validator();
-const { Op } = require('sequelize');
 const crypto = require("crypto");
+const rateLimit = require("express-rate-limit");
+const v = new Validator();
 require("dotenv").config();
 
+// Rate Limiter untuk login
+const loginLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 menit
+    max: 5, // max 5 kali per menit
+    message: "Terlalu banyak percobaan login. Coba lagi nanti.",
+});
+
+// === Helper ===
 function generateAccessToken(user) {
     return jwt.sign(
         { id: user.id, name: user.name, role: user.role },
@@ -28,101 +33,61 @@ function generateRefreshToken(user) {
     );
 }
 
+// === Login ===
 router.post("/login", loginLimiter, async (req, res) => {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({ message: "Email dan password harus diisi" });
-    }
+    const schema = {
+        email: { type: "email" },
+        password: { type: "string", min: 6 },
+    };
+    const validation = v.validate(req.body, schema);
+    if (validation !== true) return res.status(400).json({ errors: validation });
 
     try {
-        const user = await User.findOne({
-            where: { email },
-            attributes: ['id', 'name', 'role', 'email', 'password']
-        });
+        const { email, password } = req.body;
+        const user = await User.findOne({ where: { email } });
 
-        if (!user) {
-            return res.status(401).json({ message: "Email atau password tidak sesuai" });
-        }
+        if (!user) return res.status(401).json({ message: "Email atau password salah" });
 
         const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            return res.status(401).json({ message: "Email atau password tidak sesuai" });
-        }
+        if (!validPassword) return res.status(401).json({ message: "Email atau password salah" });
 
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
 
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
-            secure: true,
+            secure: process.env.NODE_ENV === "production",
             sameSite: "None",
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        res.status(200).json({ message: "Login berhasil", accessToken });
+        res.status(200).json({ message: "Login sukses", accessToken });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Terjadi kesalahan server" });
+        res.status(500).json({ message: "Internal server error", error: error.message });
     }
 });
 
-// refresh token
+// === Refresh Token ===
 router.post("/refresh-token", async (req, res) => {
     const token = req.cookies.refreshToken;
-
-    if (!token) return res.status(401).json({ message: "Refresh token not found" });
+    if (!token) return res.status(401).json({ message: "Token tidak ditemukan" });
 
     try {
         const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
         const user = await User.findByPk(decoded.id);
+        if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
 
-        if (!user) return res.status(404).json({ message: "User not found" });
-
-        const newAccessToken = generateAccessToken(user);
-        res.json({ accessToken: newAccessToken });
+        const accessToken = generateAccessToken(user);
+        res.json({ accessToken });
     } catch (error) {
-        res.status(403).json({ message: "Invalid refresh token", error: error.message });
+        res.status(403).json({ message: "Token refresh tidak valid", error: error.message });
     }
 });
 
-// forgot password
-router.post("/request-reset", async (req, res) => {
-    const { email } = req.body;
-    const user = await User.findOne({ where: { email } });
-
-    if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
-
-    const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 15 menit
-
-    await PasswordReset.create({
-        user_id: user.id,
-        token,
-        expires_at: expiresAt,
-    });
-
-    res.json({ message: "Gunakan link berikut untuk reset password", link: `https://darustrack.vercel.app'/reset-password?token=${token}` });
-});
-
-// reset password
-router.post("/reset-password", async (req, res) => {
-    const { token, newPassword } = req.body;
-
-    const resetRequest = await PasswordReset.findOne({ where: { token } });
-    if (!resetRequest || new Date(resetRequest.expires_at) < new Date()) {
-        return res.status(400).json({ message: "Token tidak valid atau sudah kedaluwarsa" });
-    }
-
-    const user = await User.findByPk(resetRequest.user_id);
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    await user.save();
-
-    // Hapus token setelah digunakan
-    await PasswordReset.destroy({ where: { token } });
-
-    res.json({ message: "Password berhasil direset. Silakan login kembali dengan password baru!" });
+// === Logout ===
+router.post("/logout", (req, res) => {
+    res.clearCookie("refreshToken");
+    res.json({ message: "Berhasil logout" });
 });
 
 // Get Profile (Hanya bisa dilakukan oleh user yang login)
@@ -177,12 +142,6 @@ router.put("/profile", accessValidation, async (req, res) => {
         console.error("Update Profile Error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
-});
-
-// logout
-router.post("/logout", (req, res) => {
-    res.clearCookie("refreshToken");
-    res.json({ message: "Logout successful" });
 });
 
 module.exports = router;
