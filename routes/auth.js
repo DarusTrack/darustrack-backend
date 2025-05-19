@@ -1,14 +1,9 @@
-var express = require("express");
-var router = express.Router();
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
-const { User, PasswordReset } = require("../models");
-const accessValidation = require("../middlewares/accessValidation");
-const Validator = require("fastest-validator");
-const v = new Validator();
-const { Op } = require('sequelize');
-const crypto = require("crypto");
-require("dotenv").config();
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const router = express.Router();
+const User = require('../models/User');
+const loginLimiter = require('../middleware/rateLimiter');
 
 function generateAccessToken(user) {
     return jwt.sign(
@@ -26,8 +21,7 @@ function generateRefreshToken(user) {
     );
 }
 
-// login
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -35,7 +29,11 @@ router.post("/login", async (req, res) => {
     }
 
     try {
-        const user = await User.findOne({ where: { email } });
+        const user = await User.findOne({
+            where: { email },
+            attributes: ['id', 'name', 'role', 'email', 'password']
+        });
+
         if (!user) {
             return res.status(401).json({ message: "Email atau password tidak sesuai" });
         }
@@ -48,7 +46,6 @@ router.post("/login", async (req, res) => {
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
 
-        // Simpan refreshToken di cookie (httpOnly)
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
             secure: true,
@@ -56,9 +53,10 @@ router.post("/login", async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        res.status(200).json({ message: "Login successful", accessToken });
+        res.status(200).json({ message: "Login berhasil", accessToken });
     } catch (error) {
-        res.status(500).json({ message: "Internal server error", error: error.message });
+        console.error(error);
+        res.status(500).json({ message: "Terjadi kesalahan server" });
     }
 });
 
