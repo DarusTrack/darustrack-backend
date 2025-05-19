@@ -2,6 +2,8 @@ const bcrypt = require('bcryptjs');
 const { customAlphabet } = require('nanoid');
 const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 5);
 
+const BCRYPT_COST_FACTOR = 8; // Semula 10
+
 module.exports = (sequelize, DataTypes) => {
     const User = sequelize.define('User', {
         id: {
@@ -38,12 +40,17 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'users',
+        hooks: {
+            beforeCreate: async (user) => {
+                user.password = await bcrypt.hash(user.password, BCRYPT_COST_FACTOR);
+            }
+        }
     });
 
-    // Hash password sebelum menyimpan ke database
-    User.beforeCreate(async (user) => {
-        user.password = await bcrypt.hash(user.password, 10);
-    });
+    // Method untuk compare password yang dioptimasi
+    User.prototype.comparePassword = async function(candidatePassword) {
+        return bcrypt.compare(candidatePassword, this.password);
+    };
 
     User.associate = (models) => {
         User.hasMany(models.Student, { foreignKey: 'parent_id', as: 'student' });

@@ -10,11 +10,23 @@ const { Op } = require('sequelize');
 const crypto = require("crypto");
 require("dotenv").config();
 
+// Optimasi: Turunkan cost factor bcrypt (disesuaikan dengan kebutuhan keamanan)
+const BCRYPT_COST_FACTOR = 8;
+
+// Optimasi: Gunakan algoritma yang lebih cepat untuk JWT
+const JWT_ALGORITHM = 'HS256';
+
 function generateAccessToken(user) {
     return jwt.sign(
-        { id: user.id, name: user.name, role: user.role },
+        {
+            id: user.id,
+            role: user.role // Minimalkan payload token
+        },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
+        {
+            algorithm: JWT_ALGORITHM,
+            expiresIn: process.env.JWT_EXPIRES_IN || '15m'
+        }
     );
 }
 
@@ -22,43 +34,68 @@ function generateRefreshToken(user) {
     return jwt.sign(
         { id: user.id },
         process.env.REFRESH_TOKEN_SECRET,
-        { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN }
+        {
+            algorithm: JWT_ALGORITHM,
+            expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d'
+        }
     );
 }
 
-// login
 router.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
+    // Validasi input
     if (!email || !password) {
         return res.status(400).json({ message: "Email dan password harus diisi" });
     }
 
     try {
-        const user = await User.findOne({ where: { email } });
+        // Optimasi query: Ambil hanya field yang diperlukan
+        const user = await User.findOne({
+            where: { email },
+            attributes: ['id', 'password', 'role', 'email'] // Jangan bawa data tidak perlu
+        });
+
         if (!user) {
-            return res.status(401).json({ message: "Email atau password tidak sesuai" });
+            // Gunakan pesan error generik untuk keamanan
+            return res.status(401).json({ message: "Kredensial tidak valid" });
         }
 
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            return res.status(401).json({ message: "Email atau password tidak sesuai" });
+        // Optimasi: Bandingkan password dengan bcrypt
+        const isValid = await bcrypt.compare(password, user.password);
+        if (!isValid) {
+            return res.status(401).json({ message: "Kredensial tidak valid" });
         }
 
+        // Generate tokens
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
 
-        // Simpan refreshToken di cookie (httpOnly)
+        // Set cookie dengan refresh token
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
-            secure: true,
-            sameSite: "None",
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: "Strict",
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        res.status(200).json({ message: "Login successful", accessToken });
+        // Response tanpa data sensitif
+        res.status(200).json({
+            success: true,
+            accessToken,
+            user: {
+                id: user.id,
+                email: user.email,
+                role: user.role
+            }
+        });
+
     } catch (error) {
-        res.status(500).json({ message: "Internal server error", error: error.message });
+        console.error('[Auth Error]', error);
+        res.status(500).json({
+            success: false,
+            message: "Terjadi kesalahan server"
+        });
     }
 });
 
