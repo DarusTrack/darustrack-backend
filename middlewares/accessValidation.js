@@ -17,7 +17,6 @@ const accessValidation = async (req, res, next) => {
         }
 
         req.user = user;  // Simpan user ke req.user agar bisa digunakan di middleware lain
-        console.log("Authenticated user:", req.user); // Debugging log
         next();
     } catch (error) {
         return res.status(401).json({ message: "Unauthorized: Invalid token", error: error.message });

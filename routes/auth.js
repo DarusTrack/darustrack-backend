@@ -8,6 +8,7 @@ const Validator = require("fastest-validator");
 const v = new Validator();
 const { Op } = require('sequelize');
 const crypto = require("crypto");
+const loginLimiter = require('../middlewares/loginRateLimiter');
 require("dotenv").config();
 
 function generateAccessToken(user) {
@@ -27,39 +28,36 @@ function generateRefreshToken(user) {
 }
 
 // login
-router.post("/login", async (req, res) => {
-    const { email, password } = req.body;
+router.post("/login", loginLimiter, async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password)
+    return res.status(400).json({ message: "Email dan password harus diisi" });
 
-    if (!email || !password) {
-        return res.status(400).json({ message: "Email dan password harus diisi" });
-    }
+  try {
+    const user = await User.findOne({
+      where: { email },
+      attributes: ['id', 'name', 'password', 'role']
+    });
 
-    try {
-        const user = await User.findOne({ where: { email } });
-        if (!user) {
-            return res.status(401).json({ message: "Email atau password tidak sesuai" });
-        }
+    if (!user) return res.status(401).json({ message: "Email atau password salah" });
 
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            return res.status(401).json({ message: "Email atau password tidak sesuai" });
-        }
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ message: "Email atau password salah" });
 
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken(user);
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
 
-        // Simpan refreshToken di cookie (httpOnly)
-        res.cookie("refreshToken", refreshToken, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "None",
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
-        res.status(200).json({ message: "Login successful", accessToken });
-    } catch (error) {
-        res.status(500).json({ message: "Internal server error", error: error.message });
-    }
+    res.status(200).json({ message: "Login berhasil", accessToken });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
 });
 
 // refresh token
