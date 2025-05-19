@@ -1,7 +1,6 @@
 # Node.js
 node_modules/
 .env
-.env.*
 
 # Mac
 .DS_Store
