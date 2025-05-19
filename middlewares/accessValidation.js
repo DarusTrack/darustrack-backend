@@ -1,27 +1,21 @@
-const jwt = require("jsonwebtoken");
-const { User } = require("../models");
+// middleware/accessValidation.js
+const jwt = require('jsonwebtoken');
 
-const accessValidation = async (req, res, next) => {
-    try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return res.status(401).json({ message: "Unauthorized: No token provided" });
-        }
+function accessValidation(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer <token>"
 
-        const token = authHeader.split(" ")[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  if (!token) {
+    return res.status(401).json({ message: "Akses ditolak. Token tidak ditemukan." });
+  }
 
-        const user = await User.findByPk(decoded.id);
-        if (!user) {
-            return res.status(401).json({ message: "Unauthorized: User not found" });
-        }
-
-        req.user = user;  // Simpan user ke req.user agar bisa digunakan di middleware lain
-        console.log("Authenticated user:", req.user); // Debugging log
-        next();
-    } catch (error) {
-        return res.status(401).json({ message: "Unauthorized: Invalid token", error: error.message });
-    }
-};
+  try {
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = verified; // Simpan info user ke req.user
+    next();
+  } catch (err) {
+    return res.status(403).json({ message: "Token tidak valid atau kedaluwarsa." });
+  }
+}
 
 module.exports = accessValidation;

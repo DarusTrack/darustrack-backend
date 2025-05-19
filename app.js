@@ -41,7 +41,7 @@ app.use((req, res, next) => {
 });
 
 // Routing
-app.use('/auth', require('./routes/auth')); // jangan cache login
+app.use('/auth', require('./routes/auth'));
 app.use('/academic-years', cache('2 minutes'), require('./routes/academic_years'));
 app.use('/semesters', cache('2 minutes'), require('./routes/semesters'));
 app.use('/users', require('./routes/users'));
