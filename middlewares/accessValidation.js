@@ -1,4 +1,3 @@
-// middleware/accessValidation.js
 const jwt = require('jsonwebtoken');
 
 function accessValidation(req, res, next) {
