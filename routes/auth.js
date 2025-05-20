@@ -16,6 +16,8 @@ const BCRYPT_COST_FACTOR = 8;
 // Optimasi: Gunakan algoritma yang lebih cepat untuk JWT
 const JWT_ALGORITHM = 'HS256';
 
+const nodemailer = require('nodemailer');
+
 function generateAccessToken(user) {
     return jwt.sign(
         {
@@ -39,6 +41,34 @@ function generateRefreshToken(user) {
             expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d'
         }
     );
+}
+
+const transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+async function sendResetPasswordEmail(to, name, link) {
+    const info = await transporter.sendMail({
+        from: `"DarusTrack Team" <${process.env.EMAIL_USER}>`,
+        to,
+        subject: "DarusTrack Password Reset",
+        html: `
+            <h1>Salam ${name},</h1>
+            <p>Kami menerima permintaan untuk mereset password Anda. Silakan klik tautan di bawah ini untuk mengatur ulang password:</p>
+            <a href="${link}">${link}</a>
+            <p>Link di atas hanya dapat digunakan selama 1 jam.</p>
+            <br>
+            <p>Bila Anda tidak pernah meminta proses reset password, mohon abaikan email ini.</p>
+            <p>Terima kasih,</p>
+            <p>DarusTrack</p>
+        `
+    });
+
+    console.log("Email sent: ", info.messageId);
 }
 
 router.post("/login", async (req, res) => {
@@ -74,8 +104,8 @@ router.post("/login", async (req, res) => {
         // Set cookie dengan refresh token
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: "Strict",
+            secure: true,
+            sameSite: "None",
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
@@ -116,45 +146,6 @@ router.post("/refresh-token", async (req, res) => {
     } catch (error) {
         res.status(403).json({ message: "Invalid refresh token", error: error.message });
     }
-});
-
-// forgot password
-router.post("/request-reset", async (req, res) => {
-    const { email } = req.body;
-    const user = await User.findOne({ where: { email } });
-
-    if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
-
-    const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 15 menit
-
-    await PasswordReset.create({
-        user_id: user.id,
-        token,
-        expires_at: expiresAt,
-    });
-
-    res.json({ message: "Gunakan link berikut untuk reset password", link: `https://darustrack.vercel.app'/reset-password?token=${token}` });
-});
-
-// reset password
-router.post("/reset-password", async (req, res) => {
-    const { token, newPassword } = req.body;
-
-    const resetRequest = await PasswordReset.findOne({ where: { token } });
-    if (!resetRequest || new Date(resetRequest.expires_at) < new Date()) {
-        return res.status(400).json({ message: "Token tidak valid atau sudah kedaluwarsa" });
-    }
-
-    const user = await User.findByPk(resetRequest.user_id);
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    await user.save();
-
-    // Hapus token setelah digunakan
-    await PasswordReset.destroy({ where: { token } });
-
-    res.json({ message: "Password berhasil direset. Silakan login kembali dengan password baru!" });
 });
 
 // Get Profile (Hanya bisa dilakukan oleh user yang login)
@@ -211,10 +202,69 @@ router.put("/profile", accessValidation, async (req, res) => {
     }
 });
 
-// logout
-router.post("/logout", (req, res) => {
-    res.clearCookie("refreshToken");
-    res.json({ message: "Logout successful" });
+router.post("/forgot-password", async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) return res.status(400).json({ message: "Email is required." });
+
+    try {
+        const user = await User.findOne({ where: { email }, attributes: ['id', 'email', 'name'] });
+
+        if (!user) {
+            // Jangan beri tahu apakah email terdaftar demi keamanan
+            return res.status(200).json({ message: "Bila email ada, maka email untuk mengubah password akan dikirim ke email yang Anda masukkan" });
+        }
+
+        // Buat token
+        const token = crypto.randomBytes(32).toString("hex");
+        const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 jam
+
+        await PasswordReset.upsert({
+            user_id: user.id,
+            token,
+            expires_at: expires
+        });
+
+        const resetLink = `https://darustrack.vercel.app/reset-password?token=${token}`;
+
+        // Kirim email
+        await sendResetPasswordEmail(user.email, user.name, resetLink);
+
+        res.status(200).json({ message: "If the email exists, password reset link sent." });
+
+    } catch (error) {
+        console.error("Forgot Password Error:", error);
+        res.status(500).json({ message: "Internal server error." });
+    }
+});
+
+router.post("/reset-password", async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) return res.status(400).json({ message: "Token and password are required." });
+
+    try {
+        const resetEntry = await PasswordReset.findOne({ where: { token } });
+
+        if (!resetEntry || resetEntry.expires_at < new Date()) {
+            return res.status(400).json({ message: "Invalid or expired token." });
+        }
+
+        const user = await User.findByPk(resetEntry.user_id);
+        if (!user) return res.status(404).json({ message: "User not found." });
+
+        user.password = await bcrypt.hash(newPassword, BCRYPT_COST_FACTOR);
+        await user.save();
+
+        // Hapus token agar tidak bisa digunakan ulang
+        await resetEntry.destroy();
+
+        res.status(200).json({ message: "Password updated successfully." });
+
+    } catch (error) {
+        console.error("Reset Password Error:", error);
+        res.status(500).json({ message: "Server error." });
+    }
 });
 
 module.exports = router;
