@@ -8,17 +8,20 @@ const v = new Validator();
 router.get('/', async (req, res) => {
     try {
         const semesters = await Semester.findAll({
-            attributes: ['id', 'name', 'is_active'],  // Menambahkan attributes untuk Semester
+            attributes: ['id', 'name', 'is_active'],
             include: {
                 model: AcademicYear,
                 as: 'academic_year',
-                attributes: ['id', 'year', 'is_active'],  // Menambahkan attributes untuk AcademicYear
-                where: { is_active: true }
+                attributes: ['id', 'year', 'is_active'],
+                where: { is_active: true },
+                required: true
             }
         });
+
         res.json(semesters);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Semester GET Error:', error);
+        res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 });
 
