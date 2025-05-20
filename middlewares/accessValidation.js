@@ -19,7 +19,7 @@ const accessValidation = async (req, res, next) => {
 
         // Ambil hanya field yang dibutuhkan, hindari ambil semua kolom
         const user = await User.findByPk(decoded.id, {
-            attributes: ['id', 'email', 'role', 'class_id']
+            attributes: ['id', 'email', 'role']
         });
 
         if (!user) {
