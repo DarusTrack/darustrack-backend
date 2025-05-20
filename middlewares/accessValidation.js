@@ -4,22 +4,33 @@ const { User } = require("../models");
 const accessValidation = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        if (!authHeader?.startsWith("Bearer ")) {
             return res.status(401).json({ message: "Unauthorized: No token provided" });
         }
 
         const token = authHeader.split(" ")[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        const user = await User.findByPk(decoded.id);
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (err) {
+            return res.status(401).json({ message: "Unauthorized: Invalid token" });
+        }
+
+        // Ambil hanya field yang dibutuhkan, hindari ambil semua kolom
+        const user = await User.findByPk(decoded.id, {
+            attributes: ['id', 'email', 'role', 'class_id']
+        });
+
         if (!user) {
             return res.status(401).json({ message: "Unauthorized: User not found" });
         }
 
-        req.user = user;  // Simpan user ke req.user agar bisa digunakan di middleware lain
+        req.user = user;  // untuk digunakan di middleware selanjutnya
         next();
     } catch (error) {
-        return res.status(401).json({ message: "Unauthorized: Invalid token", error: error.message });
+        console.error("accessValidation error:", error.message);
+        return res.status(500).json({ message: "Internal Server Error" });
     }
 };
 
