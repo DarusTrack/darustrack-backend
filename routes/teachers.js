@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const { User, Semester, Student, StudentClass, Evaluation, Attendance, StudentEvaluation, Schedule, Subject, GradeCategory, GradeDetail, StudentGrade, Class, AcademicYear } = require('../models');
+const { sequelize, User, Semester, Student, StudentClass, Evaluation, Attendance, StudentEvaluation, Schedule, Subject, GradeCategory, GradeDetail, StudentGrade, Class, AcademicYear } = require('../models');
 
 // Middleware untuk cache semester aktif
 const loadActiveSemester = async (req, res, next) => {
