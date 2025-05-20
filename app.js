@@ -20,6 +20,8 @@ const classesRouter = require('./routes/classes');
 const studentsRouter = require('./routes/students');
 const curriculumsRouter = require('./routes/curriculums');
 const subjectsRouter = require('./routes/subjects');
+const accessValidation = require('../middlewares/accessValidation');
+const roleValidation = require('../middlewares/roleValidation');
 
 const app = express();
 
@@ -55,17 +57,17 @@ app.use(helmet());
 
 // Routing
 app.use('/', indexRouter);
-app.use('/academic-years', academicYearsRouter);
-app.use('/semesters', semestersRouter);
+app.use('/academic-years', accessValidation, roleValidation(['admin']), academicYearsRouter);
+app.use('/semesters', accessValidation, semestersRouter);
 app.use('/auth', authRouter);
-app.use('/users', usersRouter);
-app.use('/teachers', teachersRouter);
-app.use('/parents', parentsRouter);
-app.use('/headmaster', headmasterRouter);
-app.use('/classes', classesRouter);
-app.use('/students', studentsRouter);
-app.use('/curriculums', curriculumsRouter);
-app.use('/subjects', subjectsRouter);
+app.use('/users', accessValidation, roleValidation(['admin']), usersRouter);
+app.use('/teachers', accessValidation, roleValidation(['wali_kelas']), teachersRouter);
+app.use('/parents', accessValidation, roleValidation(['orang_tua']), parentsRouter);
+app.use('/headmaster', accessValidation, roleValidation(['kepala_sekolah']), headmasterRouter);
+app.use('/classes', accessValidation, roleValidation(['admin']), classesRouter);
+app.use('/students', accessValidation, roleValidation(['admin']), studentsRouter);
+app.use('/curriculums', accessValidation, curriculumsRouter);
+app.use('/subjects', accessValidation, subjectsRouter);
 
 // Database connection
 const sequelize = require('./config/database');

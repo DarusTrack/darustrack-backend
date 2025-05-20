@@ -2,11 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { Class, AcademicYear, Semester, Schedule, Subject } = require('../models');
 const { Sequelize, Op } = require('sequelize'); 
-const accessValidation = require('../middlewares/accessValidation');
-const roleValidation = require('../middlewares/roleValidation');
 
 // class tahun ajaran aktif
-router.get('/', accessValidation, roleValidation(['admin']), async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const { grade_level } = req.query;
 
@@ -56,7 +54,7 @@ router.get('/', accessValidation, roleValidation(['admin']), async (req, res) =>
 
 
 // Get daftar jadwal pelajaran dari kelas tertentu (filter perhari)
-router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.get('/:class_id/schedule', async (req, res) => {
     const { day } = req.query;
     const whereClause = { class_id: req.params.class_id };
     if (day) whereClause.day = day;
@@ -123,7 +121,7 @@ router.get('/:class_id/schedule', accessValidation, roleValidation(["admin"]), a
 });
 
 // Tambah jadwal pelajaran baru dalam kelas
-router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.post('/:class_id/schedule', async (req, res) => {
     const convertDayToIndonesian = (dayEnglish) => {
         const dayMap = {
             Monday: "Senin",
@@ -187,7 +185,7 @@ router.post('/:class_id/schedule', accessValidation, roleValidation(["admin"]), 
 });
 
 // Edit jadwal pelajaran dalam kelas
-router.put('/schedule/:schedule_id', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.put('/schedule/:schedule_id', async (req, res) => {
     const { schedule_id } = req.params;
     const { subject_id, day, start_time, end_time } = req.body;
 
@@ -275,7 +273,7 @@ router.put('/schedule/:schedule_id', accessValidation, roleValidation(["admin"])
 });
 
 // Hapus jadwal pelajaran dalam kelas
-router.delete('/schedule/:schedule_id', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.delete('/schedule/:schedule_id', async (req, res) => {
     const { schedule_id } = req.params;
 
     try {

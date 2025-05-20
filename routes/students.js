@@ -1,12 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { Student } = require('../models');
-const accessValidation = require('../middlewares/accessValidation');
-const roleValidation = require('../middlewares/roleValidation');
 const { Op } = require('sequelize');
 
 // Gunakan hanya field yang dibutuhkan dan tambahkan indexing di DB untuk field 'name' dan 'nisn'
-router.get('/', accessValidation, roleValidation(['admin']), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const students = await Student.findAll({
       attributes: ['id', 'name', 'nisn'], // hanya ambil field penting
@@ -19,7 +17,7 @@ router.get('/', accessValidation, roleValidation(['admin']), async (req, res) =>
   }
 });
 
-router.post('/', accessValidation, roleValidation(['admin']), async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, nisn, birth_date, parent_id } = req.body;
 
@@ -36,7 +34,7 @@ router.post('/', accessValidation, roleValidation(['admin']), async (req, res) =
   }
 });
 
-router.put('/:id', accessValidation, roleValidation(['admin']), async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { name, nisn, birth_date, parent_id } = req.body;
 
@@ -63,7 +61,7 @@ router.put('/:id', accessValidation, roleValidation(['admin']), async (req, res)
   }
 });
 
-router.delete('/:id', accessValidation, roleValidation(['admin']), async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const deleted = await Student.destroy({ where: { id: req.params.id } });
     if (!deleted) {

@@ -4,14 +4,13 @@ const Validator = require('fastest-validator');
 const { Subject } = require('../models');
 const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
-const accessValidation = require('../middlewares/accessValidation');
 
 // Middleware async handler
 const asyncHandler = fn => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
 // ✅ GET: Daftar semua mata pelajaran
-router.get("/", accessValidation, asyncHandler(async (req, res) => {
+router.get("/", asyncHandler(async (req, res) => {
   const subjects = await Subject.findAll({
     attributes: ['id', 'name'],
     order: [['name', 'ASC']]
@@ -20,7 +19,7 @@ router.get("/", accessValidation, asyncHandler(async (req, res) => {
 }));
 
 // ✅ GET: Detail mata pelajaran berdasarkan ID
-router.get('/:id', accessValidation, asyncHandler(async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const subject = await Subject.findByPk(id, {
@@ -35,7 +34,7 @@ router.get('/:id', accessValidation, asyncHandler(async (req, res) => {
 }));
 
 // ✅ POST: Tambah mata pelajaran baru (admin only)
-router.post('/', accessValidation, roleValidation(['admin']), asyncHandler(async (req, res) => {
+router.post('/', roleValidation(['admin']), asyncHandler(async (req, res) => {
   const schema = {
     name: 'string',
     description: 'string'
@@ -58,7 +57,7 @@ router.post('/', accessValidation, roleValidation(['admin']), asyncHandler(async
 }));
 
 // ✅ PUT: Update mata pelajaran berdasarkan ID
-router.put('/:id', accessValidation, roleValidation(['admin']), asyncHandler(async (req, res) => {
+router.put('/:id', roleValidation(['admin']), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const subject = await Subject.findByPk(id);
@@ -91,7 +90,7 @@ router.put('/:id', accessValidation, roleValidation(['admin']), asyncHandler(asy
 }));
 
 // ✅ DELETE: Hapus mata pelajaran berdasarkan ID (admin only)
-router.delete('/:id', accessValidation, roleValidation(['admin']), asyncHandler(async (req, res) => {
+router.delete('/:id', roleValidation(['admin']), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const subject = await Subject.findByPk(id);

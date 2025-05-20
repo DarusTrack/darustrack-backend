@@ -3,11 +3,9 @@ const router = express.Router();
 const { Class, StudentGrade, Student, GradeCategory, GradeDetail, Attendance, Subject, AcademicYear, Semester, StudentClass } = require('../models');
 const { Op, fn, col, literal } = require('sequelize');
 const sequelize = require('../config/database');
-const accessValidation = require('../middlewares/accessValidation');
-const roleValidation = require('../middlewares/roleValidation');
 
 // Endpoint: Get all classes summary
-router.get('/classes', accessValidation, roleValidation(["kepala_sekolah"]), async (req, res) => {
+router.get('/classes', async (req, res) => {
     try {
         // Mendapatkan tahun ajaran aktif
         const academicYear = await AcademicYear.findOne({ where: { is_active: true } });
@@ -121,7 +119,7 @@ router.get('/classes', accessValidation, roleValidation(["kepala_sekolah"]), asy
 });
 
 // Endpoint: Get detail class
-router.get('/classes/:classId', accessValidation, roleValidation(['kepala_sekolah']), async (req, res) => {
+router.get('/classes/:classId', async (req, res) => {
     try {
         const { classId } = req.params;
 

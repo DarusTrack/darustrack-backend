@@ -6,7 +6,7 @@ const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 
 // Ambil kelas yang menjadi tanggung jawab wali kelas
-router.get('/my-class', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.get('/my-class', async (req, res) => {
     try {
         const userId = req.user.id;
 
@@ -33,7 +33,7 @@ router.get('/my-class', accessValidation, roleValidation(["wali_kelas"]), async 
 });
 
 // Mendapatkan jadwal kelas yang dikelola oleh wali kelas pada tahun ajaran aktif
-router.get('/schedules', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.get('/schedules', async (req, res) => {
     try {
         const userId = req.user.id; // ID wali kelas dari user yang login
         const { day } = req.query;  // Ambil filter hari dari query parameter (misal: /schedules?day=Senin)
@@ -96,7 +96,7 @@ router.get('/schedules', accessValidation, roleValidation(["wali_kelas"]), async
 });
 
 // Mendapatkan daftar kehadiran berdasarkan tanggal
-router.get('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.get('/attendances', async (req, res) => {
     try {
         const userId = req.user.id;
         const { date } = req.query;
@@ -166,7 +166,7 @@ router.get('/attendances', accessValidation, roleValidation(['wali_kelas']), asy
 });
 
 // Tambah tanggal kehadiran baru
-router.post('/attendances', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.post('/attendances', async (req, res) => {
     const { date } = req.body;
 
     try {
@@ -225,7 +225,7 @@ router.post('/attendances', accessValidation, roleValidation(["wali_kelas"]), as
 });
 
 // Perbarui status
-router.put('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.put('/attendances', async (req, res) => {
     try {
         const userId = req.user.id;
         const { date } = req.query;
@@ -323,7 +323,7 @@ router.put('/attendances', accessValidation, roleValidation(['wali_kelas']), asy
 });
 
 // DELETE /teachers/attendances/:date
-router.delete('/attendances', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.delete('/attendances', async (req, res) => {
     try {
         const userId = req.user.id;
         const { date } = req.query;
@@ -373,7 +373,7 @@ router.delete('/attendances', accessValidation, roleValidation(['wali_kelas']), 
 });
 
 // academic year aktif
-router.get('/semesters', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.get('/semesters', async (req, res) => {
     try {
         const activeYear = await AcademicYear.findOne({
             where: { is_active: true },
@@ -396,7 +396,7 @@ router.get('/semesters', accessValidation, roleValidation(["wali_kelas"]), async
 });
 
 // title evaluasi semester
-router.get('/semesters/:semester_id/evaluations', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.get('/semesters/:semester_id/evaluations', async (req, res) => {
     try {
       const userId = req.user.id;
       const semesterId = req.params.semester_id;
@@ -421,7 +421,7 @@ router.get('/semesters/:semester_id/evaluations', accessValidation, roleValidati
 });  
 
 // Tambah title evaluasi per semester
-router.post('/semesters/:semester_id/evaluations', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.post('/semesters/:semester_id/evaluations', async (req, res) => {
     try {
         const { semester_id } = req.params;
         const { title } = req.body;
@@ -482,7 +482,7 @@ router.post('/semesters/:semester_id/evaluations', accessValidation, roleValidat
 });
 
 // Edit title evaluasi
-router.put('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.put('/evaluations/:id', async (req, res) => {
     try {
         const { title } = req.body;
         const { id } = req.params;
@@ -551,7 +551,7 @@ router.put('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]),
 });
 
 // Hapus title evaluasi
-router.delete('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.delete('/evaluations/:id', async (req, res) => {
     try {
       const { id } = req.params;
       await Evaluation.destroy({ where: { id } });
@@ -562,7 +562,7 @@ router.delete('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"
 });
 
 // daftar evaluasi siswa per judul di tiap semester
-router.get('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.get('/evaluations/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.id;
@@ -625,7 +625,7 @@ router.get('/evaluations/:id', accessValidation, roleValidation(["wali_kelas"]),
 });
 
 // Edit deskripsi evaluasi siswa
-router.put('/student-evaluations/:id', accessValidation, roleValidation(["wali_kelas"]), async (req, res) => {
+router.put('/student-evaluations/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { description } = req.body;
@@ -664,7 +664,7 @@ router.put('/student-evaluations/:id', accessValidation, roleValidation(["wali_k
 
 // *** GRADES ***
 // list mapel sesuai jadwal
-router.get('/grades/subjects', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.get('/grades/subjects', async (req, res) => {
     try {
         // 1. Cari tahun ajaran aktif
         const activeAcademicYear = await AcademicYear.findOne({ where: { is_active: true } });
@@ -723,7 +723,7 @@ router.get('/grades/subjects', accessValidation, roleValidation(['wali_kelas']),
 });
 
 // kategori penilaian setiap mapel
-router.get('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.get('/grades/:subject_id/:semester_id/categories', async (req, res) => {
       try {
         const { subject_id, semester_id } = req.params;
   
@@ -751,7 +751,7 @@ router.get('/grades/:subject_id/:semester_id/categories', accessValidation, role
 );  
 
 // tambah kategori
-router.post('/grades/:subject_id/:semester_id/categories', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.post('/grades/:subject_id/:semester_id/categories', async (req, res) => {
       try {
         const { subject_id, semester_id } = req.params;
         const { name } = req.body;
@@ -796,7 +796,7 @@ router.post('/grades/:subject_id/:semester_id/categories', accessValidation, rol
 );
 
 // Edit kategori penilaian
-router.put('/grades/categories/:category_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.put('/grades/categories/:category_id', async (req, res) => {
     try {
         const { category_id } = req.params;
         const { name } = req.body;
@@ -837,7 +837,7 @@ router.put('/grades/categories/:category_id', accessValidation, roleValidation([
 });
 
 // Hapus kategori penilaian
-router.delete('/grades/categories/:category_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.delete('/grades/categories/:category_id', async (req, res) => {
     try {
         const { category_id } = req.params;
 
@@ -871,7 +871,7 @@ router.delete('/grades/categories/:category_id', accessValidation, roleValidatio
 });
 
 // get detail penilaian dalam kategori
-router.get('/grades/categories/:category_id/details', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.get('/grades/categories/:category_id/details', async (req, res) => {
     try {
         const { category_id } = req.params;
 
@@ -894,7 +894,7 @@ router.get('/grades/categories/:category_id/details', accessValidation, roleVali
 });
 
 // tambah detail penilaian (macam-macam)
-router.post('/grades/categories/:category_id/details', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.post('/grades/categories/:category_id/details', async (req, res) => {
     try {
         const { category_id } = req.params;
         const { name, date } = req.body;
@@ -953,7 +953,7 @@ router.post('/grades/categories/:category_id/details', accessValidation, roleVal
 });
 
 // Edit detail penilaian (macam-macam)
-router.put('/grades/details/:detail_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.put('/grades/details/:detail_id', async (req, res) => {
     try {
         const { detail_id } = req.params;
         const { name, date } = req.body;
@@ -1003,7 +1003,7 @@ router.put('/grades/details/:detail_id', accessValidation, roleValidation(['wali
 });
 
 // Hapus detail penilaian (macam-macam)
-router.delete('/grades/details/:detail_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.delete('/grades/details/:detail_id', async (req, res) => {
     try {
         const { detail_id } = req.params;
 
@@ -1028,7 +1028,7 @@ router.delete('/grades/details/:detail_id', accessValidation, roleValidation(['w
 });
 
 // Ambil skor siswa untuk suatu grade detail
-router.get('/grades/details/:detail_id/students', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.get('/grades/details/:detail_id/students', async (req, res) => {
     try {
         const { detail_id } = req.params;
 
@@ -1085,7 +1085,7 @@ router.get('/grades/details/:detail_id/students', accessValidation, roleValidati
 });
 
 // edit skor
-router.patch('/grades/students/:student_grade_id', accessValidation, roleValidation(['wali_kelas']), async (req, res) => {
+router.patch('/grades/students/:student_grade_id', async (req, res) => {
     try {
         const { student_grade_id } = req.params;
         const { score } = req.body;

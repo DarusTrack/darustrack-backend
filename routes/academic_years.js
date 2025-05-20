@@ -3,12 +3,10 @@ var router = express.Router();
 const Validator = require('fastest-validator');
 const { AcademicYear, Semester, StudentClass, Class, Student } = require('../models');
 const { Op } = require('sequelize');
-const accessValidation = require('../middlewares/accessValidation');
-const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 
 // GET semua tahun ajaran dengan semester aktif
-router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const academicYears = await AcademicYear.findAll({
           include: [
@@ -28,7 +26,7 @@ router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) =>
 });
 
 // POST - Tambah Tahun Ajaran Baru
-router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { year, is_active = false } = req.body;
 
@@ -72,7 +70,7 @@ router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) =
 });
 
 // PUT - Update Tahun Ajaran
-router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { year, is_active } = req.body;
@@ -114,7 +112,7 @@ router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res)
 });
 
 // DELETE tahun ajaran
-router.delete('/:id', accessValidation, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     await AcademicYear.destroy({ where: { id: req.params.id } });
     res.json({ message: 'Deleted Successfully' });
@@ -125,7 +123,7 @@ router.delete('/:id', accessValidation, async (req, res) => {
 
 // * SEMESTER *
 // perbarui status semester di tahun ajaran aktif
-router.put('/semester/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.put('/semester/:id', async (req, res) => {
   try {
     const { is_active } = req.body;
 
@@ -163,7 +161,7 @@ router.put('/semester/:id', accessValidation, roleValidation(["admin"]), async (
 
 // * KELAS *
 // GET detail tahun ajaran by ID + daftar kelas
-router.get('/:id/classes', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.get('/:id/classes', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -207,7 +205,7 @@ router.get('/:id/classes', accessValidation, roleValidation(["admin"]), async (r
 });
 
 // CREATE Class dalam tahun ajaran tertentu
-router.post('/:id/classes', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.post('/:id/classes', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, teacher_id } = req.body;
@@ -243,7 +241,7 @@ router.post('/:id/classes', accessValidation, roleValidation(["admin"]), async (
 });
 
 // UPDATE Class
-router.put('/classes/:classId', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.put('/classes/:classId', async (req, res) => {
   try {
     const { classId } = req.params;
     const { name, teacher_id } = req.body;
@@ -279,7 +277,7 @@ router.put('/classes/:classId', accessValidation, roleValidation(["admin"]), asy
 });
 
 // DELETE Class
-router.delete('/classes/:classId', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.delete('/classes/:classId', async (req, res) => {
   try {
     const { classId } = req.params;
 
@@ -299,7 +297,7 @@ router.delete('/classes/:classId', accessValidation, roleValidation(["admin"]), 
 
 // * SISWA *
 // Tampilkan daftar siswa di kelas tertentu pada tahun ajaran tertentu
-router.get('/:academicYearId/classes/:classId/students', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.get('/:academicYearId/classes/:classId/students', async (req, res) => {
   try {
     const { academicYearId, classId } = req.params;
 

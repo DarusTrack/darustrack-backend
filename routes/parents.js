@@ -4,10 +4,6 @@ const { Op } = require('sequelize');
 const Validator = require('fastest-validator');
 const { User, AcademicYear, Semester, Student, StudentClass, Attendance, Schedule, Subject, Class, Evaluation, AcademicCalendar, Curriculum, StudentEvaluation, GradeCategory, GradeDetail, StudentGrade } = require('../models');
 const v = new Validator();
-const roleValidation = require("../middlewares/roleValidation");
-const accessValidation = require('../middlewares/accessValidation');
-
-router.use(accessValidation, roleValidation(['orang_tua']));
 
 // Profile Anak
 router.get('/student', async (req, res) => {

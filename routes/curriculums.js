@@ -2,12 +2,11 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { Curriculum } = require('../models');
-const accessValidation = require('../middlewares/accessValidation');
 const roleValidation = require('../middlewares/roleValidation');
 const v = new Validator();
 
 // Get data kurikulum (hanya satu yang tersedia)
-router.get('/', accessValidation, async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const curriculum = await Curriculum.findOne({
             attributes: ['name', 'description']
@@ -18,7 +17,7 @@ router.get('/', accessValidation, async (req, res) => {
     }
 });
 
-router.put('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.put('/:id', roleValidation(["admin"]), async (req, res) => {
     const id = req.params.id;
 
     if (isNaN(id)) {

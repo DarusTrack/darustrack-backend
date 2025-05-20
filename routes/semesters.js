@@ -2,11 +2,10 @@ var express = require('express');
 var router = express.Router();
 const Validator = require('fastest-validator');
 const { AcademicYear, Semester } = require('../models');
-const accessValidation = require('../middlewares/accessValidation');
 const v = new Validator();
 
 // Daftar semester tahun ajaran aktif (kehadiran dan evaluasi)
-router.get('/', accessValidation, async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const semesters = await Semester.findAll({
             attributes: ['id', 'name', 'is_active'],  // Menambahkan attributes untuk Semester
