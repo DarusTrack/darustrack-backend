@@ -4,8 +4,6 @@ const Validator = require('fastest-validator');
 const { User } = require('../models');
 const bcrypt = require('bcryptjs');
 const v = new Validator();
-const roleValidation = require("../middlewares/roleValidation");
-const accessValidation = require('../middlewares/accessValidation');
 
 // Helper error wrapper
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -14,7 +12,7 @@ const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next
 const excludedAttributes = ["password", "createdAt", "updatedAt", "resetPasswordToken", "resetPasswordExpires"];
 
 // GET / - List users by role
-router.get('/', accessValidation, roleValidation(["admin"]), asyncHandler(async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
     const { role } = req.query;
     const whereClause = role ? { role } : {};
 
@@ -28,7 +26,7 @@ router.get('/', accessValidation, roleValidation(["admin"]), asyncHandler(async 
 }));
 
 // GET /:id - Get user by ID
-router.get('/:id', accessValidation, roleValidation(["admin"]), asyncHandler(async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
     const user = await User.findByPk(req.params.id, {
         attributes: { exclude: excludedAttributes }
     });
@@ -39,7 +37,7 @@ router.get('/:id', accessValidation, roleValidation(["admin"]), asyncHandler(asy
 }));
 
 // POST / - Create user
-router.post('/', accessValidation, roleValidation(["admin"]), asyncHandler(async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
     const schema = {
         name: 'string',
         nip: 'string|optional',
@@ -69,7 +67,7 @@ router.post('/', accessValidation, roleValidation(["admin"]), asyncHandler(async
 }));
 
 // PUT /:id - Update user
-router.put('/:id', accessValidation, roleValidation(["admin"]), asyncHandler(async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -99,7 +97,7 @@ router.put('/:id', accessValidation, roleValidation(["admin"]), asyncHandler(asy
 }));
 
 // DELETE /:id - Delete user
-router.delete('/:id', accessValidation, roleValidation(["admin"]), asyncHandler(async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
