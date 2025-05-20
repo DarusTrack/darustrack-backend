@@ -8,26 +8,26 @@ const v = new Validator();
 // Profile Anak
 router.get('/student', async (req, res) => {
     try {
-        const parentId = req.user.id;
-
         const student = await Student.findOne({
-            where: { parent_id: parentId },
+            where: { parent_id: req.user.id },
             attributes: ['name', 'nisn', 'birth_date'],
-            include: [{
+            include: {
                 model: StudentClass,
                 as: 'student_class',
+                required: true,
                 attributes: ['id'],
-                include: [{
+                include: {
                     model: Class,
                     as: 'class',
+                    required: true,
                     attributes: ['name'],
                     include: [
                         {
                             model: AcademicYear,
                             as: 'academic_year',
                             where: { is_active: true },
-                            required: true,         // Hanya untuk filter, tidak ditampilkan
-                            attributes: []          // Jangan tampilkan di response
+                            required: true,
+                            attributes: [] // hanya filter
                         },
                         {
                             model: User,
@@ -35,26 +35,19 @@ router.get('/student', async (req, res) => {
                             attributes: ['name']
                         }
                     ]
-                }]
-            }]
+                }
+            }
         });
 
-        if (!student || !student.student_class?.length) {
-            return res.status(404).json({ message: 'Data anak tidak ditemukan atau tidak ada kelas di tahun ajaran aktif' });
-        }
-
-        // Ambil hanya student_class yang berisi class dari academic_year aktif
-        const activeStudentClass = student.student_class.filter(sc => sc.class?.name);
-
-        if (!activeStudentClass.length) {
-            return res.status(404).json({ message: 'Kelas anak tidak berada di tahun ajaran aktif' });
+        if (!student || !student.student_class) {
+            return res.status(404).json({ message: 'Data anak tidak ditemukan di tahun ajaran aktif' });
         }
 
         const result = {
             name: student.name,
             nisn: student.nisn,
             birth_date: student.birth_date,
-            student_class: activeStudentClass
+            student_class: student.student_class // hanya satu karena pakai required join langsung ke active year
         };
 
         res.json(result);
@@ -129,18 +122,6 @@ router.get('/schedule', async (req, res) => {
         res.json(schedules);
     } catch (error) {
         console.error('Server Error:', error.message);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
-
-// Kalender Akademik
-router.get('/academic-calendar', async (req, res) => {
-    try {
-        const events = await AcademicCalendar.findAll({
-            attributes: ['event_name', 'start_date', 'end_date']
-        });
-        res.json(events);
-    } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
