@@ -20,8 +20,8 @@ const classesRouter = require('./routes/classes');
 const studentsRouter = require('./routes/students');
 const curriculumsRouter = require('./routes/curriculums');
 const subjectsRouter = require('./routes/subjects');
-const accessValidation = require('../middlewares/accessValidation');
-const roleValidation = require('../middlewares/roleValidation');
+const accessValidation = require('./middlewares/accessValidation');
+const roleValidation = require('./middlewares/roleValidation');
 
 const app = express();
 
