@@ -113,13 +113,8 @@ router.post("/login", async (req, res) => {
 
         // Response tanpa data sensitif
         res.status(200).json({
-            success: true,
-            accessToken,
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role
-            }
+            meessage: "Login Berhasil",
+            accessToken
         });
 
     } catch (error) {
