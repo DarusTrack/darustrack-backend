@@ -1,5 +1,5 @@
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
 const Validator = require('fastest-validator');
 const { User } = require('../models');
 const bcrypt = require('bcryptjs');
@@ -7,49 +7,39 @@ const v = new Validator();
 const roleValidation = require("../middlewares/roleValidation");
 const accessValidation = require('../middlewares/accessValidation');
 
-// Get daftar pengguna berdasarkan role
-router.get('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
+// Helper error wrapper
+const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+// Excluded user attributes (to avoid repetition)
+const excludedAttributes = ["password", "createdAt", "updatedAt", "resetPasswordToken", "resetPasswordExpires"];
+
+// GET / - List users by role
+router.get('/', accessValidation, roleValidation(["admin"]), asyncHandler(async (req, res) => {
     const { role } = req.query;
+    const whereClause = role ? { role } : {};
 
-    let whereClause = {};
-    if (role) whereClause.role = role;
+    const users = await User.findAll({
+        where: whereClause,
+        attributes: { exclude: excludedAttributes },
+        order: [['name', 'ASC']]
+    });
 
-    try {
-        const users = await User.findAll({
-            where: whereClause,
-            attributes: {
-                exclude: ["password", "createdAt", "updatedAt", "resetPasswordToken", "resetPasswordExpires"]
-            },
-            order: [['name', 'ASC']] // Urutkan berdasarkan nama secara abjad
-        });
+    res.json(users);
+}));
 
-        return res.json(users);
-    } catch (error) {
-        return res.status(500).json({ message: 'Error retrieving users', error });
-    }
-});
+// GET /:id - Get user by ID
+router.get('/:id', accessValidation, roleValidation(["admin"]), asyncHandler(async (req, res) => {
+    const user = await User.findByPk(req.params.id, {
+        attributes: { exclude: excludedAttributes }
+    });
 
-// Get pengguna berdasarkan ID
-router.get('/:id', accessValidation, roleValidation(["admin"]), async (req, res) => {
-    const id = req.params.id;
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    try {
-        const user = await User.findByPk(id, {
-            attributes: { exclude: ["password", "createdAt", "updatedAt", "resetPasswordToken", "resetPasswordExpires"] } // Mengecualikan atribut sensitif
-        });
+    res.json(user);
+}));
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        return res.json(user);
-    } catch (error) {
-        return res.status(500).json({ message: "Error retrieving user", error });
-    }
-});
-
-// Tambah pengguna baru (Register)
-router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) => {
+// POST / - Create user
+router.post('/', accessValidation, roleValidation(["admin"]), asyncHandler(async (req, res) => {
     const schema = {
         name: 'string',
         nip: 'string|optional',
@@ -59,81 +49,62 @@ router.post('/', accessValidation, roleValidation(["admin"]), async (req, res) =
     };
 
     const validate = v.validate(req.body, schema);
+    if (validate.length) return res.status(400).json(validate);
 
-    if (validate.length) {
-        return res.status(400).json(validate);
-    }
+    const { email, password, nip, ...rest } = req.body;
 
-    // Cek apakah email sudah terdaftar
-    const existingUser = await User.findOne({ where: { email: req.body.email } });
-    if (existingUser) {
-        return res.status(400).json({ message: 'Email already registered' });
-    }
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) return res.status(400).json({ message: 'Email already registered' });
 
-    try {
-        if (req.body.nip !== undefined && req.body.nip.trim() === '') {
-            req.body.nip = null;
-        }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-        const user = await User.create(req.body);
-        res.status(201).json({ message: 'User registered successfully', user });
-    } catch (error) {
-        if (error.name === 'SequelizeUniqueConstraintError') {
-            const field = error.errors[0]?.path;
-            return res.status(400).json({ message: `${field} already exists.` });
-        }
-    
-        res.status(500).json({ message: 'Error registering user', error });
-    }
-});
+    const user = await User.create({
+        ...rest,
+        email,
+        nip: nip?.trim() || null,
+        password: hashedPassword
+    });
 
-// Update pengguna
-router.put('/:id',  accessValidation, roleValidation(["admin"]), async (req, res) => {
-    const id = req.params.id;
-    
-    let user = await User.findByPk(id);
-    if (!user) {
-        return res.json({ message: 'User not found' });
-    }
+    res.status(201).json({ message: 'User registered successfully', user });
+}));
+
+// PUT /:id - Update user
+router.put('/:id', accessValidation, roleValidation(["admin"]), asyncHandler(async (req, res) => {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     const schema = {
         name: 'string|optional',
         nip: 'string|optional',
         email: 'email|optional',
+        password: 'string|min:6|optional',
         role: { type: 'enum', values: ['orang_tua', 'kepala_sekolah', 'wali_kelas', 'admin'], optional: true },
     };
 
     const validate = v.validate(req.body, schema);
+    if (validate.length) return res.status(400).json(validate);
 
-    if (validate.length) {
-        return res.status(400).json(validate);
+    const updatePayload = { ...req.body };
+
+    if (updatePayload.password) {
+        updatePayload.password = await bcrypt.hash(updatePayload.password, 10);
     }
 
-    // Hash password jika diupdate
-    if (req.body.password) {
-        req.body.password = await bcrypt.hash(req.body.password, 10);
+    if (updatePayload.nip !== undefined && updatePayload.nip.trim() === '') {
+        updatePayload.nip = null;
     }
 
-    // Ubah nip kosong string jadi null
-    if (req.body.nip !== undefined && req.body.nip.trim() === '') {
-        req.body.nip = null;
-    }
-
-    user = await user.update(req.body);
+    await user.update(updatePayload);
     res.json(user);
-});
+}));
 
-// Hapus pengguna
-router.delete('/:id',  accessValidation, roleValidation(["admin"]), async (req, res) => {
-    const id = req.params.id;
-    const user = await User.findByPk(id);
-
-    if (!user) {
-        return res.json({ message: 'User not found' });
-    }
+// DELETE /:id - Delete user
+router.delete('/:id', accessValidation, roleValidation(["admin"]), asyncHandler(async (req, res) => {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     await user.destroy();
     res.json({ message: 'User is deleted' });
-});
+}));
 
 module.exports = router;
