@@ -107,7 +107,7 @@ router.get('/schedules', async (req, res) => {
 });
 
 // daftar tanggal kehadiran
-router.get('/attendances', async (req, res) => {
+router.get('/attendances/rekap', async (req, res) => {
     try {
         const userId = req.user.id;
 
