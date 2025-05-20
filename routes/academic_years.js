@@ -351,7 +351,7 @@ router.get('/:academicYearId/classes/:classId/students', async (req, res) => {
 });
 
 // Menambahkan siswa ke kelas pada tahun ajaran tertentu
-router.post('/:academicYearId/classes/:classId/students', accessValidation, roleValidation(["admin"]), async (req, res) => {
+router.post('/:academicYearId/classes/:classId/students', async (req, res) => {
   try {
     const { academicYearId, classId } = req.params;
     const { studentIds } = req.body;
