@@ -10,7 +10,7 @@ const helmet = require('helmet');
 
 const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
-const academicYearsRouter = require('./routes/academic_years');
+const academicYearsRouter = require('./routes/academicYearRoutes');
 const semestersRouter = require('./routes/semesters')
 const usersRouter = require('./routes/users');
 const teachersRouter = require('./routes/teachers');
