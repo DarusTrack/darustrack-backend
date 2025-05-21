@@ -1,4 +1,6 @@
 const { Curriculum } = require('../models');
+const Validator = require('fastest-validator');
+const v = new Validator();
 
 // Get data kurikulum (hanya satu yang tersedia)
 exports.getCurriculum = async (req, res) => {
@@ -19,8 +21,8 @@ exports.updateCurriculum = async (req, res) => {
         return res.status(400).json({ message: 'Invalid ID' });
     }
 
-    let curriculums = await Curriculum.findByPk(id);
-    if (!curriculums) {
+    let curriculum = await Curriculum.findByPk(id);
+    if (!curriculum) {
         return res.status(404).json({ message: 'Curriculum not found' });
     }
 
@@ -34,9 +36,9 @@ exports.updateCurriculum = async (req, res) => {
         return res.status(400).json(validate);
     }
 
-    await curriculums.update(req.body);
+    await curriculum.update(req.body);
     return res.status(200).json({ 
         message: 'Curriculum updated successfully',
-        data: curriculums
+        data: curriculum
     });
 };
