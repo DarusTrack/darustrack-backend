@@ -1,4 +1,5 @@
 const { AcademicYear, Class, StudentClass } = require('../models');
+const { Op } = require('sequelize');
 
 exports.getClassesByAcademicYear = async (req, res) => {
     try {
@@ -107,5 +108,48 @@ exports.deleteClass = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Terjadi kesalahan pada server' });
+    }
+};
+
+exports.getActiveYearClasses = async (req, res) => {
+    try {
+        const { grade_level } = req.query;
+
+        const activeAcademicYear = await AcademicYear.findOne({
+            where: { is_active: true }
+        });
+
+        if (!activeAcademicYear) {
+            return res.status(404).json({ message: 'Tidak ada tahun ajaran aktif ditemukan' });
+        }
+
+        const whereConditions = {
+            academic_year_id: activeAcademicYear.id
+        };
+
+        if (grade_level) {
+            whereConditions.name = {
+                [Op.like]: `${grade_level}%`
+            };
+        }
+
+        const foundClasses = await Class.findAll({
+            where: whereConditions,
+            attributes: ['id', 'name', 'academic_year_id', 'teacher_id'],
+            order: [['name', 'ASC']]
+        });
+
+        const classesWithGradeLevel = foundClasses.map(cls => {
+            const gradeLevel = parseInt(cls.name.charAt(0));
+            return {
+                ...cls.toJSON(),
+                grade_level: isNaN(gradeLevel) ? null : gradeLevel
+            };
+        });
+
+        res.json(classesWithGradeLevel);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Gagal mengambil data kelas', error: error.message });
     }
 };

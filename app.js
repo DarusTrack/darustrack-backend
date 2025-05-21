@@ -9,14 +9,14 @@ const compression = require('compression');
 const helmet = require('helmet');
 
 const indexRouter = require('./routes/index');
-const authRouter = require('./routes/auth');
+const authRouter = require('./routes/authRoutes');
 const academicYearsRouter = require('./routes/academicYearRoutes');
 const semestersRouter = require('./routes/semesters')
 const usersRouter = require('./routes/users');
 const teachersRouter = require('./routes/teachers');
 const parentsRouter = require('./routes/parents');
 const headmasterRouter = require('./routes/headmaster');
-const classesRouter = require('./routes/classes');
+const classesRouter = require('./routes/classRoutes');
 const studentsRouter = require('./routes/students');
 const curriculumsRouter = require('./routes/curriculumRoutes');
 const subjectsRouter = require('./routes/subjects');
