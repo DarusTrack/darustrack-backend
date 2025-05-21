@@ -111,7 +111,7 @@ exports.deleteClass = async (req, res) => {
     }
 };
 
-exports.getActiveYearClasses = async (req, res) => {
+exports.getActiveClasses = async (req, res) => {
     try {
         const { grade_level } = req.query;
 

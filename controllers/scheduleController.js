@@ -1,6 +1,7 @@
 const { Class, AcademicYear, Schedule, Subject } = require('../models');
 const { Op } = require('sequelize');
 
+// Helper function
 const convertDayToIndonesian = (dayEnglish) => {
     const dayMap = {
         Monday: "Senin",
@@ -24,27 +25,17 @@ exports.getClassSchedules = async (req, res) => {
         if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
 
         const schedulesToDelete = await Schedule.findAll({
-            where: {
-                class_id: req.params.class_id,
-            },
-            include: [
-                {
-                    model: Class,
-                    as: 'class',
-                    where: {
-                        academic_year_id: { [Op.ne]: activeYear.id }
-                    }
-                }
-            ]
+            where: { class_id: req.params.class_id },
+            include: [{
+                model: Class,
+                as: 'class',
+                where: { academic_year_id: { [Op.ne]: activeYear.id } }
+            }]
         });
 
         const idsToDelete = schedulesToDelete.map(s => s.id);
         if (idsToDelete.length > 0) {
-            await Schedule.destroy({
-                where: {
-                    id: idsToDelete
-                }
-            });
+            await Schedule.destroy({ where: { id: idsToDelete } });
         }
 
         const schedule = await Schedule.findAll({
@@ -59,9 +50,7 @@ exports.getClassSchedules = async (req, res) => {
                     model: Class,
                     as: 'class',
                     attributes: ['id', 'name', 'academic_year_id'],
-                    where: {
-                        academic_year_id: activeYear.id
-                    }
+                    where: { academic_year_id: activeYear.id }
                 }
             ],
             order: [
@@ -87,7 +76,9 @@ exports.createSchedule = async (req, res) => {
         const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
         if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
 
-        const classData = await Class.findOne({ where: { id: class_id, academic_year_id: activeYear.id } });
+        const classData = await Class.findOne({ 
+            where: { id: class_id, academic_year_id: activeYear.id } 
+        });
         if (!classData) return res.status(404).json({ message: 'Kelas tidak ditemukan di tahun ajaran aktif' });
 
         const conflictingSchedule = await Schedule.findOne({
@@ -95,12 +86,12 @@ exports.createSchedule = async (req, res) => {
                 class_id: class_id,
                 day: day,
                 [Op.or]: [
-                    { start_time: { [Op.between]: [start_time, end_time] },
-                    { end_time: { [Op.between]: [start_time, end_time] },
+                    { start_time: { [Op.between]: [start_time, end_time] } },
+                    { end_time: { [Op.between]: [start_time, end_time] } },
                     {
                         [Op.and]: [
-                            { start_time: { [Op.lte]: start_time },
-                            { end_time: { [Op.gte]: end_time }
+                            { start_time: { [Op.lte]: start_time } },
+                            { end_time: { [Op.gte]: end_time } }
                         ]
                     }
                 ]
@@ -155,12 +146,12 @@ exports.updateSchedule = async (req, res) => {
                     class_id: schedule.class_id,
                     day: day || schedule.day,
                     [Op.or]: [
-                        { start_time: { [Op.between]: [start_time, end_time] },
-                        { end_time: { [Op.between]: [start_time, end_time] },
+                        { start_time: { [Op.between]: [start_time, end_time] } },
+                        { end_time: { [Op.between]: [start_time, end_time] } },
                         {
                             [Op.and]: [
-                                { start_time: { [Op.lte]: start_time },
-                                { end_time: { [Op.gte]: end_time }
+                                { start_time: { [Op.lte]: start_time } },
+                                { end_time: { [Op.gte]: end_time } }
                             ]
                         }
                     ]
@@ -168,7 +159,9 @@ exports.updateSchedule = async (req, res) => {
             });
 
             if (conflictingSchedule) {
-                return res.status(400).json({ message: 'Terdapat jadwal lain yang bentrok pada hari dan jam tersebut di kelas yang sama' });
+                return res.status(400).json({ 
+                    message: 'Terdapat jadwal lain yang bentrok pada hari dan jam tersebut di kelas yang sama' 
+                });
             }
         }
 

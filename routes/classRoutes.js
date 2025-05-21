@@ -4,7 +4,7 @@ const classController = require('../controllers/classController');
 const scheduleController = require('../controllers/scheduleController');
 
 // Class routes
-router.get('/', classController.getActiveYearClasses);
+router.get('/', classController.getActiveClasses);
 
 // Schedule routes
 router.get('/:class_id/schedule', scheduleController.getClassSchedules);
