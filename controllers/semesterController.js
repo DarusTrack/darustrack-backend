@@ -1,7 +1,7 @@
 const { Semester, AcademicYear } = require('../models');
 
 // Daftar semester tahun ajaran aktif (kehadiran dan evaluasi)
-exports.getAllSemesters = async (req, res) => {
+exports.getActiveSemesters = async (req, res) => {
     try {
         const semesters = await Semester.findAll({
             attributes: ['id', 'name', 'is_active'],  // Menambahkan attributes untuk Semester

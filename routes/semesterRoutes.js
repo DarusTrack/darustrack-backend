@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const semesterController = require('../controllers/semesterController');
 
-// Daftar semester tahun ajaran aktif (kehadiran dan evaluasi)
-router.get('/', semesterController.getAllSemesters);
+// Get active semesters
+router.get('/', semesterController.getActiveSemesters);
 
-module.exports = router
+module.exports = router;
