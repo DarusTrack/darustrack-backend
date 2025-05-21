@@ -77,7 +77,11 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: "Kredensial tidak valid" });
         }
 
+        console.log("Password from DB:", user.password);
+        console.log("Password input:", password);
         const isValid = await bcrypt.compare(password, user.password);
+        console.log("Password valid?", isValid);
+
         if (!isValid) {
             return res.status(401).json({ message: "Kredensial tidak valid" });
         }
