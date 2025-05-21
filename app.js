@@ -18,7 +18,7 @@ const parentsRouter = require('./routes/parents');
 const headmasterRouter = require('./routes/headmaster');
 const classesRouter = require('./routes/classes');
 const studentsRouter = require('./routes/students');
-const curriculumsRouter = require('./routes/curriculums');
+const curriculumsRouter = require('./routes/curriculum');
 const subjectsRouter = require('./routes/subjects');
 const accessValidation = require('./middlewares/accessValidation');
 const roleValidation = require('./middlewares/roleValidation');
@@ -66,7 +66,7 @@ app.use('/parents', accessValidation, roleValidation(['orang_tua']), parentsRout
 app.use('/headmaster', accessValidation, roleValidation(['kepala_sekolah']), headmasterRouter);
 app.use('/classes', accessValidation, roleValidation(['admin']), classesRouter);
 app.use('/students', accessValidation, roleValidation(['admin']), studentsRouter);
-app.use('/curriculums', accessValidation, curriculumRouter);
+app.use('/curriculums', accessValidation, curriculumsRouter);
 app.use('/subjects', accessValidation, subjectsRouter);
 
 // Database connection
