@@ -19,7 +19,7 @@ const headmasterRouter = require('./routes/headmasterRoutes');
 const classesRouter = require('./routes/classRoutes');
 const studentsRouter = require('./routes/studentRoutes');
 const curriculumsRouter = require('./routes/curriculumRoutes');
-const subjectsRouter = require('./routes/subjects');
+const subjectsRouter = require('./routes/subjectRoutes');
 const accessValidation = require('./middlewares/accessValidation');
 const roleValidation = require('./middlewares/roleValidation');
 
