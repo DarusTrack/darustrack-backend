@@ -66,7 +66,7 @@ app.use('/parents', accessValidation, roleValidation(['orang_tua']), parentsRout
 app.use('/headmaster', accessValidation, roleValidation(['kepala_sekolah']), headmasterRouter);
 app.use('/classes', accessValidation, roleValidation(['admin']), classesRouter);
 app.use('/students', accessValidation, roleValidation(['admin']), studentsRouter);
-app.use('/curriculums', accessValidation, curriculumsRouter);
+app.use('/curriculums', accessValidation, curriculumRouter);
 app.use('/subjects', accessValidation, subjectsRouter);
 
 // Database connection
