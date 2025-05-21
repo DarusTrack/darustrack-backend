@@ -1,25 +1,8 @@
-var express = require('express');
-var router = express.Router();
-const Validator = require('fastest-validator');
-const { AcademicYear, Semester } = require('../models');
-const v = new Validator();
+const express = require('express');
+const router = express.Router();
+const semesterController = require('../controllers/semesterController');
 
 // Daftar semester tahun ajaran aktif (kehadiran dan evaluasi)
-router.get('/', async (req, res) => {
-    try {
-        const semesters = await Semester.findAll({
-            attributes: ['id', 'name', 'is_active'],  // Menambahkan attributes untuk Semester
-            include: {
-                model: AcademicYear,
-                as: 'academic_year',
-                attributes: ['id', 'year', 'is_active'],  // Menambahkan attributes untuk AcademicYear
-                where: { is_active: true }
-            }
-        });
-        res.json(semesters);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
+router.get('/', semesterController.getAllSemesters);
 
 module.exports = router
