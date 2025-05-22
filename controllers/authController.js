@@ -1,62 +1,59 @@
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
-const { User } = require("../models");
+const bcrypt = require('bcryptjs');
+const { User } = require('../models');
+const { generateAccessToken, generateRefreshToken } = require('../utils/tokenUtils');
 
-// Token generation functions
-function generateAccessToken(user) {
-    return jwt.sign(
-        { id: user.id, name: user.name, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
-}
-
-function generateRefreshToken(user) {
-    return jwt.sign(
-        { id: user.id },
-        process.env.REFRESH_TOKEN_SECRET,
-        { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN }
-    );
-}
-
-// Login controller
 exports.login = async (req, res) => {
     const { email, password } = req.body;
 
+    // Validasi input
     if (!email || !password) {
         return res.status(400).json({ message: "Email dan password harus diisi" });
     }
 
     try {
+        // Cari user berdasarkan email
         const user = await User.findOne({
             where: { email },
             attributes: ['id', 'name', 'role', 'password']
         });
 
-        if (!user || user.password.length !== 60) {
-            return res.status(401).json({ message: "Email atau password tidak sesuai" });
+        // Cek jika user tidak ditemukan atau password belum di-hash dengan benar
+        if (!user || user.password.length < 8) {
+            return res.status(401).json({ message: "Email atau password salah" });
         }
 
+        // Verifikasi password
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
-            return res.status(401).json({ message: "Email atau password tidak sesuai" });
+            return res.status(401).json({ message: "Email atau password salah" });
         }
 
+        // Buat JWT dan Refresh Token secara paralel
         const [accessToken, refreshToken] = await Promise.all([
             generateAccessToken(user),
             generateRefreshToken(user)
         ]);
 
+        // Simpan refresh token di cookie
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
-            secure: true,
-            sameSite: "None",
-            maxAge: 7 * 24 * 60 * 60 * 1000,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? "None" : "Lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
         });
 
-        res.status(200).json({ message: "Login successful", accessToken });
+        // Kirim response dengan accessToken
+        res.status(200).json({
+            message: "Login berhasil",
+            accessToken,
+            user: {
+                id: user.id,
+                name: user.name,
+                role: user.role
+            }
+        });
     } catch (error) {
-        res.status(500).json({ message: "Internal server error", error: error.message });
+        res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
     }
 };
 

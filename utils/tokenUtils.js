@@ -8,10 +8,11 @@ const jwtExpiryByRole = {
 };
 
 const generateAccessToken = (user) => {
-  const expiresIn = jwtExpiryByRole[user.role] || '4h'; // default to 4h
+  const expiresIn = jwtExpiryByRole[user.role] || '4h';
   return jwt.sign(
     {
       id: user.id,
+      name: user.name,
       role: user.role,
     },
     process.env.JWT_SECRET,
