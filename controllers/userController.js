@@ -59,7 +59,8 @@ class UserController {
             const existingUser = await User.findOne({ where: { email } });
             if (existingUser) return res.status(400).json({ message: 'Email already registered' });
 
-            const hashedPassword = await bcrypt.hash(password, 10);
+            // Pastikan hanya di-hash sekali
+            const hashedPassword = await bcrypt.hash(password, 8); // Gunakan cost factor yang sama saat login
 
             const user = await User.create({
                 ...rest,
