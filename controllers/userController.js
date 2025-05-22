@@ -61,6 +61,8 @@ class UserController {
 
             // Pastikan hanya di-hash sekali
             const hashedPassword = await bcrypt.hash(password, 8); // Gunakan cost factor yang sama saat login
+            console.log("Password input (raw):", password);
+            console.log("Password after hashing:", hashedPassword);
 
             const user = await User.create({
                 ...rest,
