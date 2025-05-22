@@ -1,10 +1,10 @@
 'use strict';
 
-const argon2 = require('argon2');
+const bcrypt = require('bcryptjs');
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    const hashedPassword = await argon2.hash('password123');
+    const hashedPassword = await bcrypt.hash('password123', 10);
 
     await queryInterface.bulkInsert('users', [
       {
