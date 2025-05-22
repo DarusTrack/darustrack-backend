@@ -1,17 +1,48 @@
+var express = require("express");
+var router = express.Router();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { User, PasswordReset } = require("../models");
+const accessValidation = require("../middlewares/accessValidation");
 const Validator = require("fastest-validator");
 const v = new Validator();
 const { Op } = require('sequelize');
 const crypto = require("crypto");
-const nodemailer = require('nodemailer');
+require("dotenv").config();
 
-// Configuration constants
+// Optimasi: Turunkan cost factor bcrypt (disesuaikan dengan kebutuhan keamanan)
 const BCRYPT_COST_FACTOR = 8;
+
+// Optimasi: Gunakan algoritma yang lebih cepat untuk JWT
 const JWT_ALGORITHM = 'HS256';
 
-// Email transporter setup
+const nodemailer = require('nodemailer');
+
+function generateAccessToken(user) {
+    return jwt.sign(
+        {
+            id: user.id,
+            role: user.role // Minimalkan payload token
+        },
+        process.env.JWT_SECRET,
+        {
+            algorithm: JWT_ALGORITHM,
+            expiresIn: process.env.JWT_EXPIRES_IN || '15m'
+        }
+    );
+}
+
+function generateRefreshToken(user) {
+    return jwt.sign(
+        { id: user.id },
+        process.env.REFRESH_TOKEN_SECRET,
+        {
+            algorithm: JWT_ALGORITHM,
+            expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d'
+        }
+    );
+}
+
 const transporter = nodemailer.createTransport({
     host: "gmail",
     port: 587,
@@ -22,24 +53,6 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Token generation functions
-function generateAccessToken(user) {
-    return jwt.sign(
-        { id: user.id, role: user.role },
-        process.env.JWT_SECRET,
-        { algorithm: JWT_ALGORITHM, expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
-    );
-}
-
-function generateRefreshToken(user) {
-    return jwt.sign(
-        { id: user.id },
-        process.env.REFRESH_TOKEN_SECRET,
-        { algorithm: JWT_ALGORITHM, expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d' }
-    );
-}
-
-// Email sending function
 async function sendResetPasswordEmail(to, name, link) {
     const info = await transporter.sendMail({
         from: `"DarusTrack Team" <${process.env.EMAIL_USER}>`,
@@ -56,39 +69,41 @@ async function sendResetPasswordEmail(to, name, link) {
             <p>DarusTrack</p>
         `
     });
+
     console.log("Email sent: ", info.messageId);
 }
 
-// Controller methods
-exports.login = async (req, res) => {
+router.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
+    // Validasi input
     if (!email || !password) {
         return res.status(400).json({ message: "Email dan password harus diisi" });
     }
 
     try {
+        // Optimasi query: Ambil hanya field yang diperlukan
         const user = await User.findOne({
             where: { email },
-            attributes: ['id', 'password', 'role', 'email']
+            attributes: ['id', 'password', 'role', 'email'] // Jangan bawa data tidak perlu
         });
 
         if (!user) {
+            // Gunakan pesan error generik untuk keamanan
             return res.status(401).json({ message: "Kredensial tidak valid" });
         }
 
-        console.log("Password from DB:", user.password);
-        console.log("Password input:", password);
+        // Optimasi: Bandingkan password dengan bcrypt
         const isValid = await bcrypt.compare(password, user.password);
-        console.log("Password valid?", isValid);
-
         if (!isValid) {
             return res.status(401).json({ message: "Kredensial tidak valid" });
         }
 
+        // Generate tokens
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
 
+        // Set cookie dengan refresh token
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
             secure: true,
@@ -96,6 +111,7 @@ exports.login = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
+        // Response tanpa data sensitif
         res.status(200).json({
             meessage: "Login Berhasil",
             accessToken
@@ -108,9 +124,10 @@ exports.login = async (req, res) => {
             message: "Terjadi kesalahan server"
         });
     }
-};
+});
 
-exports.refreshToken = async (req, res) => {
+// refresh token
+router.post("/refresh-token", async (req, res) => {
     const token = req.cookies.refreshToken;
 
     if (!token) return res.status(401).json({ message: "Refresh token not found" });
@@ -126,9 +143,10 @@ exports.refreshToken = async (req, res) => {
     } catch (error) {
         res.status(403).json({ message: "Invalid refresh token", error: error.message });
     }
-};
+});
 
-exports.getProfile = async (req, res) => {
+// Get Profile (Hanya bisa dilakukan oleh user yang login)
+router.get("/profile", accessValidation, async (req, res) => {
     try {
         const user = await User.findByPk(req.user.id);
 
@@ -136,6 +154,7 @@ exports.getProfile = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        // Tambahkan opsi untuk menampilkan password sebelum di-hash
         res.json({
             name: user.name,
             nip: user.nip,
@@ -146,9 +165,10 @@ exports.getProfile = async (req, res) => {
         console.error("Profile Error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
-};
+});
 
-exports.updateProfile = async (req, res) => {
+// Update Profile (Hanya bisa dilakukan oleh user yang login)
+router.put("/profile", accessValidation, async (req, res) => {
     const { name, email, password, showPassword } = req.body;
 
     try {
@@ -158,6 +178,7 @@ exports.updateProfile = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        // Update data pengguna
         if (name) user.name = name;
         if (email) user.email = email;
         if (password) {
@@ -176,9 +197,9 @@ exports.updateProfile = async (req, res) => {
         console.error("Update Profile Error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
-};
+});
 
-exports.forgotPassword = async (req, res) => {
+router.post("/forgot-password", async (req, res) => {
     const { email } = req.body;
 
     if (!email) return res.status(400).json({ message: "Email is required." });
@@ -187,11 +208,13 @@ exports.forgotPassword = async (req, res) => {
         const user = await User.findOne({ where: { email }, attributes: ['id', 'email', 'name'] });
 
         if (!user) {
+            // Jangan beri tahu apakah email terdaftar demi keamanan
             return res.status(200).json({ message: "Bila email ada, maka email untuk mengubah password akan dikirim ke email yang Anda masukkan" });
         }
 
+        // Buat token
         const token = crypto.randomBytes(32).toString("hex");
-        const expires = new Date(Date.now() + 60 * 60 * 1000);
+        const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 jam
 
         await PasswordReset.upsert({
             user_id: user.id,
@@ -200,16 +223,19 @@ exports.forgotPassword = async (req, res) => {
         });
 
         const resetLink = `https://darustrack.vercel.app/reset-password?token=${token}`;
+
+        // Kirim email
         await sendResetPasswordEmail(user.email, user.name, resetLink);
 
         res.status(200).json({ message: "If the email exists, password reset link sent." });
+
     } catch (error) {
         console.error("Forgot Password Error:", error);
         res.status(500).json({ message: "Internal server error." });
     }
-};
+});
 
-exports.resetPassword = async (req, res) => {
+router.post("/reset-password", async (req, res) => {
     const { token, newPassword } = req.body;
 
     if (!token || !newPassword) return res.status(400).json({ message: "Token and password are required." });
@@ -226,11 +252,16 @@ exports.resetPassword = async (req, res) => {
 
         user.password = await bcrypt.hash(newPassword, BCRYPT_COST_FACTOR);
         await user.save();
+
+        // Hapus token agar tidak bisa digunakan ulang
         await resetEntry.destroy();
 
         res.status(200).json({ message: "Password updated successfully." });
+
     } catch (error) {
         console.error("Reset Password Error:", error);
         res.status(500).json({ message: "Server error." });
     }
-};
+});
+
+module.exports = router;
