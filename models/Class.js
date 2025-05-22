@@ -5,7 +5,6 @@ module.exports = (sequelize, DataTypes) => {
     const Class = sequelize.define('Class', {
         id: {
             type: DataTypes.STRING(5),
-            // defaultValue: Sequelize.UUIDV4,
             primaryKey: true,
             allowNull: false,
             defaultValue: () => nanoid()

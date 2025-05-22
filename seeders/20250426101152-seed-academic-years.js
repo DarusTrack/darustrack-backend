@@ -7,12 +7,10 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     const now = new Date();
     
-    // Step 1: Generate ID
     const academicYearId = 1;
     const semesterGanjilId = nanoid();
     const semesterGenapId = nanoid();
 
-    // Step 2: Insert Academic Year
     await queryInterface.bulkInsert('academic_years', [
       {
         id: academicYearId,
@@ -23,7 +21,6 @@ module.exports = {
       }
     ]);
 
-    // Step 3: Insert Semesters
     await queryInterface.bulkInsert('semesters', [
       {
         id: semesterGanjilId,
@@ -43,7 +40,6 @@ module.exports = {
       }
     ]);
 
-    // Step 4: Insert Classes (contoh: satu kelas di masing-masing semester)
     await queryInterface.bulkInsert('classes', [
       {
         id: nanoid(),
@@ -65,7 +61,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    // Hapus dari tabel yang tergantung (classes -> semesters -> academic_years)
     await queryInterface.bulkDelete('classes', null, {});
     await queryInterface.bulkDelete('semesters', { academic_year_id: 'AY01' }, {});
     await queryInterface.bulkDelete('academic_years', { id: 'AY01' }, {});
