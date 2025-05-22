@@ -1,11 +1,8 @@
-var express = require("express");
-var router = express.Router();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { User } = require("../models");
-const accessValidation = require("../middlewares/accessValidation");
-require("dotenv").config();
 
+// Token generation functions
 function generateAccessToken(user) {
     return jwt.sign(
         { id: user.id, name: user.name, role: user.role },
@@ -22,50 +19,49 @@ function generateRefreshToken(user) {
     );
 }
 
-// login
-// login (optimized)
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+// Login controller
+exports.login = async (req, res) => {
+    const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email dan password harus diisi" });
-  }
-
-  try {
-    const user = await User.findOne({
-      where: { email },
-      attributes: ['id', 'name', 'role', 'password']
-    });
-
-    if (!user || user.password.length !== 60) {
-      return res.status(401).json({ message: "Email atau password tidak sesuai" });
+    if (!email || !password) {
+        return res.status(400).json({ message: "Email dan password harus diisi" });
     }
 
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(401).json({ message: "Email atau password tidak sesuai" });
+    try {
+        const user = await User.findOne({
+            where: { email },
+            attributes: ['id', 'name', 'role', 'password']
+        });
+
+        if (!user || user.password.length !== 60) {
+            return res.status(401).json({ message: "Email atau password tidak sesuai" });
+        }
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
+            return res.status(401).json({ message: "Email atau password tidak sesuai" });
+        }
+
+        const [accessToken, refreshToken] = await Promise.all([
+            generateAccessToken(user),
+            generateRefreshToken(user)
+        ]);
+
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "None",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+
+        res.status(200).json({ message: "Login successful", accessToken });
+    } catch (error) {
+        res.status(500).json({ message: "Internal server error", error: error.message });
     }
+};
 
-    const [accessToken, refreshToken] = await Promise.all([
-      generateAccessToken(user),
-      generateRefreshToken(user)
-    ]);
-
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "None",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    res.status(200).json({ message: "Login successful", accessToken });
-  } catch (error) {
-    res.status(500).json({ message: "Internal server error", error: error.message });
-  }
-});
-
-// refresh token
-router.post("/refresh-token", async (req, res) => {
+// Refresh token controller
+exports.refreshToken = async (req, res) => {
     const token = req.cookies.refreshToken;
 
     if (!token) return res.status(401).json({ message: "Refresh token not found" });
@@ -81,10 +77,10 @@ router.post("/refresh-token", async (req, res) => {
     } catch (error) {
         res.status(403).json({ message: "Invalid refresh token", error: error.message });
     }
-});
+};
 
-// Get Profile (Hanya bisa dilakukan oleh user yang login)
-router.get("/profile", accessValidation, async (req, res) => {
+// Get user profile controller
+exports.getProfile = async (req, res) => {
     try {
         const user = await User.findByPk(req.user.id);
 
@@ -92,7 +88,6 @@ router.get("/profile", accessValidation, async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Tambahkan opsi untuk menampilkan password sebelum di-hash
         res.json({
             name: user.name,
             nip: user.nip,
@@ -103,10 +98,10 @@ router.get("/profile", accessValidation, async (req, res) => {
         console.error("Profile Error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
-});
+};
 
-// Update Profile (Hanya bisa dilakukan oleh user yang login)
-router.put("/profile", accessValidation, async (req, res) => {
+// Update profile controller
+exports.updateProfile = async (req, res) => {
     const { name, email, password, showPassword } = req.body;
 
     try {
@@ -116,7 +111,7 @@ router.put("/profile", accessValidation, async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Update data pengguna
+        // Update user data
         if (name) user.name = name;
         if (email) user.email = email;
         if (password) {
@@ -135,6 +130,4 @@ router.put("/profile", accessValidation, async (req, res) => {
         console.error("Update Profile Error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
-});
-
-module.exports = router;
+};

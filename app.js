@@ -9,10 +9,10 @@ const compression = require('compression');
 const helmet = require('helmet');
 
 const indexRouter = require('./routes/index');
-const authRouter = require('./routes/auth');
+const authRouter = require('./routes/authRoutes');
 const academicYearsRouter = require('./routes/academicYearRoutes');
 const semestersRouter = require('./routes/semesterRoutes')
-const usersRouter = require('./routes/users');
+const usersRouter = require('./routes/userRoutes');
 const teachersRouter = require('./routes/teacherRoutes');
 const parentsRouter = require('./routes/parents');
 const headmasterRouter = require('./routes/headmasterRoutes');
