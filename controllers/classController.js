@@ -153,3 +153,27 @@ exports.getActiveClasses = async (req, res) => {
         res.status(500).json({ message: 'Gagal mengambil data kelas', error: error.message });
     }
 };
+
+exports.getMyClass = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+        if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+
+        const myClass = await Class.findOne({
+            where: {
+                teacher_id: userId,
+                academic_year_id: activeYear.id
+            }
+        });
+
+        if (!myClass) {
+            return res.status(404).json({ message: 'Kelas tidak ditemukan untuk wali kelas ini di tahun ajaran aktif' });
+        }
+
+        res.json({ message: 'Kelas wali kelas berhasil ditemukan', class: myClass });
+    } catch (error) {
+        res.status(500).json({ message: 'Error mengambil data kelas wali kelas', error });
+    }
+};

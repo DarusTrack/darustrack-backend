@@ -218,3 +218,66 @@ exports.deleteSchedule = async (req, res) => {
         res.status(500).json({ message: 'Error menghapus jadwal', error });
     }
 };
+
+exports.getSchedulesTeacher = async (req, res) => {
+    try {
+        const userId = req.user.id; // ID wali kelas dari user yang login
+        const { day } = req.query;  // Ambil filter hari dari query parameter (misal: /schedules?day=Senin)
+
+        // 1. Cari tahun ajaran aktif
+        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+        if (!activeYear) {
+            return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+        }
+
+        // 2. Cari kelas yang diampu wali kelas
+        const myClass = await Class.findOne({
+            where: {
+                teacher_id: userId,
+                academic_year_id: activeYear.id
+            }
+        });
+        if (!myClass) {
+            return res.status(404).json({ message: 'Anda tidak mengampu kelas apapun di tahun ajaran aktif ini' });
+        }
+
+        // 3. Siapkan kondisi filter
+        const whereCondition = { class_id: myClass.id };
+        if (day) {
+            whereCondition.day = day; // Tambahkan filter day jika diberikan
+        }
+
+        // 4. Ambil jadwal dengan filter
+        const schedules = await Schedule.findAll({
+            where: whereCondition,
+            include: [
+                {
+                    model: Subject,
+                    as: 'subject',
+                    attributes: ['id', 'name']
+                }
+            ],
+            order: [
+                ['day', 'ASC'],
+                ['start_time', 'ASC']
+            ]
+        });
+
+        // 5. Format output
+        const output = schedules.map(s => ({
+            class_id: myClass.id,
+            class_name: myClass.name,
+            subject_id: s.subject_id,
+            subject_name: s.subject.name,
+            day: s.day,
+            start_time: s.start_time,
+            end_time: s.end_time
+        }));
+
+        res.json(output);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Gagal mengambil jadwal kelas', error: error.message });
+    }
+};
+
