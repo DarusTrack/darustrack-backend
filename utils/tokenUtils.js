@@ -4,7 +4,7 @@ const jwtExpiryByRole = {
   admin: '4h',
   wali_kelas: '12h',
   kepala_sekolah: '12h',
-  orang_tua: '30d',
+  orang_tua: '1y',
 };
 
 const generateAccessToken = (user) => {

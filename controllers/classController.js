@@ -157,7 +157,6 @@ exports.getActiveClasses = async (req, res) => {
 exports.getMyClass = async (req, res) => {
     try {
         const userId = req.user.id;
-
         const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
         if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
 

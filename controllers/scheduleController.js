@@ -219,18 +219,16 @@ exports.deleteSchedule = async (req, res) => {
     }
 };
 
-exports.getSchedulesTeacher = async (req, res) => {
+exports.getSchedules = async (req, res) => {
     try {
-        const userId = req.user.id; // ID wali kelas dari user yang login
-        const { day } = req.query;  // Ambil filter hari dari query parameter (misal: /schedules?day=Senin)
+        const userId = req.user.id;
+        const { day } = req.query;
 
-        // 1. Cari tahun ajaran aktif
         const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
         if (!activeYear) {
             return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
         }
 
-        // 2. Cari kelas yang diampu wali kelas
         const myClass = await Class.findOne({
             where: {
                 teacher_id: userId,
@@ -241,13 +239,11 @@ exports.getSchedulesTeacher = async (req, res) => {
             return res.status(404).json({ message: 'Anda tidak mengampu kelas apapun di tahun ajaran aktif ini' });
         }
 
-        // 3. Siapkan kondisi filter
         const whereCondition = { class_id: myClass.id };
         if (day) {
-            whereCondition.day = day; // Tambahkan filter day jika diberikan
+            whereCondition.day = day;
         }
 
-        // 4. Ambil jadwal dengan filter
         const schedules = await Schedule.findAll({
             where: whereCondition,
             include: [
@@ -263,7 +259,6 @@ exports.getSchedulesTeacher = async (req, res) => {
             ]
         });
 
-        // 5. Format output
         const output = schedules.map(s => ({
             class_id: myClass.id,
             class_name: myClass.name,
