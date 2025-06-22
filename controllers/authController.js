@@ -1,4 +1,5 @@
 const redis = require('../utils/redisClient');
+const { User } = require('../models');
 const sequelize = require('../models').sequelize;
 const bcrypt = require('bcryptjs');
 const { generateAccessToken, generateRefreshToken } = require('../utils/tokenUtils');
