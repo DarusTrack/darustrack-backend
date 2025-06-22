@@ -1,61 +1,49 @@
-const jwt = require("jsonwebtoken");
+const redis = require('../utils/redisClient');
+const sequelize = require('../models').sequelize;
 const bcrypt = require('bcryptjs');
-const { User } = require('../models');
 const { generateAccessToken, generateRefreshToken } = require('../utils/tokenUtils');
 
 exports.login = async (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
+  if (!email || !password)
+    return res.status(400).json({ message: "Email & password wajib." });
 
-    // Validasi input
-    if (!email || !password) {
-        return res.status(400).json({ message: "Email dan password harus diisi" });
-    }
+  const t = await sequelize.transaction();   // optional: consistent reads
+  try {
+    const user = await User.findOne({
+      where: { email },
+      attributes: ['id', 'name', 'role', 'password'],
+      raw: true,
+      transaction: t
+    });
+    if (!user) return res.status(401).json({ message: "Email / password salah" });
 
-    try {
-        // Cari user berdasarkan email
-        const user = await User.findOne({
-            where: { email },
-            attributes: ['id', 'name', 'role', 'password']
-        });
+    // bcrypt di thread-pool besar
+    if (!(await bcrypt.compare(password, user.password)))
+      return res.status(401).json({ message: "Email / password salah" });
 
-        // Cek jika user tidak ditemukan atau password belum di-hash dengan benar
-        if (!user || user.password.length < 8) {
-            return res.status(401).json({ message: "Email atau password salah" });
-        }
+    // masukkan claim yang sering dipakai
+    const payload = { id: user.id, name: user.name, role: user.role };
+    const [accessToken, refreshToken] = await Promise.all([
+      generateAccessToken(payload),
+      generateRefreshToken(payload)
+    ]);
 
-        // Verifikasi password
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            return res.status(401).json({ message: "Email atau password salah" });
-        }
+    // cache profil 1 jam
+    await redis.setEx(`user:${user.id}`, 3600, JSON.stringify(payload));
 
-        // Buat JWT dan Refresh Token secara paralel
-        const [accessToken, refreshToken] = await Promise.all([
-            generateAccessToken(user),
-            generateRefreshToken(user)
-        ]);
-
-        // Simpan refresh token di cookie
-        res.cookie("refreshToken", refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? "None" : "Lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
-        });
-
-        // Kirim response dengan accessToken
-        res.status(200).json({
-            message: "Login berhasil",
-            accessToken,
-            user: {
-                id: user.id,
-                name: user.name,
-                role: user.role
-            }
-        });
-    } catch (error) {
-        res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
-    }
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+    res.status(200).json({ message: "Login berhasil", accessToken, user: payload });
+    await t.commit();
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
 };
 
 // Refresh token controller
@@ -79,23 +67,19 @@ exports.refreshToken = async (req, res) => {
 
 // Get user profile controller
 exports.getProfile = async (req, res) => {
-    try {
-        const user = await User.findByPk(req.user.id);
+  const cacheKey = `user:${req.user.id}`;
+  const cached = await redis.get(cacheKey);
+  if (cached) return res.json(JSON.parse(cached));          // <1 ms
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
+  // fallback (jarang terjadi)
+  const user = await User.findByPk(req.user.id, {
+    attributes: ['id','name','nip','email'],
+    raw: true
+  });
+  if (!user) return res.status(404).json({ message: "User not found" });
 
-        res.json({
-            name: user.name,
-            nip: user.nip,
-            email: user.email,
-            password: "********",
-        });
-    } catch (error) {
-        console.error("Profile Error:", error);
-        res.status(500).json({ message: "Internal server error" });
-    }
+  await redis.setEx(cacheKey, 3600, JSON.stringify(user));
+  res.json(user);
 };
 
 // Update profile controller
