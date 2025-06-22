@@ -1,149 +1,131 @@
-const jwt = require('jsonwebtoken');
-const argon2 = require('argon2');
-const bcrypt = require('bcryptjs');                  // hanya dipakai untuk migrasi
-const redis = require('../utils/redisClient');
-const { User, sequelize } = require('../models');
-const {
-  generateAccessToken,
-  generateRefreshToken
-} = require('../utils/tokenUtils');
+const jwt = require("jsonwebtoken");
+const bcrypt = require('bcryptjs');
+const { User } = require('../models');
+const { generateAccessToken, generateRefreshToken } = require('../utils/tokenUtils');
 
-/* ----------  PARAMETER ARGON2  ---------- */
-const ARGON2_OPTS = {
-  type: argon2.argon2id,                    // varian teraman
-  memoryCost : parseInt(process.env.ARGON2_MEMORY_COST),
-  timeCost   : parseInt(process.env.ARGON2_TIME_COST),
-  parallelism: parseInt(process.env.ARGON2_PARALLELISM)
-};
-
-/* ----------  UTIL ---------- */
-const isBcrypt = h => /^\$2[aby]\$/.test(h);
-const sendErr  = (res, s, m, e = null) => {
-  if (e) console.error('[AUTH]', e);
-  return res.status(s).json({ message: m });
-};
-
-/* ----------  LOGIN ---------- */
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return sendErr(res, 400, 'Email & password wajib.');
+    const { email, password } = req.body;
 
-  try {
-    const user = await User.findOne({
-      where: { email },
-      attributes: ['id', 'name', 'role', 'password'],
-      raw: true
-    });
-    if (!user) return sendErr(res, 401, 'Email / password salah');
-
-    /* --- verifikasi & migrasi otomatis bcrypt → argon2 --- */
-    let valid = false;
-
-    if (isBcrypt(user.password)) {
-      valid = await bcrypt.compare(password, user.password);
-      if (valid) {
-        // re-hash dgn argon2 & simpan ke DB (non-blocking)
-        const hash = await argon2.hash(password, ARGON2_OPTS);
-        await User.update({ password: hash }, { where: { id: user.id } });
-        user.password = hash;
-      }
-    } else {
-      valid = await argon2.verify(user.password, password, ARGON2_OPTS);
-      // periksa apakah perlu rehash karena param berubah
-      if (valid && argon2.needsRehash(user.password, ARGON2_OPTS)) {
-        const hash = await argon2.hash(password, ARGON2_OPTS);
-        await User.update({ password: hash }, { where: { id: user.id } });
-        user.password = hash;
-      }
+    // Validasi input
+    if (!email || !password) {
+        return res.status(400).json({ message: "Email dan password harus diisi" });
     }
 
-    if (!valid) return sendErr(res, 401, 'Email / password salah');
+    try {
+        // Cari user berdasarkan email
+        const user = await User.findOne({
+            where: { email },
+            attributes: ['id', 'name', 'role', 'password']
+        });
 
-    /* --- buat token & cache profil --- */
-    const payload = { id: user.id, name: user.name, role: user.role };
-    const [accessToken, refreshToken] = await Promise.all([
-      generateAccessToken(payload),
-      generateRefreshToken(payload)
-    ]);
+        // Cek jika user tidak ditemukan atau password belum di-hash dengan benar
+        if (!user || user.password.length < 8) {
+            return res.status(401).json({ message: "Email atau password salah" });
+        }
 
-    await redis.set(`user:${user.id}`, JSON.stringify(payload), { EX: 3600 });
+        // Verifikasi password
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
+            return res.status(401).json({ message: "Email atau password salah" });
+        }
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure  : process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
-      maxAge  : 7 * 24 * 60 * 60 * 1000
-    });
+        // Buat JWT dan Refresh Token secara paralel
+        const [accessToken, refreshToken] = await Promise.all([
+            generateAccessToken(user),
+            generateRefreshToken(user)
+        ]);
 
-    return res.json({ message: 'Login berhasil', accessToken, user: payload });
-  } catch (err) {
-    return sendErr(res, 500, 'Server error', err);
-  }
+        // Simpan refresh token di cookie
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? "None" : "Lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+        });
+
+        // Kirim response dengan accessToken
+        res.status(200).json({
+            message: "Login berhasil",
+            accessToken,
+            user: {
+                id: user.id,
+                name: user.name,
+                role: user.role
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
+    }
 };
 
-/* ----------  REFRESH TOKEN ---------- */
+// Refresh token controller
 exports.refreshToken = async (req, res) => {
-  const token = req.cookies.refreshToken;
-  if (!token) return sendErr(res, 401, 'Refresh token not found');
+    const token = req.cookies.refreshToken;
 
-  try {
-    const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
-    const cacheKey = `user:${decoded.id}`;
+    if (!token) return res.status(401).json({ message: "Refresh token not found" });
 
-    let user = await redis.get(cacheKey);
-    if (user) user = JSON.parse(user);
-    else {
-      user = await User.findByPk(decoded.id, {
-        attributes: ['id', 'name', 'role'],
-        raw: true
-      });
-      if (!user) return sendErr(res, 404, 'User not found');
-      await redis.set(cacheKey, JSON.stringify(user), { EX: 3600 });
+    try {
+        const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+        const user = await User.findByPk(decoded.id);
+
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const newAccessToken = generateAccessToken(user);
+        res.json({ accessToken: newAccessToken });
+    } catch (error) {
+        res.status(403).json({ message: "Invalid refresh token", error: error.message });
     }
-
-    const newAccessToken = generateAccessToken(user);
-    return res.json({ accessToken: newAccessToken });
-  } catch (err) {
-    return sendErr(res, 403, 'Invalid refresh token', err);
-  }
 };
 
-/* ----------  GET PROFILE ---------- */
+// Get user profile controller
 exports.getProfile = async (req, res) => {
-  const cacheKey = `user:${req.user.id}`;
+    try {
+        const user = await User.findByPk(req.user.id);
 
-  const cached = await redis.get(cacheKey);
-  if (cached) return res.json(JSON.parse(cached));
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
 
-  const user = await User.findByPk(req.user.id, {
-    attributes: ['id', 'name', 'nip', 'email', 'role'],
-    raw: true
-  });
-  if (!user) return sendErr(res, 404, 'User not found');
-
-  await redis.set(cacheKey, JSON.stringify(user), { EX: 3600 });
-  return res.json(user);
+        res.json({
+            name: user.name,
+            nip: user.nip,
+            email: user.email,
+            password: "********",
+        });
+    } catch (error) {
+        console.error("Profile Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
 };
 
-/* ----------  UPDATE PROFILE ---------- */
+// Update profile controller
 exports.updateProfile = async (req, res) => {
-  const { name, email, password } = req.body;
+    const { name, email, password, showPassword } = req.body;
 
-  try {
-    const user = await User.findByPk(req.user.id);
-    if (!user) return sendErr(res, 404, 'User not found');
+    try {
+        const user = await User.findByPk(req.user.id);
 
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (password) user.password = await argon2.hash(password, ARGON2_OPTS);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
 
-    await user.save();
+        // Update user data
+        if (name) user.name = name;
+        if (email) user.email = email;
+        if (password) {
+            user.password = await bcrypt.hash(password, 10);
+        }
 
-    const payload = { id: user.id, name: user.name, email: user.email, role: user.role };
-    await redis.set(`user:${user.id}`, JSON.stringify(payload), { EX: 3600 });
+        await user.save();
 
-    return res.json({ message: 'Profile updated successfully', user: payload });
-  } catch (err) {
-    return sendErr(res, 500, 'Internal server error', err);
-  }
+        res.json({
+            message: "Profile updated successfully",
+            email: email,
+            name: name,
+            password: showPassword ? password : "********",
+        });
+    } catch (error) {
+        console.error("Update Profile Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
 };
