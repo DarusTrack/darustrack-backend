@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const classController = require('../controllers/classController');
 const scheduleController = require('../controllers/scheduleController');
-const cacheMiddleware = require('./middlewares/cacheMiddleware');
+const cacheMiddleware = require('../middlewares/cacheMiddleware');
 
 // Class routes
 router.get('/',  cacheMiddleware(120), classController.getActiveClasses);

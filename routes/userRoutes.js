@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const userController = require('../controllers/userController');
-const cacheMiddleware = require('./middlewares/cacheMiddleware');
+const cacheMiddleware = require('../middlewares/cacheMiddleware');
 
 // Get all users with optional role filter
 router.get('/',  cacheMiddleware(120), userController.getAllUsers);

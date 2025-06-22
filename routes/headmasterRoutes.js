@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const classSumarryController = require('../controllers/classSummaryController');
-const cacheMiddleware = require('./middlewares/cacheMiddleware');
+const cacheMiddleware = require('../middlewares/cacheMiddleware');
 
 // Endpoint: Get all classes summary
 router.get('/classes', cacheMiddleware(120), classSumarryController.getAllClassesSummary);

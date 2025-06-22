@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const StudentController = require('../controllers/studentController');
-const cacheMiddleware = require('./middlewares/cacheMiddleware');
+const cacheMiddleware = require('../middlewares/cacheMiddleware');
 
 // Student routes
 router.get('/',  cacheMiddleware(120), StudentController.getAllStudents);

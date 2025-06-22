@@ -4,7 +4,7 @@ const academicYearController = require('../controllers/academicYearController');
 const semesterController = require('../controllers/semesterController');
 const classController = require('../controllers/classController');
 const studentClassController = require('../controllers/studentClassController');
-const cacheMiddleware = require('./middlewares/cacheMiddleware');
+const cacheMiddleware = require('../middlewares/cacheMiddleware');
 
 // Academic Year Routes
 router.get('/',  cacheMiddleware(300), academicYearController.getAllAcademicYears);
