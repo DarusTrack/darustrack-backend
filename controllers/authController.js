@@ -1,37 +1,56 @@
-const jwt       = require("jsonwebtoken");
-const bcrypt    = require("bcryptjs");
-const asyncHandler = require("express-async-handler");
-const NodeCache = require("node-cache");
-
-const { User }  = require("../models");
+const bcrypt        = require("bcryptjs");          // tetap ⚙️ CPU-light (gunakan bcrypt native jika tersedia)
+const asyncHandler  = require("express-async-handler");
+const NodeCache     = require("node-cache");
+const { User }      = require("../models");
 const { generateAccessToken, generateRefreshToken } = require("../utils/tokenUtils");
 
-const profileCache = new NodeCache({ stdTTL: 300 });           // 5-menit cache
+const profileCache = new NodeCache({ stdTTL: 300 });     // cache 5-menit
+
+// helper untuk menghindari DB-hit berulang ⤵
+const getUserByEmail = async (email) => {
+  const cacheKey = `user:${email}`;
+  let user = profileCache.get(cacheKey);
+  if (user) return user;                                // ↩️ cache hit (objek plain JS)
+
+  user = await User.findOne({
+    where: { email },
+    attributes: ["id", "name", "role", "password"],
+    raw: true,                                          // ⏩ skip Sequelize instance wrapping
+  });
+  if (user) profileCache.set(cacheKey, user);
+  return user;
+};
 
 /* ========= LOGIN ========= */
 exports.login = asyncHandler(async (req, res) => {
-  const { email = "", password = "" } = req.body;
-  if (!email.trim() || !password) {
+  // 1) VALIDASI SUPER CEPAT (tanpa lib eksternal)
+  const email    = (req.body.email || "").trim().toLowerCase();
+  const password = req.body.password || "";
+
+  if (!email || !password) {
     return res.status(400).json({ message: "Email dan password harus diisi" });
   }
 
-  // Ambil hanya kolom perlu
-  const user = await User.findOne({
-    where: { email },
-    attributes: ["id", "name", "role", "password"],
-  });
-
-  if (!user || !(await bcrypt.compare(password, user.password))) {
+  // 2) AMBIL USER + CACHING
+  const user = await getUserByEmail(email);
+  if (!user) {
     return res.status(401).json({ message: "Email atau password salah" });
   }
 
-  const payload = { id: user.id, name: user.name, role: user.role };
+  // 3) BANDINGKAN HASH PASSWORD (asinkron → tidak blokir event-loop)
+  const pwMatch = await bcrypt.compare(password, user.password);
+  if (!pwMatch) {
+    return res.status(401).json({ message: "Email atau password salah" });
+  }
 
+  // 4) GENERATE JWT SECARA PARALEL
+  const payload = { id: user.id, name: user.name, role: user.role };
   const [accessToken, refreshToken] = await Promise.all([
-    generateAccessToken(payload),
-    generateRefreshToken(payload),
+    generateAccessToken(payload),       // biasanya short-lived (e.g. 15 m)
+    generateRefreshToken(payload),      // long-lived  (e.g. 7 d)
   ]);
 
+  // 5) ATUR SECURE HTTP-ONLY COOKIE UNTUK REFRESH TOKEN
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -39,7 +58,12 @@ exports.login = asyncHandler(async (req, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
   });
 
-  res.status(200).json({ message: "Login berhasil", accessToken, user: payload });
+  // 6) RESPON TETAP SAMA
+  res.status(200).json({
+    message: "Login berhasil",
+    accessToken,
+    user: payload,
+  });
 });
 
 /* ========= REFRESH TOKEN ========= */
