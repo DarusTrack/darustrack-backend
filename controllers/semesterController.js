@@ -1,17 +1,21 @@
 const { Semester, AcademicYear } = require('../models');
 
 // Daftar semester tahun ajaran aktif (kehadiran dan evaluasi)
-exports.getActiveSemesters = async (_, res) => {
-  try {
-    const activeYear = await AcademicYear.findOne({
-      where: { is_active: true },
-      include: { model: Semester, as: 'semester' }
-    });
-    if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
-    return res.json({ semesters: activeYear.semester });
-  } catch (e) {
-    return res.status(500).json({ message: 'Gagal mengambil semester', error: e.message });
-  }
+exports.getActiveSemesters = async (req, res) => {
+    try {
+        const semesters = await Semester.findAll({
+            attributes: ['id', 'name', 'is_active'],  // Menambahkan attributes untuk Semester
+            include: {
+                model: AcademicYear,
+                as: 'academic_year',
+                attributes: ['id', 'year', 'is_active'],  // Menambahkan attributes untuk AcademicYear
+                where: { is_active: true }
+            }
+        });
+        res.json(semesters);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 };
 
 exports.updateSemesterStatus = async (req, res) => {
