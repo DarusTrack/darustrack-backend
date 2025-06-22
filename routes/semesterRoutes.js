@@ -3,6 +3,6 @@ const router = express.Router();
 const semesterController = require('../controllers/semesterController');
 
 // Get active semesters
-router.get('/',  cacheMiddleware(300), semesterController.getActiveSemesters);
+router.get('/',  semesterController.getActiveSemesters);
 
 module.exports = router;
