@@ -3,7 +3,7 @@ const { Sequelize } = require('sequelize');
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'mysql',
   pool: {
-    max: 20,
+    max: 40,
     min: 5,
     acquire: 30000,
     idle: 10000
