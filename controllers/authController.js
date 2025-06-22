@@ -1,101 +1,130 @@
-const asyncHandler = require('express-async-handler');
+const jwt = require("jsonwebtoken");
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const { generateAccessToken, generateRefreshToken } = require('../utils/tokenUtils');
-const { setAuthCookie } = require('../utils/cookieUtils');
 
-// ---------- LOGIN ----------
-exports.login = asyncHandler(async (req, res) => {
-  const { email = '', password = '' } = req.body;
+exports.login = async (req, res) => {
+    const { email, password } = req.body;
 
-  // 1. Validasi input (pakai middleware schema di layer lain → double safety di sini)
-  if (!email.trim() || !password) {
-    return res.status(400).json({ message: 'Email dan password harus diisi' });
-  }
+    // Validasi input
+    if (!email || !password) {
+        return res.status(400).json({ message: "Email dan password harus diisi" });
+    }
 
-  // 2. Ambil user (plain object)
-  const user = await User.findOne({
-    where: { email: email.toLowerCase() },
-    attributes: ['id', 'name', 'role', 'password'],
-    raw: true,
-  });
+    try {
+        // Cari user berdasarkan email
+        const user = await User.findOne({
+            where: { email },
+            attributes: ['id', 'name', 'role', 'password']
+        });
 
-  // 3. Cek keberadaan + verifikasi hash
-  const isValid =
-    user &&
-    user.password?.length >= 8 &&
-    (await bcrypt.compare(password, user.password));
+        // Cek jika user tidak ditemukan atau password belum di-hash dengan benar
+        if (!user || user.password.length < 8) {
+            return res.status(401).json({ message: "Email atau password salah" });
+        }
 
-  if (!isValid) {
-    return res.status(401).json({ message: 'Email atau password salah' });
-  }
+        // Verifikasi password
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
+            return res.status(401).json({ message: "Email atau password salah" });
+        }
 
-  // 4. Generate token paralel
-  const [accessToken, refreshToken] = await Promise.all([
-    generateAccessToken(user),
-    generateRefreshToken(user),
-  ]);
+        // Buat JWT dan Refresh Token secara paralel
+        const [accessToken, refreshToken] = await Promise.all([
+            generateAccessToken(user),
+            generateRefreshToken(user)
+        ]);
 
-  // 5. Pasang cookie refresh token
-  setAuthCookie(res, refreshToken);
+        // Simpan refresh token di cookie
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? "None" : "Lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+        });
 
-  // 6. Balas
-  res.status(200).json({
-    message: 'Login berhasil',
-    accessToken,
-    user: { id: user.id, name: user.name, role: user.role },
-  });
-});
+        // Kirim response dengan accessToken
+        res.status(200).json({
+            message: "Login berhasil",
+            accessToken,
+            user: {
+                id: user.id,
+                name: user.name,
+                role: user.role
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
+    }
+};
 
-// ---------- REFRESH TOKEN ----------
-exports.refreshToken = asyncHandler(async (req, res) => {
-  const token = req.cookies.refreshToken;
-  if (!token) return res.status(401).json({ message: 'Refresh token not found' });
+// Refresh token controller
+exports.refreshToken = async (req, res) => {
+    const token = req.cookies.refreshToken;
 
-  const { id } = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
-  const user = await User.findByPk(id, { attributes: ['id', 'role', 'name'], raw: true });
-  if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!token) return res.status(401).json({ message: "Refresh token not found" });
 
-  const accessToken = generateAccessToken(user);
-  res.json({ accessToken });
-});
+    try {
+        const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+        const user = await User.findByPk(decoded.id);
 
-// ---------- GET PROFILE ----------
-exports.getProfile = asyncHandler(async (req, res) => {
-  const cached = await req.app.locals.cache.get(`profile:${req.user.id}`); // Redis optional
-  if (cached) return res.json(cached);
+        if (!user) return res.status(404).json({ message: "User not found" });
 
-  const user = await User.findByPk(req.user.id, {
-    attributes: ['name', 'nip', 'email'],
-    raw: true,
-  });
-  if (!user) return res.status(404).json({ message: 'User not found' });
+        const newAccessToken = generateAccessToken(user);
+        res.json({ accessToken: newAccessToken });
+    } catch (error) {
+        res.status(403).json({ message: "Invalid refresh token", error: error.message });
+    }
+};
 
-  await req.app.locals.cache.set(`profile:${req.user.id}`, user, 30); // TTL 30 s
-  res.json({ ...user, password: '********' });
-});
+// Get user profile controller
+exports.getProfile = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.user.id);
 
-// ---------- UPDATE PROFILE ----------
-exports.updateProfile = asyncHandler(async (req, res) => {
-  const { name, email, password, showPassword } = req.body;
-  if (!name && !email && !password) {
-    return res.status(400).json({ message: 'Tidak ada data di-update' });
-  }
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
 
-  const payload = {};
-  if (name) payload.name = name;
-  if (email) payload.email = email;
-  if (password) payload.password = await bcrypt.hash(password, 10);
+        res.json({
+            name: user.name,
+            nip: user.nip,
+            email: user.email
+        });
+    } catch (error) {
+        console.error("Profile Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
 
-  await User.update(payload, { where: { id: req.user.id } });
+// Update profile controller
+exports.updateProfile = async (req, res) => {
+    const { name, email, password, showPassword } = req.body;
 
-  // wajib hapus cache profil agar fresh
-  await req.app.locals.cache.del(`profile:${req.user.id}`);
+    try {
+        const user = await User.findByPk(req.user.id);
 
-  res.json({
-    message: 'Profile updated successfully',
-    ...payload,
-    password: password ? (showPassword ? password : '********') : undefined,
-  });
-});
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Update user data
+        if (name) user.name = name;
+        if (email) user.email = email;
+        if (password) {
+            user.password = await bcrypt.hash(password, 10);
+        }
+
+        await user.save();
+
+        res.json({
+            message: "Profile updated successfully",
+            email: email,
+            name: name,
+            password: showPassword ? password : "********",
+        });
+    } catch (error) {
+        console.error("Update Profile Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
