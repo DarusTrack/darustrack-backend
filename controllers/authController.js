@@ -11,9 +11,9 @@ const {
 /* ----------  PARAMETER ARGON2  ---------- */
 const ARGON2_OPTS = {
   type: argon2.argon2id,                    // varian teraman
-  memoryCost : parseInt(process.env.ARGON2_MEMORY_COST  || 65536, 10), // 64 MB
-  timeCost   : parseInt(process.env.ARGON2_TIME_COST     || 3,     10),
-  parallelism: parseInt(process.env.ARGON2_PARALLELISM   || 1,     10)
+  memoryCost : parseInt(process.env.ARGON2_MEMORY_COST),
+  timeCost   : parseInt(process.env.ARGON2_TIME_COST),
+  parallelism: parseInt(process.env.ARGON2_PARALLELISM)
 };
 
 /* ----------  UTIL ---------- */
