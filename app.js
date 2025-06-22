@@ -43,11 +43,6 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
 
-const os = require('os');
-console.log("CPU:", os.cpus());
-console.log("Total RAM:", os.totalmem() / (1024 ** 3), "GB");
-console.log("Platform:", os.platform());
-
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // untuk preflight
 

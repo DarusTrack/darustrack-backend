@@ -1,9 +1,10 @@
 var express = require('express');
 var router = express.Router();
 const userController = require('../controllers/userController');
+const cacheMiddleware = require('./middlewares/cacheMiddleware');
 
 // Get all users with optional role filter
-router.get('/', userController.getAllUsers);
+router.get('/',  cacheMiddleware(120), userController.getAllUsers);
 
 // Get single user by ID
 router.get('/:id', userController.getUserById);

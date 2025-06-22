@@ -1,19 +1,21 @@
-const redis = require('redis');
-const client = redis.createClient();
+// middlewares/cacheMiddleware.js
+const cache = require('../utils/cache');
 
-const cacheUser = (req, res, next) => {
-  const { email } = req.body;
-  
-  client.get(`user:${email}`, (err, data) => {
-    if (err) return next();
-    
-    if (data) {
-      req.cachedUser = JSON.parse(data);
-      return next();
+function cacheMiddleware(duration = 60) {
+  return (req, res, next) => {
+    const key = '__express__' + req.originalUrl || req.url;
+    const cachedBody = cache.get(key);
+    if (cachedBody) {
+      return res.json(cachedBody);
+    } else {
+      res.originalJson = res.json;
+      res.json = (body) => {
+        cache.set(key, body, duration);
+        res.originalJson(body);
+      };
+      next();
     }
-    
-    next();
-  });
-};
+  };
+}
 
-module.exports = cacheUser;
+module.exports = cacheMiddleware;
