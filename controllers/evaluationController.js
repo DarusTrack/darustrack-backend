@@ -1,285 +1,263 @@
-const { Op } = require('sequelize');
-const { sequelize, Class, StudentClass, Attendance, Semester, Student, AcademicYear } = require('../models');
+const { Evaluation, StudentEvaluation, StudentClass, Class, Semester, AcademicYear, Student } = require('../models');
 
-const getAttendanceDates = async (req, res) => {
+const getEvaluations = async (req, res) => {
     try {
-        const userId = req.user.id;
-        const activeSemester = await Semester.findOne({ where: { is_active: true } });
-        if (!activeSemester) {
-            return res.status(404).json({ message: 'Semester aktif tidak ditemukan' });
-        }
-
-        const classData = await Class.findOne({
-            where: { teacher_id: userId, academic_year_id: activeSemester.academic_year_id },
-        });
-
-        if (!classData) {
-            return res.status(404).json({ message: 'Wali kelas tidak mengelola kelas di semester aktif' });
-        }
-
-        const studentClasses = await StudentClass.findAll({
-            where: { class_id: classData.id },
-            attributes: ['id']
-        });
-
-        const studentClassIds = studentClasses.map(sc => sc.id);
-        if (studentClassIds.length === 0) {
-            return res.status(404).json({ message: 'Tidak ada siswa di kelas ini' });
-        }
-
-        const dates = await Attendance.findAll({
-            where: {
-                semester_id: activeSemester.id,
-                student_class_id: {
-                    [Op.in]: studentClassIds
-                }
-            },
-            attributes: [
-                [sequelize.fn('DISTINCT', sequelize.col('date')), 'date']
-            ],
-            order: [['date', 'DESC']],
-            raw: true
-        });
-
-        if (dates.length === 0) {
-            return res.status(404).json({ message: 'Belum ada data kehadiran yang tercatat' });
-        }
-
-        res.json({
-            semester_id: activeSemester.id,
-            class_id: classData.id,
-            total_dates: dates.length,
-            dates: dates.map(d => d.date)
-        });
+      const userId = req.user.id;
+      const semesterId = req.params.semester_id;
+  
+      const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+      const myClass = await Class.findOne({ where: { teacher_id: userId, academic_year_id: activeYear.id } });
+  
+      if (!myClass) return res.status(404).json({ message: 'Kelas tidak ditemukan' });
+  
+      const evaluations = await Evaluation.findAll({
+        where: {
+          class_id: myClass.id,
+          semester_id: semesterId
+        },
+        order: [['title', 'ASC']]
+      });
+  
+      res.json({ evaluations });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Terjadi kesalahan saat mengambil rekapan tanggal kehadiran', error: error.message });
+      res.status(500).json({ message: 'Gagal mengambil evaluasi', error: error.message });
     }
 };
 
-const getAttendances = async (req, res) => {
+const createEvaluation = async (req, res) => {
     try {
+        const { semester_id } = req.params;
+        const { title } = req.body;
         const userId = req.user.id;
-        const { date } = req.query;
 
-        if (!date) return res.status(400).json({ message: 'Parameter query "date" wajib diisi' });
-
-        const classData = await Class.findOne({
-            where: { teacher_id: userId, academic_year_id: req.activeSemester.academic_year_id },
-        });
-
-        if (!classData) return res.status(404).json({ message: 'Wali kelas tidak mengelola kelas di semester aktif' });
-
-        const attendances = await Attendance.findAll({
-            where: {
-                semester_id: req.activeSemester.id,
-                date: date,
-            },
-            include: [
-                {
-                    model: StudentClass,
-                    as: 'student_class',
-                    where: { class_id: classData.id },
-                    include: [{
-                        model: Student,
-                        as: 'student',
-                        attributes: ['id', 'name']
-                    }]
-                }
-            ],
-            attributes: ['id', 'student_class_id', 'status', 'date']
-        });
-
-        if (attendances.length === 0) {
-            return res.status(404).json({ message: 'Tidak ada data kehadiran untuk tanggal tersebut' });
+        if (!title || title.trim() === '') {
+            return res.status(400).json({ message: 'Judul evaluasi harus diisi' });
         }
 
-        const attendanceData = attendances.map(att => ({
-            student_class_id: att.student_class_id,
-            studentName: att.student_class.student.name,
-            status: att.status,
-            date: att.date
-        })).sort((a, b) => a.studentName.localeCompare(b.studentName));
-
-        res.json(attendanceData);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Terjadi kesalahan saat mengambil data kehadiran', error: error.message });
-    }
-};
-
-const createAttendanceDate = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const { date } = req.body;
-
-        if (!date) return res.status(400).json({ message: 'Tanggal wajib diisi' });
-
-        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
-        if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+        const semester = await Semester.findOne({
+            where: { id: semester_id },
+            include: {
+                model: AcademicYear,
+                as: 'academic_year',
+                where: { is_active: true }
+            }
+        });
+        if (!semester) return res.status(404).json({ message: 'Semester tidak ditemukan atau tidak aktif' });
 
         const myClass = await Class.findOne({
-            where: { teacher_id: userId, academic_year_id: activeYear.id }
+            where: { teacher_id: userId, academic_year_id: semester.academic_year_id }
         });
-        if (!myClass) return res.status(404).json({ message: 'Kelas wali kelas tidak ditemukan' });
+        if (!myClass) return res.status(404).json({ message: 'Anda tidak menjadi wali kelas pada tahun ajaran ini' });
 
-        const students = await StudentClass.findAll({
-            where: { class_id: myClass.id },
-            attributes: ['id']
-        });
-
-        if (!students.length) return res.status(404).json({ message: 'Tidak ada siswa di kelas ini' });
-
-        const studentClassIds = students.map(s => s.id);
-
-        const existing = await Attendance.findAll({
+        const existingEvaluation = await Evaluation.findOne({
             where: {
-                semester_id: req.activeSemester.id,
-                date,
-                student_class_id: { [Op.in]: studentClassIds }
-            },
-            attributes: ['id']
+                title: title.trim(),
+                class_id: myClass.id,
+                semester_id: semester.id
+            }
         });
 
-        if (existing.length > 0) {
-            return res.status(400).json({ message: 'Kehadiran untuk tanggal ini sudah ada' });
+        if (existingEvaluation) {
+            return res.status(400).json({ message: 'Evaluasi dengan judul ini sudah ada di semester ini untuk kelas Anda' });
         }
 
-        const attendanceRecords = studentClassIds.map(id => ({
-            student_class_id: id,
-            semester_id: req.activeSemester.id,
-            date,
-            status: 'Not Set'
+        const evaluation = await Evaluation.create({
+            title: title.trim(),
+            class_id: myClass.id,
+            semester_id: semester.id
+        });
+
+        const studentClasses = await StudentClass.findAll({ where: { class_id: myClass.id } });
+
+        const evaluationsToInsert = studentClasses.map(sc => ({
+            evaluation_id: evaluation.id,
+            student_class_id: sc.id,
+            description: null
         }));
 
-        const t = await sequelize.transaction();
-        await Attendance.bulkCreate(attendanceRecords, { transaction: t });
-        await t.commit();
+        await StudentEvaluation.bulkCreate(evaluationsToInsert);
 
-        res.status(201).json({ message: 'Tanggal kehadiran berhasil ditambahkan' });
+        res.status(201).json({ message: 'Evaluasi berhasil ditambahkan ke semua siswa', evaluation });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Gagal menambahkan kehadiran', error: error.message });
+        console.error('Error creating evaluation:', error);
+        res.status(500).json({ message: 'Gagal menambahkan evaluasi', error: error.message });
     }
 };
 
-const updateAttendances = async (req, res) => {
+const updateEvaluation = async (req, res) => {
     try {
+        const { title } = req.body;
+        const { id } = req.params;
         const userId = req.user.id;
-        const { date } = req.query;
-        const { attendanceUpdates } = req.body;
 
-        if (!date) return res.status(400).json({ message: 'Parameter query "date" wajib diisi' });
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(date) || isNaN(Date.parse(date))) {
-            return res.status(400).json({ message: 'Format tanggal tidak valid' });
+        if (!title || title.trim() === '') {
+            return res.status(400).json({ message: 'Judul evaluasi harus diisi' });
         }
 
-        if (!Array.isArray(attendanceUpdates) || attendanceUpdates.length === 0) {
-            return res.status(400).json({ message: 'Data update kehadiran tidak valid' });
+        const evaluation = await Evaluation.findByPk(id);
+        if (!evaluation) {
+            return res.status(404).json({ message: 'Evaluasi tidak ditemukan' });
         }
 
-        const classData = await Class.findOne({
-            where: { teacher_id: userId, academic_year_id: req.activeSemester.academic_year_id },
+        const semester = await Semester.findByPk(evaluation.semester_id);
+        if (!semester) {
+            return res.status(404).json({ message: 'Semester tidak ditemukan' });
+        }
+
+        const academicYear = await AcademicYear.findOne({
+            where: { id: semester.academic_year_id, is_active: true }
+        });
+        if (!academicYear) {
+            return res.status(400).json({ message: 'Tahun ajaran tidak aktif' });
+        }
+
+        const myClass = await Class.findOne({
+            where: { teacher_id: userId, academic_year_id: academicYear.id }
+        });
+        if (!myClass) {
+            return res.status(403).json({ message: 'Anda bukan wali kelas pada tahun ajaran aktif' });
+        }
+
+        if (evaluation.class_id !== myClass.id) {
+            return res.status(403).json({ message: 'Anda tidak berhak mengedit evaluasi ini' });
+        }
+
+        const existingEvaluation = await Evaluation.findOne({
+            where: {
+                title: title.trim(),
+                class_id: myClass.id,
+                semester_id: evaluation.semester_id,
+                id: { [Op.ne]: evaluation.id }
+            }
         });
 
-        if (!classData) return res.status(404).json({ message: 'Kelas tidak ditemukan' });
-
-        const studentClasses = await StudentClass.findAll({
-            where: { class_id: classData.id },
-            attributes: ['id']
-        });
-
-        const validIds = studentClasses.map(s => s.id);
-        const invalid = attendanceUpdates.filter(u => !validIds.includes(u.student_class_id));
-
-        if (invalid.length > 0) {
-            return res.status(400).json({ message: 'Beberapa student_class_id tidak valid', invalid });
+        if (existingEvaluation) {
+            return res.status(400).json({ message: 'Judul evaluasi ini sudah digunakan di semester dan kelas Anda' });
         }
 
-        const updatedResults = await Promise.all(attendanceUpdates.map(async (update) => {
-            const existing = await Attendance.findOne({
-                where: {
-                    student_class_id: update.student_class_id,
-                    semester_id: req.activeSemester.id,
-                    date
+        await evaluation.update({ title: title.trim() });
+
+        res.json({ message: 'Evaluasi berhasil diperbarui', evaluation });
+
+    } catch (error) {
+        console.error('Error updating evaluation:', error);
+        res.status(500).json({ message: 'Gagal mengedit evaluasi', error: error.message });
+    }
+};
+
+const deleteEvaluation = async (req, res) => {
+    try {
+      const { id } = req.params;
+      await Evaluation.destroy({ where: { id } });
+      res.json({ message: 'Evaluasi berhasil dihapus' });
+    } catch (error) {
+      res.status(500).json({ message: 'Gagal menghapus evaluasi', error });
+    }
+};
+
+const getStudentEvaluations = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const evaluation = await Evaluation.findByPk(id);
+        if (!evaluation) {
+            return res.status(404).json({ message: 'Evaluasi tidak ditemukan' });
+        }
+
+        const semester = await Semester.findByPk(evaluation.semester_id);
+        if (!semester) {
+            return res.status(404).json({ message: 'Semester tidak ditemukan' });
+        }
+
+        const academicYear = await AcademicYear.findOne({
+            where: { id: semester.academic_year_id, is_active: true }
+        });
+        if (!academicYear) {
+            return res.status(403).json({ message: 'Tahun ajaran tidak aktif' });
+        }
+
+        const myClass = await Class.findOne({
+            where: { teacher_id: userId, academic_year_id: academicYear.id }
+        });
+        if (!myClass || evaluation.class_id !== myClass.id) {
+            return res.status(403).json({ message: 'Anda tidak berhak melihat evaluasi ini' });
+        }
+
+        const studentEvaluations = await StudentEvaluation.findAll({
+            where: { evaluation_id: id },
+            include: {
+                model: StudentClass,
+                as: 'student_class',
+                include: {
+                    model: Student,
+                    as: 'student',
+                    attributes: ['name', 'nisn']
                 }
-            });
-
-            if (existing) {
-                existing.status = update.status;
-                await existing.save();
-                return { updated: true, data: existing };
-            } else {
-                return { updated: false, student_class_id: update.student_class_id };
             }
-        }));
-
-        const updated = updatedResults.filter(r => r.updated).map(r => r.data);
-        const notFound = updatedResults.filter(r => !r.updated).map(r => r.student_class_id);
-
-        if (notFound.length === attendanceUpdates.length) {
-            return res.status(400).json({ message: 'Tanggal kehadiran belum ditambahkan', notFoundStudentClassIds: notFound });
-        }
-
-        const responseMessage = notFound.length > 0
-            ? `${updated.length} berhasil diperbarui, ${notFound.length} tidak ditemukan.`
-            : `${updated.length} data berhasil diperbarui`;
-
-        const statusCode = notFound.length > 0 ? 206 : 200;
-
-        res.status(statusCode).json({
-            message: responseMessage,
-            updatedAttendances: updated,
-            ...(notFound.length > 0 && { notFoundStudentClassIds: notFound })
         });
+
+        const result = studentEvaluations.map(se => {
+            const studentData = se.student_class?.student;
+            return {
+                student_evaluation_id: se.id,
+                name: studentData?.name || null,
+                nisn: studentData?.nisn || null,
+                description: se.description
+            };
+        });
+
+        result.sort((a, b) => a.name.localeCompare(b.name));
+
+        res.json(result);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Terjadi kesalahan saat memperbarui kehadiran', error: error.message });
+        console.error('Error fetching student evaluations:', error);
+        res.status(500).json({ message: 'Gagal mengambil evaluasi siswa', error: error.message });
     }
 };
 
-const deleteAttendances = async (req, res) => {
+const updateStudentEvaluation = async (req, res) => {
     try {
+        const { id } = req.params;
+        const { description } = req.body;
         const userId = req.user.id;
-        const { date } = req.query;
 
-        if (!date) return res.status(400).json({ message: 'Parameter query "date" wajib diisi' });
-
-        const classData = await Class.findOne({
-            where: { teacher_id: userId, academic_year_id: req.activeSemester.academic_year_id },
-        });
-
-        if (!classData) return res.status(404).json({ message: 'Kelas tidak ditemukan' });
-
-        const studentClasses = await StudentClass.findAll({
-            where: { class_id: classData.id },
-            attributes: ['id']
-        });
-
-        const ids = studentClasses.map(s => s.id);
-
-        const deleted = await Attendance.destroy({
-            where: {
-                student_class_id: { [Op.in]: ids },
-                semester_id: req.activeSemester.id,
-                date
+        const studentEvaluation = await StudentEvaluation.findByPk(id, {
+            include: {
+                model: Evaluation,
+                as: 'evaluation'
             }
         });
 
-        if (deleted === 0) return res.status(404).json({ message: 'Tidak ada data kehadiran ditemukan' });
+        if (!studentEvaluation) {
+            return res.status(404).json({ message: "Evaluasi siswa tidak ditemukan" });
+        }
 
-        res.json({ message: `${deleted} data kehadiran berhasil dihapus` });
+        const evaluation = studentEvaluation.evaluation;
+
+        const semester = await Semester.findByPk(evaluation.semester_id);
+        const academicYear = await AcademicYear.findOne({ where: { id: semester.academic_year_id, is_active: true } });
+        const myClass = await Class.findOne({ where: { teacher_id: userId, academic_year_id: academicYear.id } });
+
+        if (!myClass || evaluation.class_id !== myClass.id) {
+            return res.status(403).json({ message: 'Anda tidak berhak mengubah evaluasi ini' });
+        }
+
+        studentEvaluation.description = description;
+        await studentEvaluation.save();
+
+        res.json({ message: "Deskripsi evaluasi berhasil diperbarui" });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Gagal menghapus kehadiran', error: error.message });
+        console.error('Error updating evaluation description:', error);
+        res.status(500).json({ message: 'Gagal memperbarui deskripsi evaluasi', error: error.message });
     }
 };
 
 module.exports = {
-    getAttendanceDates,
-    getAttendances,
-    createAttendanceDate,
-    updateAttendances,
-    deleteAttendances
+    getEvaluations,
+    createEvaluation,
+    updateEvaluation,
+    deleteEvaluation,
+    getStudentEvaluations,
+    updateStudentEvaluation
 };
