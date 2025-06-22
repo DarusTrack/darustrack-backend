@@ -55,11 +55,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(compression());
 app.use(helmet());
 
-const os = require('os');
-console.log("CPU:", os.cpus());
-console.log("Total RAM:", os.totalmem() / (1024 ** 3), "GB");
-console.log("Platform:", os.platform());
-
 // Routing
 app.use('/', indexRouter);
 app.use('/academic-years', accessValidation, roleValidation(['admin']), academicYearsRouter);
