@@ -1,4 +1,4 @@
-const { AcademicYear, Class, StudentClass } = require('../models');
+const { AcademicYear, Class, Schedule, Subject } = require('../models');
 const { Op } = require('sequelize');
 
 exports.getClassesByAcademicYear = async (req, res) => {
@@ -155,24 +155,54 @@ exports.getActiveClasses = async (req, res) => {
 };
 
 exports.getMyClass = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
-        if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+  try {
+    const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+    if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
 
-        const myClass = await Class.findOne({
-            where: {
-                teacher_id: userId,
-                academic_year_id: activeYear.id
-            }
-        });
+    const myClass = await Class.findOne({
+      where: { teacher_id: req.user.id, academic_year_id: activeYear.id }
+    });
+    if (!myClass) return res.status(404).json({ message: 'Kelas tidak ditemukan untuk wali kelas ini' });
 
-        if (!myClass) {
-            return res.status(404).json({ message: 'Kelas tidak ditemukan untuk wali kelas ini di tahun ajaran aktif' });
-        }
+    return res.json({ message: 'Kelas wali kelas berhasil ditemukan', class: myClass });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error mengambil data kelas', error: error.message });
+  }
+};
 
-        res.json({ message: 'Kelas wali kelas berhasil ditemukan', class: myClass });
-    } catch (error) {
-        res.status(500).json({ message: 'Error mengambil data kelas wali kelas', error });
-    }
+exports.getSchedules = async (req, res) => {
+  try {
+    const { day } = req.query;
+    const activeYear = await AcademicYear.findOne({ where: { is_active: true } });
+    if (!activeYear) return res.status(404).json({ message: 'Tahun ajaran aktif tidak ditemukan' });
+
+    const myClass = await Class.findOne({
+      where: { teacher_id: req.user.id, academic_year_id: activeYear.id }
+    });
+    if (!myClass) return res.status(404).json({ message: 'Anda tidak mengampu kelas' });
+
+    const where = { class_id: myClass.id };
+    if (day) where.day = day;
+
+    const schedules = await Schedule.findAll({
+      where,
+      include: { model: Subject, as: 'subject', attributes: ['id', 'name'] },
+      order: [['day', 'ASC'], ['start_time', 'ASC']]
+    });
+
+    const output = schedules.map(s => ({
+      class_id: myClass.id,
+      class_name: myClass.name,
+      subject_id: s.subject_id,
+      subject_name: s.subject.name,
+      day: s.day,
+      start_time: s.start_time,
+      end_time: s.end_time
+    }));
+
+    return res.json(output);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Gagal mengambil jadwal', error: err.message });
+  }
 };
