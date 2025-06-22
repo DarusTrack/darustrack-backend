@@ -8,16 +8,23 @@ const {
   StudentEvaluation, GradeCategory, GradeDetail, StudentGrade 
 } = require('../models');
 const v = new Validator();
-const redis = require('redis');
-const client = redis.createClient();
-const { promisify } = require('util');
-const getAsync = promisify(client.get).bind(client);
-const setExAsync = promisify(client.setex).bind(client);
+const { createClient } = require('redis');
+
+// Initialize Redis client
+let redisClient;
+(async () => {
+  redisClient = createClient({url: process.env.REDIS_URL});
+  redisClient.on('error', (err) => console.error('Redis Client Error', err));
+  await redisClient.connect();
+})();
 
 // Cache middleware
 const cache = (key, ttl = 3600) => async (req, res, next) => {
   try {
-    const cachedData = await getAsync(key);
+    if (!redisClient) {
+      return next();
+    }
+    const cachedData = await redisClient.get(key);
     if (cachedData) return res.json(JSON.parse(cachedData));
     req.cacheKey = key;
     req.cacheTTL = ttl;
@@ -84,8 +91,8 @@ router.get('/student', cache('student_profile'), async (req, res) => {
       }))
     };
 
-    if (req.cacheKey) {
-      await setExAsync(req.cacheKey, req.cacheTTL, JSON.stringify(result));
+    if (req.cacheKey && redisClient) {
+      await redisClient.setEx(req.cacheKey, req.cacheTTL, JSON.stringify(result));
     }
 
     res.json(result);
