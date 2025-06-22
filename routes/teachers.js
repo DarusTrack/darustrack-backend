@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const loadActiveSemester = require('../middleware/loadActiveSemester');
+const loadActiveSemester = require('../middlewares/loadActiveSemester');
 const classCtrl = require('../controllers/classController');
 const attendanceCtrl = require('../controllers/attendanceController');
 const evalCtrl = require('../controllers/evaluationController');
