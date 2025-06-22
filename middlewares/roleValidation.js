@@ -1,24 +1,17 @@
-const roleValidation = (roles) => {
-    return (req, res, next) => {
-        if (!req.user) {
-            return res.status(401).json({ message: "Anda harus login terlebih dahulu" });
-        }
+module.exports = (roles) => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ message: 'Anda harus login' });
 
-        if (!roles.includes(req.user.role)) {
-            console.warn(`Akses ditolak untuk ${req.user.role} ke route ini`);
-            return res.status(403).json({ message: "Akses ditolak" });
-        }
+  if (!roles.includes(req.user.role)) {
+    return res.status(403).json({ message: 'Akses ditolak' });
+  }
 
-        if (req.user.role === 'wali_kelas' && req.user.class_id !== req.params.class_id) {
-            return res.status(403).json({ message: 'You do not have permission to access this class data' });
-        }
+  // validasi khusus wali_kelas / kepala_sekolah (jika masih dibutuhkan)
+  if (req.user.role === 'wali_kelas' && req.user.class_id !== req.params.class_id) {
+    return res.status(403).json({ message: 'Tidak berwenang mengakses data kelas ini' });
+  }
+  if (req.user.role === 'kepala_sekolah' && req.params.class_id) {
+    return res.status(403).json({ message: 'Kepala sekolah tidak memerlukan class_id' });
+  }
 
-        if (req.user.role === 'kepala_sekolah' && req.params.class_id) {
-            return res.status(403).json({ message: 'Kepala sekolah tidak memerlukan class_id di URL' });
-        }
-        
-        next();
-    };
+  next();
 };
-
-module.exports = roleValidation;
