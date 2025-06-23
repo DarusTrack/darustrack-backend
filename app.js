@@ -8,7 +8,6 @@ const cors = require('cors');
 const compression = require('compression');
 const helmet = require('helmet');
 
-const debugRouter = require('./routes/debug');
 const indexRouter = require('./routes/index');
 const authRouter = require('./routes/authRoutes');
 const academicYearsRouter = require('./routes/academicYearRoutes');
@@ -25,6 +24,14 @@ const accessValidation = require('./middlewares/accessValidation');
 const roleValidation = require('./middlewares/roleValidation');
 
 const app = express();
+const os = require('os');
+
+console.log('Server specs:');
+console.log(`Platform: ${os.platform()}`);
+console.log(`Architecture: ${os.arch()}`);
+console.log(`CPU Info:`, os.cpus());
+console.log(`Total Memory: ${Math.round(os.totalmem() / 1024 / 1024)} MB`);
+console.log(`Free Memory: ${Math.round(os.freemem() / 1024 / 1024)} MB`);
 
 const allowedOrigins = [
   'http://localhost:3000',
@@ -57,7 +64,6 @@ app.use(compression());
 app.use(helmet());
 
 // Routing
-app.use('/debug', debugRouter);
 app.use('/', indexRouter);
 app.use('/academic-years', accessValidation, roleValidation(['admin']), academicYearsRouter);
 app.use('/semesters', accessValidation, semestersRouter);
