@@ -8,6 +8,7 @@ const cors = require('cors');
 const compression = require('compression');
 const helmet = require('helmet');
 
+const debugRouter = require('./routes/debug');
 const indexRouter = require('./routes/index');
 const authRouter = require('./routes/authRoutes');
 const academicYearsRouter = require('./routes/academicYearRoutes');
@@ -56,6 +57,7 @@ app.use(compression());
 app.use(helmet());
 
 // Routing
+app.use('/debug', debugRouter);
 app.use('/', indexRouter);
 app.use('/academic-years', accessValidation, roleValidation(['admin']), academicYearsRouter);
 app.use('/semesters', accessValidation, semestersRouter);
